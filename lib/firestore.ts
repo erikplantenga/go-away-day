@@ -473,6 +473,16 @@ export async function setWinner(city: string): Promise<void> {
   await setConfig({ winnerLocked: true, winnerCity: city });
 }
 
+/** Wis alle speldata (alleen voor development/testing). Werkt alleen met localStorage. */
+export function clearGameData(): void {
+  if (isDemoMode() || isPreviewMode()) return;
+  if (useBackend() !== "local") {
+    console.warn("clearGameData werkt alleen met localStorage backend");
+    return;
+  }
+  local.clearGameData();
+}
+
 /** Winnaar uit spins: meeste punten per stad; bij gelijkstand meeste spins op die stad; anders alfabetisch eerste. */
 export function computeWinner(
   spins: (SpinEntry & { id?: string })[]
