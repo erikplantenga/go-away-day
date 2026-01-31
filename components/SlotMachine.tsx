@@ -12,7 +12,9 @@ import { getCurrentDateString } from "@/lib/dates";
 import { getRevealTime } from "@/lib/dates";
 import { WinnerScreen } from "@/components/WinnerScreen";
 
-const REVEAL_DELAY_MS = 700;
+const REVEAL_DELAY_MS = 1400;
+const PAUSE_AFTER_LAST_MS = 1800;
+const DEMO_SPINS_REQUIRED = 3;
 
 type Props = {
   currentUser: UserId;
@@ -27,6 +29,7 @@ function pickRandom<T>(arr: T[]): T {
 export function SlotMachine({ currentUser, onRevealComplete }: Props) {
   const [countries, setCountries] = useState<string[]>([]);
   const [alreadySpun, setAlreadySpun] = useState(false);
+  const [demoSpinCount, setDemoSpinCount] = useState(0);
   const [spinning, setSpinning] = useState(false);
   const [results, setResults] = useState<(string | null)[]>([null, null, null]);
   const [loading, setLoading] = useState(true);
@@ -37,6 +40,8 @@ export function SlotMachine({ currentUser, onRevealComplete }: Props) {
   const timeoutsRef = useRef<ReturnType<typeof setTimeout>[]>([]);
 
   const isDemo = typeof window !== "undefined" && isDemoMode();
+  const demoDone = isDemo && demoSpinCount >= DEMO_SPINS_REQUIRED;
+  const canSpin = isDemo ? !demoDone && !spinning : !alreadySpun && !spinning;
 
   useEffect(() => {
     let cancelled = false;
@@ -44,8 +49,10 @@ export function SlotMachine({ currentUser, onRevealComplete }: Props) {
       try {
         const list = await getRemainingCountries();
         if (!cancelled) setCountries(list);
-        const spun = await hasUserSpunToday(currentUser, dateStr);
-        if (!cancelled) setAlreadySpun(spun);
+        if (!isDemo) {
+          const spun = await hasUserSpunToday(currentUser, dateStr);
+          if (!cancelled) setAlreadySpun(spun);
+        }
       } catch (e) {
         if (!cancelled) setError(e instanceof Error ? e.message : "Laden mislukt");
       } finally {
@@ -56,7 +63,7 @@ export function SlotMachine({ currentUser, onRevealComplete }: Props) {
     return () => {
       cancelled = true;
     };
-  }, [currentUser, dateStr]);
+  }, [currentUser, dateStr, isDemo]);
 
   useEffect(() => {
     return () => {
@@ -65,7 +72,7 @@ export function SlotMachine({ currentUser, onRevealComplete }: Props) {
   }, []);
 
   const handleSpin = () => {
-    if (countries.length === 0 || alreadySpun || spinning) return;
+    if (countries.length === 0 || !canSpin) return;
     setSpinning(true);
     setError(null);
     setResults([null, null, null]);
@@ -75,22 +82,30 @@ export function SlotMachine({ currentUser, onRevealComplete }: Props) {
       pickRandom(countries),
     ];
     const chosen = three[1]!; // middelste telt voor de spin
+    const isLastDemoSpin = isDemo && demoSpinCount + 1 >= DEMO_SPINS_REQUIRED;
     timeoutsRef.current.forEach((t) => clearTimeout(t));
     timeoutsRef.current = [
       setTimeout(() => setResults((r) => [three[0]!, r[1], r[2]]), REVEAL_DELAY_MS),
       setTimeout(() => setResults((r) => [r[0], three[1]!, r[2]]), REVEAL_DELAY_MS * 2),
+      setTimeout(() => setResults([three[0]!, three[1]!, three[2]!]), REVEAL_DELAY_MS * 3),
       setTimeout(() => {
-        setResults([three[0]!, three[1]!, three[2]!]);
         addSpin(currentUser, chosen, dateStr, 1)
-          .then(() => setAlreadySpun(true))
+          .then(() => {
+            if (isDemo) {
+              setDemoSpinCount((n) => n + 1);
+              if (isLastDemoSpin) setAlreadySpun(true);
+            } else {
+              setAlreadySpun(true);
+            }
+          })
           .catch((e) => setError(e instanceof Error ? e.message : "Spin mislukt"))
           .finally(() => setSpinning(false));
-      }, REVEAL_DELAY_MS * 3),
+      }, REVEAL_DELAY_MS * 3 + PAUSE_AFTER_LAST_MS),
     ];
   };
 
   useEffect(() => {
-    if (!revealRequested || !alreadySpun) return;
+    if (!revealRequested || (!alreadySpun && !demoDone)) return;
     if (isDemo) {
       let sec = 10;
       setCountdownSec(sec);
@@ -112,7 +127,7 @@ export function SlotMachine({ currentUser, onRevealComplete }: Props) {
     update();
     const t = setInterval(update, 1000);
     return () => clearInterval(t);
-  }, [revealRequested, alreadySpun, isDemo, onRevealComplete]);
+  }, [revealRequested, alreadySpun, demoDone, isDemo, onRevealComplete]);
 
   if (loading) {
     return <p className="text-center text-foreground/70">Laden...</p>;
@@ -151,10 +166,17 @@ export function SlotMachine({ currentUser, onRevealComplete }: Props) {
     );
   }
 
-  if (alreadySpun) {
+  if (alreadySpun || demoDone) {
     return (
       <div className="space-y-5 rounded-2xl border-4 border-amber-500/60 bg-gradient-to-b from-amber-500/20 to-amber-600/10 p-6 shadow-xl shadow-amber-500/20">
-        <p className="text-center text-lg font-bold text-foreground">Je hebt gespind.</p>
+        <p className="text-center text-lg font-bold text-foreground">
+          {isDemo ? `Je hebt ${DEMO_SPINS_REQUIRED}× gespind.` : "Je hebt gespind."}
+        </p>
+        {isDemo && (
+          <p className="text-center text-sm italic text-foreground/80">
+            {currentUser === "erik" ? "Benno" : "Erik"} heeft ook gespind.
+          </p>
+        )}
         <button
           type="button"
           onClick={() => setRevealRequested(true)}
@@ -191,7 +213,17 @@ export function SlotMachine({ currentUser, onRevealComplete }: Props) {
       </div>
       <p className="text-center text-sm font-medium text-foreground/80">
         Landen uit de 4 overgebleven steden.
+        {isDemo && (
+          <span className="block mt-1 text-foreground/70">
+            Demo: {demoSpinCount}/{DEMO_SPINS_REQUIRED} spins
+          </span>
+        )}
       </p>
+      {isDemo && demoSpinCount > 0 && (
+        <p className="text-center text-sm italic text-foreground/80">
+          {currentUser === "erik" ? "Benno" : "Erik"} heeft ook gespind.
+        </p>
+      )}
       <button
         type="button"
         disabled={spinning}

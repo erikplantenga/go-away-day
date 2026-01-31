@@ -31,6 +31,7 @@ export function DemoFlow({ currentUser }: Props) {
   }, []);
 
   const goToWegstreep = async () => {
+    await ensureDemoCitiesFilled();
     const other = currentUser === "erik" ? "benno" : "erik";
     await ensureDemoOtherUserStruckThree(other);
     setStep("wegstreep");
@@ -87,7 +88,7 @@ export function DemoFlow({ currentUser }: Props) {
   return (
     <div className="space-y-4">
       <p className="text-center text-sm text-foreground/70">🏆 Het feest is rond – winnaar!</p>
-      <WinnerScreen demoWinner="Frankrijk" />
+      <WinnerScreen demoWinner="Frankrijk" demoWinnerCity="Parijs" />
     </div>
   );
 }

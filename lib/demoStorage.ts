@@ -90,20 +90,20 @@ export async function combineAndDedupeCities(): Promise<CityEntry[]> {
   return deduped;
 }
 
-/** Voorg invulde steden voor de demo: start met "dit zijn je gekozen steden". */
+/** Voorg invulde steden voor de demo: 10 steden over de hele wereld. */
 const DEMO_CITIES_ERIK: CityEntry[] = [
   { city: "Amsterdam", country: "Nederland", addedBy: "erik" },
-  { city: "Rotterdam", country: "Nederland", addedBy: "erik" },
-  { city: "Den Haag", country: "Nederland", addedBy: "erik" },
-  { city: "Utrecht", country: "Nederland", addedBy: "erik" },
-  { city: "Eindhoven", country: "Nederland", addedBy: "erik" },
+  { city: "Tokyo", country: "Japan", addedBy: "erik" },
+  { city: "Barcelona", country: "Spanje", addedBy: "erik" },
+  { city: "New York", country: "Verenigde Staten", addedBy: "erik" },
+  { city: "Marrakesh", country: "Marokko", addedBy: "erik" },
 ];
 const DEMO_CITIES_BENNO: CityEntry[] = [
   { city: "Parijs", country: "Frankrijk", addedBy: "benno" },
-  { city: "Lyon", country: "Frankrijk", addedBy: "benno" },
-  { city: "Marseille", country: "Frankrijk", addedBy: "benno" },
-  { city: "Bordeaux", country: "Frankrijk", addedBy: "benno" },
-  { city: "Nice", country: "Frankrijk", addedBy: "benno" },
+  { city: "Berlijn", country: "Duitsland", addedBy: "benno" },
+  { city: "Lissabon", country: "Portugal", addedBy: "benno" },
+  { city: "Buenos Aires", country: "Argentinië", addedBy: "benno" },
+  { city: "Sydney", country: "Australië", addedBy: "benno" },
 ];
 
 export async function ensureDemoCitiesFilled(): Promise<void> {
@@ -111,13 +111,21 @@ export async function ensureDemoCitiesFilled(): Promise<void> {
     getCitySubmission("erik"),
     getCitySubmission("benno"),
   ]);
-  if (erik && erik.length >= 5 && benno && benno.length >= 5) return;
-  await setCitySubmission("erik", DEMO_CITIES_ERIK);
-  await setCitySubmission("benno", DEMO_CITIES_BENNO);
+  if (!erik || erik.length < 5) await setCitySubmission("erik", DEMO_CITIES_ERIK);
+  if (!benno || benno.length < 5) await setCitySubmission("benno", DEMO_CITIES_BENNO);
   await combineAndDedupeCities();
 }
 
-/** Zorg dat de andere speler in de demo ook 3 weggestreept heeft (automatisch). */
+function shuffle<T>(arr: T[]): T[] {
+  const out = [...arr];
+  for (let i = out.length - 1; i > 0; i--) {
+    const j = Math.floor(Math.random() * (i + 1));
+    [out[i], out[j]] = [out[j]!, out[i]!];
+  }
+  return out;
+}
+
+/** Zorg dat de andere speler in de demo ook 3 willekeurige weggestreept heeft (automatisch). */
 export async function ensureDemoOtherUserStruckThree(otherUser: UserId): Promise<void> {
   const [cities, removedList] = await Promise.all([getCities(), getRemoved()]);
   const removedSet = new Set(
@@ -128,13 +136,10 @@ export async function ensureDemoOtherUserStruckThree(otherUser: UserId): Promise
   const remaining = cities.filter(
     (c) => !removedSet.has(`${c.city}|${c.country}`)
   );
+  const toStrike = shuffle(remaining).slice(0, 3 - otherCount);
   const dateStr = new Date().toISOString().slice(0, 10);
-  let added = 0;
-  for (const c of remaining) {
-    if (added >= 3 - otherCount) break;
+  for (const c of toStrike) {
     await addRemoved(c.city, c.country, otherUser, dateStr);
-    removedSet.add(`${c.city}|${c.country}`);
-    added++;
   }
 }
 

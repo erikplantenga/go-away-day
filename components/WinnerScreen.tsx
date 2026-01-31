@@ -18,11 +18,13 @@ function formatCountdown(ms: number): string {
 }
 
 type WinnerScreenProps = {
-  /** Demo: toon direct deze winnaar zonder laden */
+  /** Demo: toon direct deze winnaar (land) zonder laden */
   demoWinner?: string;
+  /** Demo: toon ook een stad als uitslag */
+  demoWinnerCity?: string;
 };
 
-export function WinnerScreen({ demoWinner }: WinnerScreenProps = {}) {
+export function WinnerScreen({ demoWinner, demoWinnerCity }: WinnerScreenProps = {}) {
   const [winner, setWinnerState] = useState<string | null>(demoWinner ?? null);
   const [loading, setLoading] = useState(!demoWinner);
   const [error, setError] = useState<string | null>(null);
@@ -130,13 +132,17 @@ export function WinnerScreen({ demoWinner }: WinnerScreenProps = {}) {
     );
   }
 
+  const displayWinner = demoWinnerCity && demoWinner
+    ? `${demoWinnerCity}, ${demoWinner}`
+    : winner ?? "";
+
   return (
     <div className="rounded-xl border-2 border-foreground/20 bg-foreground/5 p-8 text-center">
       <p className="mb-2 text-sm font-medium uppercase tracking-wider text-foreground/70">
         Winnaar
       </p>
       <p className="animate-pulse text-3xl font-bold text-foreground">
-        WINNAAR: {winner}
+        WINNAAR: {displayWinner}
       </p>
       <p className="mt-4 text-sm text-foreground/70">
         Daar gaan we heen in oktober 2026!
