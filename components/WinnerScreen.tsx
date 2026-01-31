@@ -7,13 +7,40 @@ import {
   computeWinner,
   setWinner,
 } from "@/lib/firestore";
+import { isAfterRevealTime, getRevealTime } from "@/lib/dates";
+
+function formatCountdown(ms: number): string {
+  if (ms <= 0) return "0:00";
+  const totalSec = Math.floor(ms / 1000);
+  const min = Math.floor(totalSec / 60);
+  const sec = totalSec % 60;
+  return `${min}:${sec.toString().padStart(2, "0")}`;
+}
 
 export function WinnerScreen() {
   const [winner, setWinnerState] = useState<string | null>(null);
   const [loading, setLoading] = useState(true);
   const [error, setError] = useState<string | null>(null);
+  const [clicked, setClicked] = useState(false);
+  const [countdown, setCountdown] = useState<string>("");
+
+  const showReveal = isAfterRevealTime();
 
   useEffect(() => {
+    if (!showReveal && clicked) {
+      const revealAt = getRevealTime();
+      const update = () => {
+        const left = revealAt.getTime() - Date.now();
+        setCountdown(left <= 0 ? "0:00" : formatCountdown(left));
+      };
+      update();
+      const t = setInterval(update, 1000);
+      return () => clearInterval(t);
+    }
+  }, [showReveal, clicked]);
+
+  useEffect(() => {
+    if (!showReveal) return;
     let cancelled = false;
     async function load() {
       try {
@@ -52,7 +79,33 @@ export function WinnerScreen() {
     return () => {
       cancelled = true;
     };
-  }, []);
+  }, [showReveal]);
+
+  if (!showReveal) {
+    return (
+      <div className="rounded-xl border-2 border-foreground/20 bg-foreground/5 p-8 text-center">
+        {!clicked ? (
+          <button
+            type="button"
+            onClick={() => setClicked(true)}
+            className="rounded-lg bg-foreground px-6 py-3 font-medium text-background"
+          >
+            Klik hier voor uitslag
+          </button>
+        ) : (
+          <div>
+            <p className="text-lg font-medium text-foreground">
+              De uitslag komt om 20:30, spannend he?
+            </p>
+            <p className="mt-4 text-2xl font-mono font-bold tabular-nums text-foreground">
+              {countdown}
+            </p>
+            <p className="mt-1 text-sm text-foreground/70">nog te gaan</p>
+          </div>
+        )}
+      </div>
+    );
+  }
 
   if (loading) {
     return <p className="text-center text-foreground/70">Laden...</p>;
