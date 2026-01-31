@@ -2,20 +2,20 @@
 
 import { useState, useEffect } from "react";
 import type { UserId } from "@/lib/firestore";
-
-function setDemoMode(on: boolean) {
-  if (typeof window === "undefined") return;
-  (window as unknown as { __GO_AWAY_DAY_DEMO__?: boolean }).__GO_AWAY_DAY_DEMO__ = on;
-}
+import { setWinner, getSpins, getRemainingCities, computeWinner } from "@/lib/firestore";
 import { CityInputForm } from "@/components/CityInputForm";
 import { WegstreepList } from "@/components/WegstreepList";
 import { SlotMachine } from "@/components/SlotMachine";
 import { Leaderboard } from "@/components/Leaderboard";
 import { WinnerScreen } from "@/components/WinnerScreen";
-import { setWinner } from "@/lib/firestore";
 import { ensureDemoCitiesFilled, ensureDemoOtherUserStruckThree, ensureFruitMachineDemoData } from "@/lib/demoStorage";
 import { getFactForDate } from "@/lib/dailyFacts";
 import { getCurrentDateString } from "@/lib/dates";
+
+function setDemoMode(on: boolean) {
+  if (typeof window === "undefined") return;
+  (window as unknown as { __GO_AWAY_DAY_DEMO__?: boolean }).__GO_AWAY_DAY_DEMO__ = on;
+}
 
 type DemoStep = "cities" | "wegstreep" | "fruitautomaat" | "finale";
 
@@ -23,6 +23,7 @@ type Props = { currentUser: UserId };
 
 export function DemoFlow({ currentUser }: Props) {
   const [step, setStep] = useState<DemoStep>("cities");
+  const [demoWinnerCity, setDemoWinnerCity] = useState<string>("Parijs");
 
   useEffect(() => {
     setDemoMode(true);
@@ -42,9 +43,16 @@ export function DemoFlow({ currentUser }: Props) {
   };
   const goToFinale = async () => {
     try {
-      await setWinner("Parijs");
+      const [spins, remaining] = await Promise.all([getSpins(), getRemainingCities()]);
+      const remainingCityNames = new Set(remaining.map((c) => c.city));
+      let winner = computeWinner(spins);
+      if (!winner || !remainingCityNames.has(winner)) {
+        winner = remaining[0]?.city ?? "Parijs";
+      }
+      await setWinner(winner);
+      setDemoWinnerCity(winner);
     } catch {
-      // demo: toon uitslag ook als backend faalt
+      setDemoWinnerCity("Parijs");
     }
     setStep("finale");
   };
@@ -88,7 +96,7 @@ export function DemoFlow({ currentUser }: Props) {
   return (
     <div className="space-y-4">
       <p className="text-center text-sm text-foreground/70">🏆 Het feest is rond – winnaar!</p>
-      <WinnerScreen demoWinner="Parijs" />
+      <WinnerScreen demoWinner={demoWinnerCity} />
     </div>
   );
 }
