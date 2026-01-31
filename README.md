@@ -25,14 +25,12 @@ Open **http://localhost:3000/erik?token=test** of **/benno?token=test**. Geen Fi
 
 ## Uploaden & testlink
 
-**Als Vercel eenmaal aan je GitHub-repo gekoppeld is:** elke push naar `main` wordt automatisch gedeployed. Geen Vercel CLI nodig.
+**Puur voor visuals (geen data):** push naar `main` → automatisch op **GitHub Pages**.  
+→ `https://[jouw-username].github.io/go-away-day/erik?preview=echt`  
+Eenmalig: repo **Settings** → **Pages** → Source: **GitHub Actions**. Zie [DEPLOY.md](DEPLOY.md).
 
-- **Uploaden:** commit + push (in Cursor: Source Control → Commit → Push).
-- **Testlink (preview met vooringevulde data):**  
-  `https://JOUW-PROJECT.vercel.app/erik?preview=echt`  
-  (vervang `JOUW-PROJECT` door je echte Vercel-URL, bv. `go-away-day-xxx`.)
-
-Werkt de testlink niet? → [DEPLOY.md](DEPLOY.md) (controleren of Vercel aan GitHub hangt en deploy slaagt).
+**Met Vercel (voor echte data):** als Vercel aan GitHub hangt, deployt elke push daar ook.  
+Testlink: `https://JOUW-PROJECT.vercel.app/erik?preview=echt`
 
 ---
 

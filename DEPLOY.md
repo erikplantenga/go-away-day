@@ -1,10 +1,25 @@
 # Deploy & testlink laten werken
 
-Als de testlink (`...?preview=echt`) niet werkt, komt dat bijna altijd doordat Vercel niet (meer) automatisch deployt na een push. Zo los je het op.
+---
+
+## Testlink puur via GitHub (geen Vercel, geen data)
+
+**Voor alleen de visuals** – geen backend, geen Vercel nodig. Elke push naar `main` bouwt en deployt automatisch naar **GitHub Pages**.
+
+1. **Eenmalig:** op GitHub → je repo **go-away-day** → **Settings** → **Pages**.
+2. Onder **Build and deployment** kies **Source:** **GitHub Actions**.
+3. Na de eerste push op `main` draait de workflow; daarna staat je site op:
+   - **https://[jouw-github-username].github.io/go-away-day/erik?preview=echt**
+
+Geen token nodig; preview gebruikt alleen localStorage. Werkt meteen na elke push.
 
 ---
 
-## 1. Vercel aan GitHub koppelen (eenmalig)
+## Vercel (als je later wél data wilt)
+
+Als de testlink via Vercel niet werkt, komt dat vaak doordat Vercel niet (meer) automatisch deployt na een push.
+
+### 1. Vercel aan GitHub koppelen (eenmalig)
 
 1. Ga naar **https://vercel.com** en log in (bij voorkeur met **GitHub**).
 2. Klik **Add New** → **Project**.

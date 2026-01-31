@@ -1,5 +1,9 @@
 import { NextRequest, NextResponse } from "next/server";
 import { getRedis } from "@/lib/upstash-server";
+
+// Static export (GitHub Pages): geen server
+export const dynamic = "force-static";
+export const revalidate = false;
 import * as fb from "@/lib/firebase-admin";
 import type { CityEntry, RemovedEntry, GameConfig } from "@/lib/firestore";
 
