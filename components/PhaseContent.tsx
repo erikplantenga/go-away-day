@@ -8,6 +8,7 @@ import { WegstreepList } from "@/components/WegstreepList";
 import { SlotMachine } from "@/components/SlotMachine";
 import { Leaderboard } from "@/components/Leaderboard";
 import { WinnerScreen } from "@/components/WinnerScreen";
+import { DemoFeest } from "@/components/DemoFeest";
 
 type Props = { currentUser: UserId };
 
@@ -26,18 +27,15 @@ export function PhaseContent({ currentUser }: Props) {
             <button
               type="button"
               onClick={() => setShowDemo(true)}
-              className="rounded-lg border border-foreground/20 bg-foreground/5 px-4 py-2 text-sm font-medium text-foreground"
+              className="rounded-xl border-2 border-amber-500/50 bg-gradient-to-r from-amber-500/20 to-orange-500/20 px-6 py-3 text-base font-semibold text-foreground shadow-lg shadow-amber-500/20 transition hover:from-amber-500/30 hover:to-orange-500/30"
             >
-              Demo bekijken
+              🎉 Demo bekijken – feest! 🎉
             </button>
           </div>
         ) : (
-          <div className="space-y-2">
-            <p className="text-center text-sm text-foreground/60">
-              Dit is een demo – de echte ronde start 1 februari.
-            </p>
+          <DemoFeest>
             <CityInputForm currentUser={currentUser} />
-          </div>
+          </DemoFeest>
         )}
       </div>
     );

@@ -47,3 +47,26 @@ select {
   min-height: 44px;
   font-size: 16px; /* voorkomt iOS zoom bij focus */
 }
+
+/* Zwevende animatie voor startpagina-feest */
+@keyframes float {
+  0%, 100% {
+    transform: translate(0, 0) rotate(0deg);
+    opacity: 0.7;
+  }
+  25% {
+    transform: translate(20px, -30px) rotate(10deg);
+    opacity: 0.9;
+  }
+  50% {
+    transform: translate(-15px, 20px) rotate(-5deg);
+    opacity: 0.8;
+  }
+  75% {
+    transform: translate(25px, 10px) rotate(8deg);
+    opacity: 0.85;
+  }
+}
+.animate-float {
+  animation: float 10s ease-in-out infinite;
+}

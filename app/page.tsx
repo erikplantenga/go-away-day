@@ -1,8 +1,10 @@
 import { ZoWerktHet } from "@/components/ZoWerktHet";
+import { StartPaginaFeest } from "@/components/StartPaginaFeest";
 
 export default function Home() {
   return (
-    <div className="space-y-4">
+    <div className="relative space-y-4">
+      <StartPaginaFeest />
       <ZoWerktHet />
       <div className="rounded-lg border border-foreground/10 bg-background p-6 text-center">
         <p className="text-lg text-foreground/90">

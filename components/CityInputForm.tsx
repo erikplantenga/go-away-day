@@ -1,6 +1,6 @@
 "use client";
 
-import { useState, useEffect } from "react";
+import { useState, useEffect, useRef } from "react";
 import type { UserId } from "@/lib/firestore";
 import {
   getCitySubmission,
@@ -10,6 +10,41 @@ import {
   getCities,
   type CityEntry,
 } from "@/lib/firestore";
+
+const DRAFT_KEY = "go-away-day-city-draft";
+
+function getDraftKey(user: UserId): string {
+  return `${DRAFT_KEY}-${user}`;
+}
+
+function loadDraft(user: UserId): CityEntry[] | null {
+  if (typeof window === "undefined") return null;
+  try {
+    const raw = localStorage.getItem(getDraftKey(user));
+    if (!raw) return null;
+    const arr = JSON.parse(raw) as unknown;
+    if (!Array.isArray(arr) || arr.length !== 5) return null;
+    const ok = arr.every(
+      (x) => x && typeof x.city === "string" && typeof x.country === "string"
+    );
+    if (!ok) return null;
+    return arr.map((c: { city: string; country: string }) => ({
+      city: String(c.city),
+      country: String(c.country),
+      addedBy: user,
+    }));
+  } catch {
+    return null;
+  }
+}
+
+function saveDraft(user: UserId, cities: CityEntry[]): void {
+  if (typeof window === "undefined") return;
+  try {
+    const toSave = cities.map(({ city, country, addedBy }) => ({ city, country, addedBy }));
+    localStorage.setItem(getDraftKey(user), JSON.stringify(toSave));
+  } catch {}
+}
 
 type Props = { currentUser: UserId };
 
@@ -73,6 +108,9 @@ export function CityInputForm({ currentUser }: Props) {
           const padded = [...mySubmission];
           while (padded.length < 5) padded.push({ city: "", country: "", addedBy: currentUser });
           setCitiesState(padded.slice(0, 5));
+        } else {
+          const draft = loadDraft(currentUser);
+          if (draft && draft.length === 5) setCitiesState(draft);
         }
         const existing = await getCities();
         if (existing.length > 0) setCombined(true);
@@ -91,6 +129,19 @@ export function CityInputForm({ currentUser }: Props) {
       cancelled = true;
     };
   }, [currentUser]);
+
+  const saveDraftRef = useRef<ReturnType<typeof setTimeout> | null>(null);
+
+  useEffect(() => {
+    if (submitted === true || combined || loading) return;
+    saveDraftRef.current = setTimeout(() => {
+      saveDraftRef.current = null;
+      saveDraft(currentUser, cities);
+    }, 400);
+    return () => {
+      if (saveDraftRef.current) clearTimeout(saveDraftRef.current);
+    };
+  }, [cities, currentUser, submitted, combined, loading]);
 
   const handleChange = (index: number, field: "city" | "country", value: string) => {
     setCitiesState((prev) => {
@@ -149,6 +200,7 @@ export function CityInputForm({ currentUser }: Props) {
     setError(null);
     try {
       await setCitySubmission(currentUser, entries);
+      if (typeof window !== "undefined") localStorage.removeItem(getDraftKey(currentUser));
       setSubmitted(true);
       const both = await hasBothSubmitted();
       if (both) {

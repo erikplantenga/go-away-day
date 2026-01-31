@@ -5,6 +5,7 @@ import { validateToken, isValidUserSegment } from "@/lib/auth";
 import { PhaseBanner } from "@/components/PhaseBanner";
 import { PhaseContent } from "@/components/PhaseContent";
 import { ZoWerktHet } from "@/components/ZoWerktHet";
+import { FeestDag } from "@/components/FeestDag";
 type Props = { user: string };
 
 export function UserPageClient({ user }: Props) {
@@ -30,6 +31,7 @@ export function UserPageClient({ user }: Props) {
 
   return (
     <>
+      <FeestDag />
       <ZoWerktHet showDemoHint />
       <div className="mb-6 rounded-lg border border-foreground/10 bg-background p-4">
         <PhaseBanner />
