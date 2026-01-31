@@ -1,19 +1,22 @@
 "use client";
 
 import { useState, useEffect, useRef } from "react";
-import type { UserId } from "@/lib/firestore";
+import type { UserId, CityEntry } from "@/lib/firestore";
 import {
   getRemainingCountries,
+  getRemainingCities,
   addSpin,
   hasUserSpunToday,
   isDemoMode,
 } from "@/lib/firestore";
-import { getCurrentDateString } from "@/lib/dates";
-import { getRevealTime } from "@/lib/dates";
+import { getCurrentDateString, getRevealTime, getSpinOpenTime, isSpinOpenToday } from "@/lib/dates";
 import { WinnerScreen } from "@/components/WinnerScreen";
+import { ConfettiBurst } from "@/components/ConfettiBurst";
+import { Fireworks } from "@/components/Fireworks";
 
 const REVEAL_DELAY_MS = 1400;
 const PAUSE_AFTER_LAST_MS = 1800;
+const PAUSE_BEFORE_REVEAL_MS = 500; // Eerst slots leeg tonen, dan pas nieuwe spin
 const DEMO_SPINS_REQUIRED = 3;
 
 type Props = {
@@ -26,8 +29,39 @@ function pickRandom<T>(arr: T[]): T {
   return arr[Math.floor(Math.random() * arr.length)]!;
 }
 
+function formatCountdown(ms: number): string {
+  if (ms <= 0) return "0:00";
+  const totalSec = Math.floor(ms / 1000);
+  const min = Math.floor(totalSec / 60);
+  const sec = totalSec % 60;
+  return `${min}:${sec.toString().padStart(2, "0")}`;
+}
+
+function SpinCountdownTo10() {
+  const [countdown, setCountdown] = useState("");
+  useEffect(() => {
+    const update = () => {
+      const openAt = getSpinOpenTime();
+      const left = Math.max(0, openAt.getTime() - Date.now());
+      setCountdown(formatCountdown(left));
+    };
+    update();
+    const t = setInterval(update, 1000);
+    return () => clearInterval(t);
+  }, []);
+
+  return (
+    <div className="space-y-4 rounded-2xl border-4 border-amber-500/60 bg-gradient-to-b from-amber-500/20 to-amber-600/10 p-6 shadow-xl shadow-amber-500/20 text-center">
+      <p className="text-lg font-bold text-foreground">Je mag vandaag 1× spinnen vanaf 10:00</p>
+      <p className="text-3xl font-mono font-bold tabular-nums text-foreground">{countdown}</p>
+      <p className="text-sm text-foreground/70">nog tot 10:00</p>
+    </div>
+  );
+}
+
 export function SlotMachine({ currentUser, onRevealComplete }: Props) {
   const [countries, setCountries] = useState<string[]>([]);
+  const [demoCities, setDemoCities] = useState<CityEntry[]>([]);
   const [alreadySpun, setAlreadySpun] = useState(false);
   const [demoSpinCount, setDemoSpinCount] = useState(0);
   const [spinning, setSpinning] = useState(false);
@@ -36,20 +70,26 @@ export function SlotMachine({ currentUser, onRevealComplete }: Props) {
   const [error, setError] = useState<string | null>(null);
   const [revealRequested, setRevealRequested] = useState(false);
   const [countdownSec, setCountdownSec] = useState<number | null>(null);
+  const [fireworksKey, setFireworksKey] = useState(0);
+  const [showFireworks, setShowFireworks] = useState(false);
   const dateStr = getCurrentDateString();
   const timeoutsRef = useRef<ReturnType<typeof setTimeout>[]>([]);
 
   const isDemo = typeof window !== "undefined" && isDemoMode();
   const demoDone = isDemo && demoSpinCount >= DEMO_SPINS_REQUIRED;
   const canSpin = isDemo ? !demoDone && !spinning : !alreadySpun && !spinning;
+  const itemsCount = isDemo ? demoCities.length : countries.length;
 
   useEffect(() => {
     let cancelled = false;
     async function load() {
       try {
-        const list = await getRemainingCountries();
-        if (!cancelled) setCountries(list);
-        if (!isDemo) {
+        if (isDemo) {
+          const cities = await getRemainingCities();
+          if (!cancelled) setDemoCities(cities);
+        } else {
+          const list = await getRemainingCountries();
+          if (!cancelled) setCountries(list);
           const spun = await hasUserSpunToday(currentUser, dateStr);
           if (!cancelled) setAlreadySpun(spun);
         }
@@ -71,25 +111,48 @@ export function SlotMachine({ currentUser, onRevealComplete }: Props) {
     };
   }, []);
 
+  useEffect(() => {
+    if (!showFireworks) return;
+    const t = setTimeout(() => setShowFireworks(false), 6000);
+    return () => clearTimeout(t);
+  }, [showFireworks]);
+
   const handleSpin = () => {
-    if (countries.length === 0 || !canSpin) return;
+    if (itemsCount === 0 || !canSpin) return;
     setSpinning(true);
     setError(null);
     setResults([null, null, null]);
-    const three: string[] = [
-      pickRandom(countries),
-      pickRandom(countries),
-      pickRandom(countries),
-    ];
-    const chosen = three[1]!; // middelste telt voor de spin
+    let threeNames: string[];
+    let chosenCountry: string;
+    if (isDemo) {
+      const three: CityEntry[] = [
+        pickRandom(demoCities),
+        pickRandom(demoCities),
+        pickRandom(demoCities),
+      ];
+      threeNames = three.map((c) => c.city);
+      chosenCountry = three[1]!.country;
+    } else {
+      threeNames = [
+        pickRandom(countries),
+        pickRandom(countries),
+        pickRandom(countries),
+      ];
+      chosenCountry = threeNames[1]!;
+    }
     const isLastDemoSpin = isDemo && demoSpinCount + 1 >= DEMO_SPINS_REQUIRED;
     timeoutsRef.current.forEach((t) => clearTimeout(t));
+    const start = PAUSE_BEFORE_REVEAL_MS;
     timeoutsRef.current = [
-      setTimeout(() => setResults((r) => [three[0]!, r[1], r[2]]), REVEAL_DELAY_MS),
-      setTimeout(() => setResults((r) => [r[0], three[1]!, r[2]]), REVEAL_DELAY_MS * 2),
-      setTimeout(() => setResults([three[0]!, three[1]!, three[2]!]), REVEAL_DELAY_MS * 3),
+      setTimeout(() => setResults((r) => [threeNames[0]!, r[1], r[2]]), start + REVEAL_DELAY_MS),
+      setTimeout(() => setResults((r) => [r[0], threeNames[1]!, r[2]]), start + REVEAL_DELAY_MS * 2),
       setTimeout(() => {
-        addSpin(currentUser, chosen, dateStr, 1)
+        setResults([threeNames[0]!, threeNames[1]!, threeNames[2]!]);
+        setFireworksKey((k) => k + 1);
+        setShowFireworks(true);
+      }, start + REVEAL_DELAY_MS * 3),
+      setTimeout(() => {
+        addSpin(currentUser, chosenCountry, dateStr, 1)
           .then(() => {
             if (isDemo) {
               setDemoSpinCount((n) => n + 1);
@@ -100,7 +163,7 @@ export function SlotMachine({ currentUser, onRevealComplete }: Props) {
           })
           .catch((e) => setError(e instanceof Error ? e.message : "Spin mislukt"))
           .finally(() => setSpinning(false));
-      }, REVEAL_DELAY_MS * 3 + PAUSE_AFTER_LAST_MS),
+      }, start + REVEAL_DELAY_MS * 3 + PAUSE_AFTER_LAST_MS),
     ];
   };
 
@@ -133,14 +196,18 @@ export function SlotMachine({ currentUser, onRevealComplete }: Props) {
     return <p className="text-center text-foreground/70">Laden...</p>;
   }
 
-  if (countries.length === 0) {
+  if (itemsCount === 0) {
     return (
       <div className="rounded-lg border border-foreground/10 bg-background p-4">
         <p className="text-center text-foreground/70">
-          Nog geen 4 steden over. Eerst wegstrepen afronden.
+          Nog geen steden over. Eerst wegstrepen afronden.
         </p>
       </div>
     );
+  }
+
+  if (!isDemo && !isSpinOpenToday()) {
+    return <SpinCountdownTo10 />;
   }
 
   if (alreadySpun && revealRequested && countdownSec !== null) {
@@ -189,10 +256,17 @@ export function SlotMachine({ currentUser, onRevealComplete }: Props) {
   }
 
   return (
-    <div className="space-y-6 rounded-2xl border-4 border-amber-500/60 bg-gradient-to-b from-amber-500/20 to-amber-600/10 p-6 shadow-xl shadow-amber-500/20">
-      <p className="text-center text-xl font-bold uppercase tracking-wide text-foreground">
-        🎰 Fruitautomaat
-      </p>
+    <>
+      {fireworksKey > 0 && <ConfettiBurst key={fireworksKey} />}
+      {showFireworks && (
+        <div className="pointer-events-none fixed inset-0 z-40 h-full w-full opacity-70">
+          <Fireworks fullScreen />
+        </div>
+      )}
+      <div className="space-y-6 rounded-2xl border-4 border-amber-500/60 bg-gradient-to-b from-amber-500/20 to-amber-600/10 p-6 shadow-xl shadow-amber-500/20">
+        <p className="text-center text-xl font-bold uppercase tracking-wide text-foreground">
+          🎰 Fruitautomaat
+        </p>
       <div className="flex justify-center gap-3 sm:gap-4">
         {[0, 1, 2].map((i) => (
           <div
@@ -212,7 +286,7 @@ export function SlotMachine({ currentUser, onRevealComplete }: Props) {
         ))}
       </div>
       <p className="text-center text-sm font-medium text-foreground/80">
-        Landen uit de 4 overgebleven steden.
+        {isDemo ? "Steden uit de demo." : "Landen uit de 4 overgebleven steden."}
         {isDemo && (
           <span className="block mt-1 text-foreground/70">
             Demo: {demoSpinCount}/{DEMO_SPINS_REQUIRED} spins
@@ -237,6 +311,7 @@ export function SlotMachine({ currentUser, onRevealComplete }: Props) {
           {error}
         </p>
       )}
-    </div>
+      </div>
+    </>
   );
 }

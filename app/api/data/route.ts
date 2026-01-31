@@ -61,6 +61,8 @@ export async function POST(req: NextRequest) {
         });
       if (op === "getStrikeCount")
         return NextResponse.json({ data: await fb.getStrikeCount(body.user) });
+      if (op === "getStrikeCountForDate")
+        return NextResponse.json({ data: await fb.getStrikeCountForDate(body.user, body.dateStr) });
       if (op === "getSpins") return NextResponse.json({ data: await fb.getSpins() });
       if (op === "addSpin") {
         await fb.addSpin({
@@ -154,6 +156,14 @@ export async function POST(req: NextRequest) {
       const v = await get("removed");
       const list: RemovedEntry[] = v ? JSON.parse(v) : [];
       const count = list.filter((r: RemovedEntry) => r.removedBy === body.user).length;
+      return NextResponse.json({ data: count });
+    }
+    if (op === "getStrikeCountForDate") {
+      const v = await get("removed");
+      const list: RemovedEntry[] = v ? JSON.parse(v) : [];
+      const count = list.filter(
+        (r: RemovedEntry) => r.removedBy === body.user && r.date === body.dateStr
+      ).length;
       return NextResponse.json({ data: count });
     }
     if (op === "getSpins") {

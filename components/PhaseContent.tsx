@@ -1,7 +1,7 @@
 "use client";
 
-import { useState } from "react";
-import { getPhase } from "@/lib/dates";
+import { useState, useEffect } from "react";
+import { getPhase, getSpinOpenTime } from "@/lib/dates";
 import type { UserId } from "@/lib/firestore";
 import { CityInputForm } from "@/components/CityInputForm";
 import { WegstreepList } from "@/components/WegstreepList";
@@ -50,6 +50,10 @@ export function PhaseContent({ currentUser }: Props) {
     return <WegstreepList currentUser={currentUser} />;
   }
 
+  if (phase === "countdown_spin") {
+    return <CountdownToSpin />;
+  }
+
   if (phase === "fruitautomaat") {
     return (
       <div className="space-y-6">
@@ -64,4 +68,38 @@ export function PhaseContent({ currentUser }: Props) {
   }
 
   return null;
+}
+
+function formatCountdown(ms: number): string {
+  if (ms <= 0) return "0:00";
+  const totalSec = Math.floor(ms / 1000);
+  const min = Math.floor(totalSec / 60);
+  const sec = totalSec % 60;
+  return `${min}:${sec.toString().padStart(2, "0")}`;
+}
+
+function CountdownToSpin() {
+  const [countdown, setCountdown] = useState("");
+  useEffect(() => {
+    const update = () => {
+      const openAt = getSpinOpenTime();
+      const left = Math.max(0, openAt.getTime() - Date.now());
+      setCountdown(formatCountdown(left));
+    };
+    update();
+    const t = setInterval(update, 1000);
+    return () => clearInterval(t);
+  }, []);
+
+  return (
+    <div className="space-y-4 rounded-xl border-2 border-amber-500/50 bg-amber-500/10 p-8 text-center">
+      <p className="text-lg font-semibold text-foreground">
+        Je mag spinnen vanaf 4 februari om 10:00
+      </p>
+      <p className="text-3xl font-mono font-bold tabular-nums text-foreground">
+        {countdown}
+      </p>
+      <p className="text-sm text-foreground/70">nog te gaan</p>
+    </div>
+  );
 }

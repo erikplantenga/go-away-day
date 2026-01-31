@@ -9,11 +9,12 @@ import {
   getRemoved,
   addRemoved,
   getStrikeCount,
+  getStrikeCountForDate,
 } from "@/lib/firestore";
-import { getCurrentDateString } from "@/lib/dates";
+import { getCurrentDateString, getStrikeLimitForDate } from "@/lib/dates";
 import { WhoMustStrikeBanner } from "@/components/WhoMustStrikeBanner";
 
-const REQUIRED_STRIKES = 3;
+const DEMO_REQUIRED_STRIKES = 3;
 
 type Props = {
   currentUser: UserId;
@@ -35,6 +36,9 @@ export function WegstreepList({ currentUser, onVolgende }: Props) {
   const [error, setError] = useState<string | null>(null);
   const dateStr = getCurrentDateString();
 
+  const isDemo = !!onVolgende;
+  const requiredToday = isDemo ? DEMO_REQUIRED_STRIKES : getStrikeLimitForDate(dateStr);
+
   useEffect(() => {
     let cancelled = false;
     async function load() {
@@ -42,8 +46,8 @@ export function WegstreepList({ currentUser, onVolgende }: Props) {
         const [allCities, removedList, erikCount, bennoCount] = await Promise.all([
           getCities(),
           getRemoved(),
-          getStrikeCount("erik"),
-          getStrikeCount("benno"),
+          isDemo ? getStrikeCount("erik") : getStrikeCountForDate("erik", dateStr),
+          isDemo ? getStrikeCount("benno") : getStrikeCountForDate("benno", dateStr),
         ]);
         if (cancelled) return;
         setCities(allCities);
@@ -60,14 +64,14 @@ export function WegstreepList({ currentUser, onVolgende }: Props) {
     return () => {
       cancelled = true;
     };
-  }, [dateStr]);
+  }, [dateStr, isDemo]);
 
   const removedTodayOrEarlier = removed.filter((r) => r.date <= dateStr);
   const removedSet = new Set(
     removedTodayOrEarlier.map((r) => `${r.city}|${r.country ?? ""}`)
   );
   const strikeCountCurrent = currentUser === "erik" ? strikeCountErik : strikeCountBenno;
-  const canStrike = strikeCountCurrent < REQUIRED_STRIKES;
+  const canStrike = requiredToday > 0 && strikeCountCurrent < requiredToday;
 
   const handleStrike = async (city: CityEntry) => {
     if (!canStrike || removedSet.has(cityKey(city))) return;
@@ -102,18 +106,25 @@ export function WegstreepList({ currentUser, onVolgende }: Props) {
     );
   }
 
-  const bothDone = strikeCountErik >= REQUIRED_STRIKES && strikeCountBenno >= REQUIRED_STRIKES;
-  const stillNeeded = REQUIRED_STRIKES - strikeCountCurrent;
+  const bothDone = isDemo && strikeCountErik >= DEMO_REQUIRED_STRIKES && strikeCountBenno >= DEMO_REQUIRED_STRIKES;
+  const stillNeeded = requiredToday - strikeCountCurrent;
 
   return (
     <div className="space-y-4 rounded-lg border border-foreground/10 bg-background p-4">
+      {!isDemo && (
+        <div className="rounded-lg border-2 border-red-500/50 bg-red-500/10 px-3 py-2 text-center text-sm font-semibold text-red-700 dark:text-red-400">
+          Wegstrepen is definitief – dit kun je niet herstellen!
+        </div>
+      )}
       <WhoMustStrikeBanner
         erikCount={strikeCountErik}
         bennoCount={strikeCountBenno}
-        required={REQUIRED_STRIKES}
+        required={requiredToday}
       />
       <p className="text-sm text-foreground/70">
-        Kies 1 stad om weg te strepen. Je moet er {REQUIRED_STRIKES} wegestreept hebben om verder te kunnen.
+        {isDemo
+          ? `Kies 1 stad om weg te strepen. Je moet er ${DEMO_REQUIRED_STRIKES} wegestreept hebben om verder te kunnen.`
+          : `Vandaag mag je ${requiredToday} ${requiredToday === 1 ? "stad" : "steden"} wegstrepen (eenmalig).`}
       </p>
       <ul className="space-y-2">
         {cities.map((c) => {
@@ -158,7 +169,7 @@ export function WegstreepList({ currentUser, onVolgende }: Props) {
             disabled={!bothDone}
             className="rounded-lg border-2 border-amber-500/50 bg-amber-500/20 px-4 py-2 text-sm font-medium text-foreground disabled:opacity-50"
           >
-            {bothDone ? "🎰 Demo: ga door naar fruitautomaat →" : "Eerst 3 steden wegstrepen"}
+            {bothDone ? "🎰 Demo: ga door naar fruitautomaat →" : `Eerst ${DEMO_REQUIRED_STRIKES} steden wegstrepen`}
           </button>
         </div>
       )}

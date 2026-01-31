@@ -1,7 +1,10 @@
 "use client";
 
 import { useSearchParams } from "next/navigation";
+import { useEffect } from "react";
 import { validateToken, isValidUserSegment } from "@/lib/auth";
+import type { UserId } from "@/lib/firestore";
+import { ensurePreviewSeeded } from "@/lib/previewStorage";
 import { PhaseBanner } from "@/components/PhaseBanner";
 import { PhaseContent } from "@/components/PhaseContent";
 import { ZoWerktHet } from "@/components/ZoWerktHet";
@@ -11,6 +14,17 @@ type Props = { user: string };
 export function UserPageClient({ user }: Props) {
   const searchParams = useSearchParams();
   const token = searchParams.get("token");
+  const isPreview = searchParams.get("preview") === "echt";
+
+  if (typeof window !== "undefined" && isPreview) {
+    (window as unknown as { __GO_AWAY_DAY_PREVIEW__: boolean; __GO_AWAY_DAY_PREVIEW_PHASE__: string }).__GO_AWAY_DAY_PREVIEW__ = true;
+    (window as unknown as { __GO_AWAY_DAY_PREVIEW_PHASE__: string }).__GO_AWAY_DAY_PREVIEW_PHASE__ =
+      searchParams.get("phase") || "fruitautomaat";
+  }
+
+  useEffect(() => {
+    if (isPreview) void ensurePreviewSeeded();
+  }, [isPreview]);
 
   if (!isValidUserSegment(user)) {
     return (
@@ -20,7 +34,7 @@ export function UserPageClient({ user }: Props) {
     );
   }
 
-  const currentUser = validateToken(user, token);
+  const currentUser: UserId | null = validateToken(user, token) ?? (isPreview ? (user as UserId) : null);
   if (!currentUser) {
     return (
       <div className="rounded-lg border border-amber-200 bg-amber-50 p-4 text-center text-amber-900 dark:border-amber-800 dark:bg-amber-950/30 dark:text-amber-200">
@@ -31,6 +45,11 @@ export function UserPageClient({ user }: Props) {
 
   return (
     <>
+      {isPreview && (
+        <p className="mb-2 rounded bg-amber-500/20 px-3 py-2 text-center text-sm text-amber-800 dark:text-amber-200">
+          Preview – vooringevulde data om de echte flow te checken.
+        </p>
+      )}
       <FeestDag />
       <ZoWerktHet showDemoHint />
       <div className="mb-6 rounded-lg border border-foreground/10 bg-background p-4">

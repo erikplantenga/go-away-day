@@ -118,6 +118,11 @@ export async function getStrikeCount(user: UserId): Promise<number> {
   return list.filter((r) => r.removedBy === user).length;
 }
 
+export async function getStrikeCountForDate(user: UserId, dateStr: string): Promise<number> {
+  const list = await getRemoved();
+  return list.filter((r) => r.removedBy === user && r.date === dateStr).length;
+}
+
 // --- Spins ---
 interface StoredSpin {
   user: UserId;

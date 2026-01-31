@@ -7,6 +7,7 @@ type Props = {
 };
 
 export function WhoMustStrikeBanner({ erikCount, bennoCount, required }: Props) {
+  if (required <= 0) return null;
   const erikDone = erikCount >= required;
   const bennoDone = bennoCount >= required;
   if (erikDone && bennoDone) return null;

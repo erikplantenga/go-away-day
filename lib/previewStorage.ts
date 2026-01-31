@@ -1,14 +1,14 @@
 /**
- * Demo-opslag – kopie van het echte spel, alleen voor de demo.
- * Gebruikt localStorage met prefix "go-away-day-demo-" zodat echte data onaangeroerd blijft.
+ * Preview-opslag – echte flow met vooringevulde data om de app te checken.
+ * Gebruikt localStorage met prefix "go-away-day-preview-" zodat echte en demo data onaangeroerd blijven.
  */
 
 import type { UserId } from "./firestore";
 import type { CityEntry, RemovedEntry, SpinEntry, GameConfig } from "./firestore";
 import { Timestamp } from "firebase/firestore";
 
-const PREFIX = "go-away-day-demo-";
-export const DEMO_STORAGE_PREFIX = PREFIX;
+const PREFIX = "go-away-day-preview-";
+export const PREVIEW_STORAGE_PREFIX = PREFIX;
 
 const KEY_CITIES = PREFIX + "cities";
 const KEY_SUBMISSION_ERIK = PREFIX + "submission_erik";
@@ -90,15 +90,14 @@ export async function combineAndDedupeCities(): Promise<CityEntry[]> {
   return deduped;
 }
 
-/** Voorg invulde steden voor de demo: 10 steden in Europa. */
-const DEMO_CITIES_ERIK: CityEntry[] = [
+const PREVIEW_CITIES_ERIK: CityEntry[] = [
   { city: "Amsterdam", country: "Nederland", addedBy: "erik" },
   { city: "Barcelona", country: "Spanje", addedBy: "erik" },
   { city: "Rome", country: "Italië", addedBy: "erik" },
   { city: "Wenen", country: "Oostenrijk", addedBy: "erik" },
   { city: "Prague", country: "Tsjechië", addedBy: "erik" },
 ];
-const DEMO_CITIES_BENNO: CityEntry[] = [
+const PREVIEW_CITIES_BENNO: CityEntry[] = [
   { city: "Parijs", country: "Frankrijk", addedBy: "benno" },
   { city: "Berlijn", country: "Duitsland", addedBy: "benno" },
   { city: "Lissabon", country: "Portugal", addedBy: "benno" },
@@ -106,40 +105,56 @@ const DEMO_CITIES_BENNO: CityEntry[] = [
   { city: "Kopenhagen", country: "Denemarken", addedBy: "benno" },
 ];
 
-export async function ensureDemoCitiesFilled(): Promise<void> {
+/** Vooringevulde preview: 10 steden + 6 weggestreept (3 per speler), zodat je de echte flow kunt checken. */
+export async function ensurePreviewSeeded(): Promise<void> {
   const [erik, benno] = await Promise.all([
     getCitySubmission("erik"),
     getCitySubmission("benno"),
   ]);
-  if (!erik || erik.length < 5) await setCitySubmission("erik", DEMO_CITIES_ERIK);
-  if (!benno || benno.length < 5) await setCitySubmission("benno", DEMO_CITIES_BENNO);
+  if (!erik || erik.length < 5) await setCitySubmission("erik", PREVIEW_CITIES_ERIK);
+  if (!benno || benno.length < 5) await setCitySubmission("benno", PREVIEW_CITIES_BENNO);
   await combineAndDedupeCities();
-}
 
-function shuffle<T>(arr: T[]): T[] {
-  const out = [...arr];
-  for (let i = out.length - 1; i > 0; i--) {
-    const j = Math.floor(Math.random() * (i + 1));
-    [out[i], out[j]] = [out[j]!, out[i]!];
-  }
-  return out;
-}
-
-/** Zorg dat de andere speler in de demo ook 3 willekeurige weggestreept heeft (automatisch). */
-export async function ensureDemoOtherUserStruckThree(otherUser: UserId): Promise<void> {
-  const [cities, removedList] = await Promise.all([getCities(), getRemoved()]);
+  const cities = await getCities();
+  const removedList = await getRemoved();
   const removedSet = new Set(
     removedList.map((r) => `${r.city}|${r.country ?? ""}`)
   );
-  const otherCount = removedList.filter((r) => r.removedBy === otherUser).length;
-  if (otherCount >= 3) return;
+  const erikStrikes = removedList.filter((r) => r.removedBy === "erik").length;
+  const bennoStrikes = removedList.filter((r) => r.removedBy === "benno").length;
+  const dateStr = "2026-02-02";
+
   const remaining = cities.filter(
     (c) => !removedSet.has(`${c.city}|${c.country}`)
   );
-  const toStrike = shuffle(remaining).slice(0, 3 - otherCount);
-  const dateStr = new Date().toISOString().slice(0, 10);
-  for (const c of toStrike) {
-    await addRemoved(c.city, c.country, otherUser, dateStr);
+  const shuffle = <T>(arr: T[]): T[] => {
+    const out = [...arr];
+    for (let i = out.length - 1; i > 0; i--) {
+      const j = Math.floor(Math.random() * (i + 1));
+      [out[i], out[j]] = [out[j]!, out[i]!];
+    }
+    return out;
+  };
+
+  if (erikStrikes < 3) {
+    const toStrike = shuffle(remaining).slice(0, 3 - erikStrikes);
+    for (const c of toStrike) {
+      await addRemoved(c.city, c.country, "erik", dateStr);
+    }
+  }
+  const removedList2 = await getRemoved();
+  const removedSet2 = new Set(
+    removedList2.map((r) => `${r.city}|${r.country ?? ""}`)
+  );
+  const remaining2 = cities.filter(
+    (c) => !removedSet2.has(`${c.city}|${c.country}`)
+  );
+  const bennoStrikesNow = removedList2.filter((r) => r.removedBy === "benno").length;
+  if (bennoStrikesNow < 3) {
+    const toStrike = shuffle(remaining2).slice(0, 3 - bennoStrikesNow);
+    for (const c of toStrike) {
+      await addRemoved(c.city, c.country, "benno", dateStr);
+    }
   }
 }
 
@@ -169,13 +184,11 @@ export async function hasUserStruckToday(
   );
 }
 
-/** Aantal keer dat deze gebruiker een stad heeft weggestreept (max 3 nodig om verder te kunnen). */
 export async function getStrikeCount(user: UserId): Promise<number> {
   const list = await getRemoved();
   return Promise.resolve(list.filter((r) => r.removedBy === user).length);
 }
 
-/** Aantal keer dat deze gebruiker vandaag (of op dateStr) heeft weggestreept. */
 export async function getStrikeCountForDate(user: UserId, dateStr: string): Promise<number> {
   const list = await getRemoved();
   return Promise.resolve(list.filter((r) => r.removedBy === user && r.date === dateStr).length);
@@ -242,7 +255,6 @@ export async function getRemainingCountries(): Promise<string[]> {
   return [...new Set(remaining.map((c) => c.country))];
 }
 
-/** Overgebleven steden (voor demo: tonen bij spinnen). */
 export async function getRemainingCities(): Promise<CityEntry[]> {
   const [allCities, removedList] = await Promise.all([
     getCities(),
@@ -254,18 +266,6 @@ export async function getRemainingCities(): Promise<CityEntry[]> {
   return allCities.filter(
     (c) => !removedSet.has(`${c.city}|${c.country}`)
   );
-}
-
-/** Zorg dat de fruitautomaat in de demo altijd steden heeft om te tonen (zelfde Europese demo-lijst). */
-export async function ensureFruitMachineDemoData(): Promise<void> {
-  const remaining = await getRemainingCities();
-  if (remaining.length >= 3) return;
-  await ensureDemoCitiesFilled();
-  const [cities, removedList] = await Promise.all([getCities(), getRemoved()]);
-  if (cities.length >= 10 && removedList.length >= 6) return;
-  const dateStr = new Date().toISOString().slice(0, 10);
-  const other: UserId = "benno";
-  await ensureDemoOtherUserStruckThree(other);
 }
 
 export function subscribeSpins(
@@ -300,15 +300,4 @@ export async function setConfig(updates: Partial<GameConfig>): Promise<void> {
 
 export async function setWinner(country: string): Promise<void> {
   return setConfig({ winnerLocked: true, winnerCountry: country });
-}
-
-/** Wis alle demo-data zodat je de demo opnieuw kunt doen. Echte speldata blijft onaangeroerd. */
-export function clearDemoStorage(): void {
-  if (typeof window === "undefined") return;
-  const keys: string[] = [];
-  for (let i = 0; i < localStorage.length; i++) {
-    const key = localStorage.key(i);
-    if (key?.startsWith(DEMO_STORAGE_PREFIX)) keys.push(key);
-  }
-  keys.forEach((k) => localStorage.removeItem(k));
 }
