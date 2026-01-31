@@ -1,16 +1,19 @@
 "use client";
 
 type Props = {
-  erikDone: boolean;
-  bennoDone: boolean;
+  erikCount: number;
+  bennoCount: number;
+  required: number;
 };
 
-export function WhoMustStrikeBanner({ erikDone, bennoDone }: Props) {
+export function WhoMustStrikeBanner({ erikCount, bennoCount, required }: Props) {
+  const erikDone = erikCount >= required;
+  const bennoDone = bennoCount >= required;
   if (erikDone && bennoDone) return null;
   return (
     <div className="space-y-1 text-center text-sm text-foreground/80">
-      {!erikDone && <p>Erik moet nog wegstrepen.</p>}
-      {!bennoDone && <p>Benno moet nog wegstrepen.</p>}
+      <p>Erik: {erikCount}/{required} weggestreept{!erikDone && " – moet nog wegstrepen"}.</p>
+      <p>Benno: {bennoCount}/{required} weggestreept{!bennoDone && " – moet nog wegstrepen"}.</p>
     </div>
   );
 }

@@ -66,6 +66,11 @@ export async function hasUserStruckToday(user: UserId, dateStr: string): Promise
   return (res.data ?? false) as boolean;
 }
 
+export async function getStrikeCount(user: UserId): Promise<number> {
+  const res = await post("getStrikeCount", { user });
+  return (res.data ?? 0) as number;
+}
+
 interface StoredSpin {
   user: UserId;
   country: string;

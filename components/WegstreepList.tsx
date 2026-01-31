@@ -8,22 +8,28 @@ import {
   getCities,
   getRemoved,
   addRemoved,
-  hasUserStruckToday,
+  getStrikeCount,
 } from "@/lib/firestore";
 import { getCurrentDateString } from "@/lib/dates";
 import { WhoMustStrikeBanner } from "@/components/WhoMustStrikeBanner";
 
-type Props = { currentUser: UserId };
+const REQUIRED_STRIKES = 3;
+
+type Props = {
+  currentUser: UserId;
+  /** Demo: toon Volgende / Ga door alleen als beide 3 hebben weggestreept */
+  onVolgende?: () => void;
+};
 
 function cityKey(c: CityEntry): string {
   return `${c.city}|${c.country}`;
 }
 
-export function WegstreepList({ currentUser }: Props) {
+export function WegstreepList({ currentUser, onVolgende }: Props) {
   const [cities, setCities] = useState<CityEntry[]>([]);
   const [removed, setRemoved] = useState<RemovedEntry[]>([]);
-  const [erikStruck, setErikStruck] = useState(false);
-  const [bennoStruck, setBennoStruck] = useState(false);
+  const [strikeCountErik, setStrikeCountErik] = useState(0);
+  const [strikeCountBenno, setStrikeCountBenno] = useState(0);
   const [loading, setLoading] = useState(true);
   const [striking, setStriking] = useState<string | null>(null);
   const [error, setError] = useState<string | null>(null);
@@ -33,21 +39,17 @@ export function WegstreepList({ currentUser }: Props) {
     let cancelled = false;
     async function load() {
       try {
-        const [allCities, removedList] = await Promise.all([
+        const [allCities, removedList, erikCount, bennoCount] = await Promise.all([
           getCities(),
           getRemoved(),
+          getStrikeCount("erik"),
+          getStrikeCount("benno"),
         ]);
         if (cancelled) return;
         setCities(allCities);
         setRemoved(removedList);
-        const [erik, benno] = await Promise.all([
-          hasUserStruckToday("erik", dateStr),
-          hasUserStruckToday("benno", dateStr),
-        ]);
-        if (!cancelled) {
-          setErikStruck(erik);
-          setBennoStruck(benno);
-        }
+        setStrikeCountErik(erikCount);
+        setStrikeCountBenno(bennoCount);
       } catch (e) {
         if (!cancelled) setError(e instanceof Error ? e.message : "Laden mislukt");
       } finally {
@@ -64,12 +66,11 @@ export function WegstreepList({ currentUser }: Props) {
   const removedSet = new Set(
     removedTodayOrEarlier.map((r) => `${r.city}|${r.country ?? ""}`)
   );
-  const remaining = cities.filter((c) => !removedSet.has(cityKey(c)));
-
-  const canStrike = currentUser === "erik" ? !erikStruck : !bennoStruck;
+  const strikeCountCurrent = currentUser === "erik" ? strikeCountErik : strikeCountBenno;
+  const canStrike = strikeCountCurrent < REQUIRED_STRIKES;
 
   const handleStrike = async (city: CityEntry) => {
-    if (!canStrike) return;
+    if (!canStrike || removedSet.has(cityKey(city))) return;
     setStriking(cityKey(city));
     setError(null);
     try {
@@ -78,8 +79,8 @@ export function WegstreepList({ currentUser }: Props) {
         ...prev,
         { city: city.city, country: city.country, removedBy: currentUser, date: dateStr },
       ]);
-      if (currentUser === "erik") setErikStruck(true);
-      else setBennoStruck(true);
+      if (currentUser === "erik") setStrikeCountErik((n) => n + 1);
+      else setStrikeCountBenno((n) => n + 1);
     } catch (e) {
       setError(e instanceof Error ? e.message : "Wegstrepen mislukt");
     } finally {
@@ -101,39 +102,65 @@ export function WegstreepList({ currentUser }: Props) {
     );
   }
 
+  const bothDone = strikeCountErik >= REQUIRED_STRIKES && strikeCountBenno >= REQUIRED_STRIKES;
+  const stillNeeded = REQUIRED_STRIKES - strikeCountCurrent;
+
   return (
     <div className="space-y-4 rounded-lg border border-foreground/10 bg-background p-4">
-      <WhoMustStrikeBanner erikDone={erikStruck} bennoDone={bennoStruck} />
+      <WhoMustStrikeBanner
+        erikCount={strikeCountErik}
+        bennoCount={strikeCountBenno}
+        required={REQUIRED_STRIKES}
+      />
       <p className="text-sm text-foreground/70">
-        Kies 1 stad om vandaag weg te strepen.
+        Kies 1 stad om weg te strepen. Je moet er {REQUIRED_STRIKES} wegestreept hebben om verder te kunnen.
       </p>
       <ul className="space-y-2">
-        {remaining.map((c) => (
-          <li
-            key={cityKey(c)}
-            className="flex items-center justify-between gap-2 rounded border border-foreground/10 bg-background px-3 py-2"
-          >
-            <span className="font-medium">
-              {c.city}, {c.country}
-            </span>
-            <button
-              type="button"
-              disabled={!canStrike || striking !== null}
-              onClick={() => handleStrike(c)}
-              className="rounded bg-red-600 px-3 py-1.5 text-sm font-medium text-white disabled:opacity-50"
+        {cities.map((c) => {
+          const isRemoved = removedSet.has(cityKey(c));
+          return (
+            <li
+              key={cityKey(c)}
+              className="flex items-center justify-between gap-2 rounded border border-foreground/10 bg-background px-3 py-2"
             >
-              {striking === cityKey(c) ? "Bezig..." : "Wegstrepen"}
-            </button>
-          </li>
-        ))}
+              <span
+                className={`font-medium ${isRemoved ? "line-through text-foreground/60" : ""}`}
+              >
+                {c.city}, {c.country}
+              </span>
+              {!isRemoved && (
+                <button
+                  type="button"
+                  disabled={!canStrike || striking !== null}
+                  onClick={() => handleStrike(c)}
+                  className="rounded bg-red-600 px-3 py-1.5 text-sm font-medium text-white disabled:opacity-50"
+                >
+                  {striking === cityKey(c) ? "Bezig..." : "Wegstrepen"}
+                </button>
+              )}
+            </li>
+          );
+        })}
       </ul>
       {error && (
         <p className="text-sm text-red-600 dark:text-red-400">{error}</p>
       )}
-      {remaining.length === 0 && (
-        <p className="text-center text-foreground/70">
-          Alle steden zijn weggestreept voor vandaag.
-        </p>
+      {onVolgende && (
+        <div className="flex flex-col items-center gap-2 border-t border-foreground/10 pt-4">
+          {!bothDone ? (
+            <p className="text-center text-sm font-medium text-foreground/90">
+              Je moet nog {stillNeeded} {stillNeeded === 1 ? "stad" : "steden"} wegstrepen om verder te kunnen.
+            </p>
+          ) : null}
+          <button
+            type="button"
+            onClick={onVolgende}
+            disabled={!bothDone}
+            className="rounded-lg border-2 border-amber-500/50 bg-amber-500/20 px-4 py-2 text-sm font-medium text-foreground disabled:opacity-50"
+          >
+            {bothDone ? "🎰 Demo: ga door naar fruitautomaat →" : "Eerst 3 steden wegstrepen"}
+          </button>
+        </div>
       )}
     </div>
   );

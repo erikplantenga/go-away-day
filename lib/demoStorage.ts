@@ -117,6 +117,27 @@ export async function ensureDemoCitiesFilled(): Promise<void> {
   await combineAndDedupeCities();
 }
 
+/** Zorg dat de andere speler in de demo ook 3 weggestreept heeft (automatisch). */
+export async function ensureDemoOtherUserStruckThree(otherUser: UserId): Promise<void> {
+  const [cities, removedList] = await Promise.all([getCities(), getRemoved()]);
+  const removedSet = new Set(
+    removedList.map((r) => `${r.city}|${r.country ?? ""}`)
+  );
+  const otherCount = removedList.filter((r) => r.removedBy === otherUser).length;
+  if (otherCount >= 3) return;
+  const remaining = cities.filter(
+    (c) => !removedSet.has(`${c.city}|${c.country}`)
+  );
+  const dateStr = new Date().toISOString().slice(0, 10);
+  let added = 0;
+  for (const c of remaining) {
+    if (added >= 3 - otherCount) break;
+    await addRemoved(c.city, c.country, otherUser, dateStr);
+    removedSet.add(`${c.city}|${c.country}`);
+    added++;
+  }
+}
+
 export async function getRemoved(): Promise<RemovedEntry[]> {
   return Promise.resolve(readJson<RemovedEntry[]>(KEY_REMOVED, []));
 }
@@ -141,6 +162,12 @@ export async function hasUserStruckToday(
   return Promise.resolve(
     list.some((r) => r.removedBy === user && r.date === dateStr)
   );
+}
+
+/** Aantal keer dat deze gebruiker een stad heeft weggestreept (max 3 nodig om verder te kunnen). */
+export async function getStrikeCount(user: UserId): Promise<number> {
+  const list = await getRemoved();
+  return Promise.resolve(list.filter((r) => r.removedBy === user).length);
 }
 
 interface StoredSpin {

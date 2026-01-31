@@ -246,6 +246,7 @@ export async function hasUserStruckToday(
   user: UserId,
   dateStr: string
 ): Promise<boolean> {
+  if (isDemoMode()) return demoStorage.hasUserStruckToday(user, dateStr);
   if (useBackend() === "supabase")
     return supabase.hasUserStruckToday(user, dateStr);
   if (useBackend() === "local") {
@@ -260,6 +261,20 @@ export async function hasUserStruckToday(
   );
   const snap = await getDocs(q);
   return !snap.empty;
+}
+
+/** Aantal keer dat deze gebruiker een stad heeft weggestreept (je moet er 3 doen om verder te kunnen). */
+export async function getStrikeCount(user: UserId): Promise<number> {
+  if (isDemoMode()) return demoStorage.getStrikeCount(user);
+  if (useBackend() === "supabase") return supabase.getStrikeCount(user);
+  if (useBackend() === "local") {
+    if (await useApiBackend()) return apiClient.getStrikeCount(user);
+    return local.getStrikeCount(user);
+  }
+  const db = getDb();
+  const q = query(collection(db, "removed"), where("removedBy", "==", user));
+  const snap = await getDocs(q);
+  return snap.size;
 }
 
 // --- Spins ---

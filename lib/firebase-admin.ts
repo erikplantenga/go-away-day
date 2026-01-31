@@ -152,6 +152,11 @@ export async function hasUserStruckToday(user: string, dateStr: string): Promise
   return list.some((r) => r.removedBy === user && r.date === dateStr);
 }
 
+export async function getStrikeCount(user: string): Promise<number> {
+  const list = await getRemoved();
+  return list.filter((r) => r.removedBy === user).length;
+}
+
 export async function hasUserSpunToday(user: string, dateStr: string): Promise<boolean> {
   const d = db();
   if (!d) return false;

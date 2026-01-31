@@ -113,6 +113,11 @@ export async function hasUserStruckToday(
   );
 }
 
+export async function getStrikeCount(user: UserId): Promise<number> {
+  const list = await getRemoved();
+  return Promise.resolve(list.filter((r) => r.removedBy === user).length);
+}
+
 interface StoredSpin {
   user: UserId;
   country: string;

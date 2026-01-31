@@ -13,7 +13,7 @@ import { SlotMachine } from "@/components/SlotMachine";
 import { Leaderboard } from "@/components/Leaderboard";
 import { WinnerScreen } from "@/components/WinnerScreen";
 import { setWinner } from "@/lib/firestore";
-import { ensureDemoCitiesFilled, ensureFruitMachineDemoData } from "@/lib/demoStorage";
+import { ensureDemoCitiesFilled, ensureDemoOtherUserStruckThree, ensureFruitMachineDemoData } from "@/lib/demoStorage";
 import { getFactForDate } from "@/lib/dailyFacts";
 import { getCurrentDateString } from "@/lib/dates";
 
@@ -30,7 +30,11 @@ export function DemoFlow({ currentUser }: Props) {
     return () => setDemoMode(false);
   }, []);
 
-  const goToWegstreep = () => setStep("wegstreep");
+  const goToWegstreep = async () => {
+    const other = currentUser === "erik" ? "benno" : "erik";
+    await ensureDemoOtherUserStruckThree(other);
+    setStep("wegstreep");
+  };
   const goToFruitautomaat = async () => {
     await ensureFruitMachineDemoData();
     setStep("fruitautomaat");
@@ -53,7 +57,7 @@ export function DemoFlow({ currentUser }: Props) {
         </p>
         <CityInputForm
           currentUser={currentUser}
-          demoOnGoToWegstreep={goToWegstreep}
+          demoOnGoToWegstreep={() => goToWegstreep()}
         />
       </div>
     );
@@ -64,17 +68,7 @@ export function DemoFlow({ currentUser }: Props) {
       <div className="space-y-4">
         <p className="text-center text-sm text-foreground/70">🎊 Wegstrepen – feest gaat door!</p>
         <p className="text-center text-xs text-foreground/60">Klik op een stad om die echt weg te strepen, net als in het echte spel.</p>
-        <WegstreepList currentUser={currentUser} />
-        <div className="flex flex-col items-center gap-2">
-          <p className="text-center text-xs text-foreground/60">Volgende feestje?</p>
-          <button
-            type="button"
-            onClick={goToFruitautomaat}
-            className="rounded-lg border-2 border-amber-500/50 bg-amber-500/20 px-4 py-2 text-sm font-medium text-foreground"
-          >
-            🎰 Demo: ga door naar fruitautomaat →
-          </button>
-        </div>
+        <WegstreepList currentUser={currentUser} onVolgende={goToFruitautomaat} />
       </div>
     );
   }
@@ -84,18 +78,8 @@ export function DemoFlow({ currentUser }: Props) {
       <div className="space-y-6">
         <p className="text-center text-sm text-foreground/70">🎰 Fruitautomaat – bijna uitslag!</p>
         <p className="text-center text-xs text-foreground/60">Zelfde scherm als in het echte spel.</p>
-        <SlotMachine currentUser={currentUser} />
+        <SlotMachine currentUser={currentUser} onRevealComplete={goToFinale} />
         <Leaderboard />
-        <div className="flex flex-col items-center gap-2">
-          <p className="text-center text-xs text-foreground/60">Het grote moment?</p>
-          <button
-            type="button"
-            onClick={goToFinale}
-            className="rounded-lg border-2 border-amber-500/50 bg-amber-500/20 px-4 py-2 text-sm font-medium text-foreground"
-          >
-            🏆 Demo: ga naar uitslag →
-          </button>
-        </div>
       </div>
     );
   }
