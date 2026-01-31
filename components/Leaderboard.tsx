@@ -3,6 +3,7 @@
 import { useState, useEffect } from "react";
 import { subscribeSpins } from "@/lib/firestore";
 import type { SpinEntry } from "@/lib/firestore";
+import { isAfterWinnerTime } from "@/lib/dates";
 
 function aggregateByCountry(
   spins: (SpinEntry & { id: string })[]
@@ -26,11 +27,16 @@ export function Leaderboard() {
   }, []);
 
   const standings = aggregateByCountry(spins);
+  const showStand = isAfterWinnerTime();
 
   return (
     <div className="rounded-lg border border-foreground/10 bg-background p-4">
       <h2 className="mb-3 font-semibold text-foreground">Stand</h2>
-      {standings.length === 0 ? (
+      {!showStand ? (
+        <p className="text-sm text-foreground/70">
+          De stand wordt op 7 februari om 20:00 bekend.
+        </p>
+      ) : standings.length === 0 ? (
         <p className="text-sm text-foreground/70">Nog geen spins.</p>
       ) : (
         <ul className="space-y-2">

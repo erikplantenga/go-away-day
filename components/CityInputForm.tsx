@@ -128,6 +128,23 @@ export function CityInputForm({ currentUser }: Props) {
       setError("Vul precies 5 steden in (stad + land).");
       return;
     }
+    const other = otherUser(currentUser);
+    const otherSubmission = await getCitySubmission(other);
+    if (otherSubmission && otherSubmission.length > 0) {
+      const otherSet = new Set(
+        otherSubmission.map((c) => `${c.city.trim().toLowerCase()}|${c.country.trim().toLowerCase()}`)
+      );
+      const duplicates = entries.filter(
+        (c) => otherSet.has(`${c.city.toLowerCase()}|${c.country.toLowerCase()}`)
+      );
+      if (duplicates.length > 0) {
+        const list = duplicates.map((c) => `${c.city}, ${c.country}`).join("; ");
+        setError(
+          `Deze stad is al ingevuld: ${list}. Kies een andere stad of vul het opnieuw in.`
+        );
+        return;
+      }
+    }
     setSaving(true);
     setError(null);
     try {

@@ -50,7 +50,7 @@ export default function RootLayout({
                 src="/images/go-away-day-hero.jpeg"
                 alt="Erik & Benno"
                 fill
-                className="object-cover"
+                className="object-cover object-[center_25%]"
                 priority
                 sizes="100vw"
               />
