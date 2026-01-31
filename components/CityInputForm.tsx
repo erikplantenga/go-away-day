@@ -130,6 +130,38 @@ export function CityInputForm({ currentUser }: Props) {
     };
   }, [currentUser]);
 
+  /* Zodra jij hebt opgegeven: regelmatig checken of de ander ook heeft opgegeven (demo én 1 feb). */
+  useEffect(() => {
+    if (!submitted || combined) return;
+    let cancelled = false;
+    const check = async () => {
+      if (cancelled) return;
+      try {
+        const both = await hasBothSubmitted();
+        if (cancelled || !both) {
+          if (both) setOtherSubmitted(true);
+          return;
+        }
+        setOtherSubmitted(true);
+        const existing = await getCities();
+        if (existing.length > 0) {
+          setCombined(true);
+          return;
+        }
+        await combineAndDedupeCities();
+        if (!cancelled) setCombined(true);
+      } catch {
+        // negeer
+      }
+    };
+    const t = setInterval(check, 2500);
+    check();
+    return () => {
+      cancelled = true;
+      clearInterval(t);
+    };
+  }, [submitted, combined]);
+
   const saveDraftRef = useRef<ReturnType<typeof setTimeout> | null>(null);
 
   useEffect(() => {
@@ -229,15 +261,43 @@ export function CityInputForm({ currentUser }: Props) {
     );
   }
 
+  const refreshWaiting = async () => {
+    try {
+      const both = await hasBothSubmitted();
+      setOtherSubmitted(both);
+      if (both) {
+        const existing = await getCities();
+        if (existing.length > 0) setCombined(true);
+        else {
+          await combineAndDedupeCities();
+          setCombined(true);
+        }
+      }
+    } catch {
+      setError("Even opnieuw proberen.");
+    }
+  };
+
   if (submitted) {
     return (
       <div className="rounded-lg border border-foreground/10 bg-background p-4">
         <p className="text-center text-foreground/90">Je hebt je 5 steden opgegeven.</p>
-        {!otherSubmitted && (
-          <p className="mt-2 text-center text-sm text-foreground/70">
-            Wacht tot {otherUser(currentUser) === "erik" ? "Erik" : "Benno"} ook 5 steden heeft ingevoerd.
-          </p>
-        )}
+        {!otherSubmitted ? (
+          <>
+            <p className="mt-2 text-center text-sm text-foreground/70">
+              Wacht tot {otherUser(currentUser) === "erik" ? "Erik" : "Benno"} ook 5 steden heeft ingevoerd. Deze pagina werkt vanzelf bij.
+            </p>
+            <div className="mt-3 flex justify-center">
+              <button
+                type="button"
+                onClick={refreshWaiting}
+                className="rounded-lg border border-foreground/20 bg-foreground/5 px-4 py-2 text-sm font-medium text-foreground"
+              >
+                Nu controleren
+              </button>
+            </div>
+          </>
+        ) : null}
       </div>
     );
   }
