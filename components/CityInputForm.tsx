@@ -130,7 +130,7 @@ export function CityInputForm({ currentUser }: Props) {
     };
   }, [currentUser]);
 
-  /* Zodra jij hebt opgegeven: regelmatig checken of de ander ook heeft opgegeven (demo én 1 feb). */
+  /* In het echt: zodra jij hebt opgegeven, elke 2 s checken of de ander ook heeft opgegeven. */
   useEffect(() => {
     if (!submitted || combined) return;
     let cancelled = false;
@@ -138,23 +138,26 @@ export function CityInputForm({ currentUser }: Props) {
       if (cancelled) return;
       try {
         const both = await hasBothSubmitted();
-        if (cancelled || !both) {
-          if (both) setOtherSubmitted(true);
-          return;
-        }
+        if (cancelled || !both) return;
         setOtherSubmitted(true);
-        const existing = await getCities();
+        let existing = await getCities();
         if (existing.length > 0) {
           setCombined(true);
           return;
         }
-        await combineAndDedupeCities();
+        try {
+          await combineAndDedupeCities();
+        } catch {
+          await new Promise((r) => setTimeout(r, 800));
+          if (cancelled) return;
+          await combineAndDedupeCities();
+        }
         if (!cancelled) setCombined(true);
       } catch {
-        // negeer
+        // volgende poll probeert opnieuw
       }
     };
-    const t = setInterval(check, 2500);
+    const t = setInterval(check, 2000);
     check();
     return () => {
       cancelled = true;
@@ -261,20 +264,27 @@ export function CityInputForm({ currentUser }: Props) {
     );
   }
 
-  const refreshWaiting = async () => {
+  const fillDemoOtherAndContinue = async () => {
+    setDemoOtherSaving(true);
+    setError(null);
     try {
-      const both = await hasBothSubmitted();
-      setOtherSubmitted(both);
-      if (both) {
-        const existing = await getCities();
-        if (existing.length > 0) setCombined(true);
-        else {
+      const other = otherUser(currentUser);
+      await setCitySubmission(other, getDemoCitiesForOther(currentUser));
+      setOtherSubmitted(true);
+      let existing = await getCities();
+      if (existing.length === 0) {
+        try {
           await combineAndDedupeCities();
-          setCombined(true);
+        } catch {
+          await new Promise((r) => setTimeout(r, 500));
+          await combineAndDedupeCities();
         }
       }
-    } catch {
-      setError("Even opnieuw proberen.");
+      setCombined(true);
+    } catch (e) {
+      setError(e instanceof Error ? e.message : "Demo invullen mislukt");
+    } finally {
+      setDemoOtherSaving(false);
     }
   };
 
@@ -285,15 +295,17 @@ export function CityInputForm({ currentUser }: Props) {
         {!otherSubmitted ? (
           <>
             <p className="mt-2 text-center text-sm text-foreground/70">
-              Wacht tot {otherUser(currentUser) === "erik" ? "Erik" : "Benno"} ook 5 steden heeft ingevoerd. Deze pagina werkt vanzelf bij.
+              Wacht tot {otherUser(currentUser) === "erik" ? "Erik" : "Benno"} ook 5 steden heeft ingevoerd. Werkt vanzelf bij (elke 2 sec).
             </p>
-            <div className="mt-3 flex justify-center">
+            <p className="mt-3 text-center text-sm text-foreground/60">Demo: wil je in één keer door?</p>
+            <div className="mt-2 flex justify-center">
               <button
                 type="button"
-                onClick={refreshWaiting}
-                className="rounded-lg border border-foreground/20 bg-foreground/5 px-4 py-2 text-sm font-medium text-foreground"
+                onClick={fillDemoOtherAndContinue}
+                disabled={demoOtherSaving}
+                className="rounded-lg border border-amber-500/50 bg-amber-500/20 px-4 py-2 text-sm font-medium text-foreground disabled:opacity-50"
               >
-                Nu controleren
+                {demoOtherSaving ? "Bezig..." : "Demo: vul andere 5 in en ga verder"}
               </button>
             </div>
           </>
