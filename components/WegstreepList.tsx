@@ -75,11 +75,7 @@ export function WegstreepList({ currentUser, onVolgende }: Props) {
 
   const handleStrikeClick = (city: CityEntry) => {
     if (!canStrike || removedSet.has(cityKey(city))) return;
-    if (!isDemo) {
-      setConfirmStrikeKey(cityKey(city));
-      return;
-    }
-    handleStrike(city);
+    setConfirmStrikeKey(cityKey(city));
   };
 
   const handleStrike = async (city: CityEntry) => {
@@ -126,7 +122,7 @@ export function WegstreepList({ currentUser, onVolgende }: Props) {
           Wegstrepen is definitief – dit kun je niet herstellen!
         </div>
       )}
-      {!isDemo && confirmStrikeKey && (() => {
+      {confirmStrikeKey && (() => {
         const city = cities.find((c) => cityKey(c) === confirmStrikeKey);
         if (!city) return null;
         return (
@@ -135,7 +131,7 @@ export function WegstreepList({ currentUser, onVolgende }: Props) {
               Weet je het zeker? Je kunt niet meer terug.
             </p>
             <p className="mt-1 text-sm text-foreground/80">
-              {city.city}, {city.country} wordt definitief weggestreept.
+              {city.city}, {city.country} wordt {isDemo ? "weggestreept" : "definitief weggestreept"}.
             </p>
             <div className="mt-4 flex gap-3">
               <button

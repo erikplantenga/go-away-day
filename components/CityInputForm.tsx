@@ -259,11 +259,8 @@ export function CityInputForm({ currentUser, demoOnGoToWegstreep }: Props) {
         return;
       }
     }
-    if (!isDemoMode()) {
-      setShowConfirmSubmit(true);
-      return;
-    }
-    await doSubmit(entries);
+    setShowConfirmSubmit(true);
+    return;
   };
 
   if (loading) {
