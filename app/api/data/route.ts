@@ -1,30 +1,30 @@
 import { NextRequest, NextResponse } from "next/server";
-import { getRedis } from "@/lib/upstash-server";
-
-// Static export (GitHub Pages): geen server
-export const dynamic = "force-static";
-export const revalidate = false;
-import * as fb from "@/lib/firebase-admin";
 import type { CityEntry, RemovedEntry, GameConfig } from "@/lib/firestore";
 
-const redis = () => getRedis();
-const get = async (key: string) => {
-  const r = redis();
-  if (!r) return null;
-  const v = await r.get(key);
-  return v as string | null;
-};
-const set = async (key: string, value: unknown) => {
-  const r = redis();
-  if (!r) return;
-  await r.set(key, JSON.stringify(value));
-};
-
-function useFirebase(): boolean {
-  return fb.isFirebaseAdminConfigured();
-}
+// Static export (GitHub Pages): geen server, geen Firebase/Redis-imports bij build
+export const dynamic = "force-static";
+export const revalidate = false;
 
 export async function POST(req: NextRequest) {
+  if (process.env.GITHUB_PAGES === "true") {
+    return NextResponse.json({ error: "No storage" }, { status: 503 });
+  }
+  const { getRedis } = await import("@/lib/upstash-server");
+  const fb = await import("@/lib/firebase-admin");
+  const redis = () => getRedis();
+  const get = async (key: string) => {
+    const r = redis();
+    if (!r) return null;
+    const v = await r.get(key);
+    return v as string | null;
+  };
+  const set = async (key: string, value: unknown) => {
+    const r = redis();
+    if (!r) return;
+    await r.set(key, JSON.stringify(value));
+  };
+  const useFirebase = () => fb.isFirebaseAdminConfigured();
+
   const useFb = useFirebase();
   const r = useFb ? null : redis();
   if (!useFb && !r) return NextResponse.json({ error: "No storage" }, { status: 503 });
