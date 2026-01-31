@@ -66,9 +66,8 @@ export function WegstreepList({ currentUser, onVolgende }: Props) {
     };
   }, [dateStr, isDemo]);
 
-  const removedTodayOrEarlier = removed.filter((r) => r.date <= dateStr);
   const removedSet = new Set(
-    removedTodayOrEarlier.map((r) => `${r.city}|${r.country ?? ""}`)
+    removed.map((r) => `${r.city}|${r.country ?? ""}`)
   );
   const strikeCountCurrent = currentUser === "erik" ? strikeCountErik : strikeCountBenno;
   const canStrike = requiredToday > 0 && strikeCountCurrent < requiredToday;

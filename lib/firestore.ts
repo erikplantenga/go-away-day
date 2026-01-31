@@ -1,3 +1,4 @@
+/* eslint-disable react-hooks/rules-of-hooks -- useBackend/useApiBackend are plain functions, not React hooks */
 import { initializeApp, getApps, FirebaseApp } from "firebase/app";
 import {
   getFirestore,

@@ -10,7 +10,3 @@ export function getRedis(): Redis | null {
   if (!redis) redis = new Redis({ url, token });
   return redis;
 }
-
-export function isUpstashConfigured(): boolean {
-  return !!(url && token);
-}

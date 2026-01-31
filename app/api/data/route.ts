@@ -23,9 +23,9 @@ export async function POST(req: NextRequest) {
     if (!r) return;
     await r.set(key, JSON.stringify(value));
   };
-  const useFirebase = () => fb.isFirebaseAdminConfigured();
+  const isFirebaseBackend = () => fb.isFirebaseAdminConfigured();
 
-  const useFb = useFirebase();
+  const useFb = isFirebaseBackend();
   const r = useFb ? null : redis();
   if (!useFb && !r) return NextResponse.json({ error: "No storage" }, { status: 503 });
 

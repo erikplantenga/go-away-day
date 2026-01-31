@@ -8,7 +8,6 @@ import type { CityEntry, RemovedEntry, SpinEntry, GameConfig } from "./firestore
 import { Timestamp } from "firebase/firestore";
 
 const PREFIX = "go-away-day-preview-";
-export const PREVIEW_STORAGE_PREFIX = PREFIX;
 
 const KEY_CITIES = PREFIX + "cities";
 const KEY_SUBMISSION_ERIK = PREFIX + "submission_erik";
@@ -121,7 +120,6 @@ export async function ensurePreviewSeeded(): Promise<void> {
     removedList.map((r) => `${r.city}|${r.country ?? ""}`)
   );
   const erikStrikes = removedList.filter((r) => r.removedBy === "erik").length;
-  const bennoStrikes = removedList.filter((r) => r.removedBy === "benno").length;
   const dateStr = "2026-02-02";
 
   const remaining = cities.filter(

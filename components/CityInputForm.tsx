@@ -146,7 +146,7 @@ export function CityInputForm({ currentUser, demoOnGoToWegstreep }: Props) {
         const both = await hasBothSubmitted();
         if (cancelled || !both) return;
         setOtherSubmitted(true);
-        let existing = await getCities();
+        const existing = await getCities();
         if (existing.length > 0) {
           setCombined(true);
           return;
@@ -293,7 +293,7 @@ export function CityInputForm({ currentUser, demoOnGoToWegstreep }: Props) {
       const other = otherUser(currentUser);
       await setCitySubmission(other, getDemoCitiesForOther(currentUser));
       setOtherSubmitted(true);
-      let existing = await getCities();
+      const existing = await getCities();
       if (existing.length === 0) {
         try {
           await combineAndDedupeCities();

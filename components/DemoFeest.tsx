@@ -13,6 +13,7 @@ function MiniConfetti() {
 
   useEffect(() => {
     const count = 50;
+    // eslint-disable-next-line react-hooks/set-state-in-effect -- init particles for animation
     setParticles(
       Array.from({ length: count }, (_, i) => ({
         id: i,

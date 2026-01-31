@@ -3,11 +3,15 @@
 import { useState, useEffect } from "react";
 import {
   getConfig,
+  getCities,
+  getRemoved,
   getSpins,
   computeWinner,
   setWinner,
 } from "@/lib/firestore";
+import type { SpinEntry, CityEntry, RemovedEntry } from "@/lib/firestore";
 import { isAfterRevealTime, getRevealTime } from "@/lib/dates";
+import { formatDateDisplay } from "@/lib/dates";
 
 function formatCountdown(ms: number): string {
   if (ms <= 0) return "0:00";
@@ -24,12 +28,16 @@ type WinnerScreenProps = {
 
 export function WinnerScreen({ demoWinner }: WinnerScreenProps = {}) {
   const [winner, setWinnerState] = useState<string | null>(demoWinner ?? null);
+  const [summaryCities, setSummaryCities] = useState<CityEntry[]>([]);
+  const [summaryRemoved, setSummaryRemoved] = useState<RemovedEntry[]>([]);
+  const [spins, setSpinsState] = useState<(SpinEntry & { id: string; date?: string })[]>([]);
   const [loading, setLoading] = useState(!demoWinner);
   const [error, setError] = useState<string | null>(null);
   const [clicked, setClicked] = useState(false);
   const [countdown, setCountdown] = useState<string>("");
 
   const showReveal = !!demoWinner || isAfterRevealTime();
+  const isRealGameReveal = showReveal && !demoWinner;
 
   useEffect(() => {
     if (!showReveal && clicked) {
@@ -54,20 +62,37 @@ export function WinnerScreen({ demoWinner }: WinnerScreenProps = {}) {
         const savedWinner = config.winnerCity ?? (config as { winnerCountry?: string }).winnerCountry;
         if (config.winnerLocked && savedWinner) {
           setWinnerState(savedWinner);
+          const [cities, removed, spinList] = await Promise.all([getCities(), getRemoved(), getSpins()]);
+          if (!cancelled) {
+            setSummaryCities(cities);
+            setSummaryRemoved(removed);
+            setSpinsState(spinList as (SpinEntry & { id: string; date?: string })[]);
+          }
           setLoading(false);
           return;
         }
-        const spins = await getSpins();
+        const [cities, removed, spinList] = await Promise.all([getCities(), getRemoved(), getSpins()]);
         if (cancelled) return;
+        if (!cancelled) {
+          setSummaryCities(cities);
+          setSummaryRemoved(removed);
+          setSpinsState(spinList as (SpinEntry & { id: string; date?: string })[]);
+        }
         const configAgain = await getConfig();
         if (cancelled) return;
         const savedAgain = configAgain.winnerCity ?? (configAgain as { winnerCountry?: string }).winnerCountry;
         if (configAgain.winnerLocked && savedAgain) {
           setWinnerState(savedAgain);
+          const [citiesAgain, removedAgain, list] = await Promise.all([getCities(), getRemoved(), getSpins()]);
+          if (!cancelled) {
+            setSummaryCities(citiesAgain);
+            setSummaryRemoved(removedAgain);
+            setSpinsState(list as (SpinEntry & { id: string; date?: string })[]);
+          }
           setLoading(false);
           return;
         }
-        const city = computeWinner(spins);
+        const city = computeWinner(spinList);
         if (!city) {
           setWinnerState(null);
           setLoading(false);
@@ -134,6 +159,17 @@ export function WinnerScreen({ demoWinner }: WinnerScreenProps = {}) {
 
   const displayWinner = winner ?? "";
 
+  const sortedSpins = [...spins].sort((a, b) => {
+    const getTime = (s: (SpinEntry & { id: string; date?: string }) | SpinEntry) => {
+      const ts = s.timestamp as { toMillis?: () => number } | undefined;
+      if (ts?.toMillis) return ts.toMillis();
+      const d = (s as { date?: string }).date;
+      if (d) return new Date(d).getTime();
+      return 0;
+    };
+    return getTime(a) - getTime(b);
+  });
+
   return (
     <div className="rounded-xl border-2 border-foreground/20 bg-foreground/5 p-8 text-center">
       <p className="mb-2 text-sm font-medium uppercase tracking-wider text-foreground/70">
@@ -145,6 +181,56 @@ export function WinnerScreen({ demoWinner }: WinnerScreenProps = {}) {
       <p className="mt-4 text-sm text-foreground/70">
         Daar gaan we heen in oktober 2026!
       </p>
+      {isRealGameReveal && (summaryCities.length > 0 || summaryRemoved.length > 0 || sortedSpins.length > 0) && (
+        <div className="mt-8 rounded-lg border border-foreground/10 bg-background/50 p-4 text-left">
+          <p className="mb-4 text-sm font-semibold uppercase tracking-wider text-foreground/80">
+            Samenvatting
+          </p>
+          {summaryCities.length > 0 && (
+            <div className="mb-4">
+              <p className="mb-1.5 text-xs font-medium uppercase text-foreground/70">Dit waren de steden</p>
+              <p className="text-sm text-foreground/90">
+                {summaryCities.map((c) => `${c.city} (${c.country})`).join(", ")}
+              </p>
+            </div>
+          )}
+          {summaryRemoved.length > 0 && (
+            <div className="mb-4">
+              <p className="mb-1.5 text-xs font-medium uppercase text-foreground/70">Dit is er gestreept</p>
+              <ul className="space-y-1 text-sm text-foreground/90">
+                {summaryRemoved.map((r, i) => {
+                  const by = r.removedBy === "erik" ? "Erik" : "Benno";
+                  const label = r.country ? `${r.city} (${r.country})` : r.city;
+                  return (
+                    <li key={i}>
+                      {label} – {by} ({r.date ? formatDateDisplay(r.date) : r.date})
+                    </li>
+                  );
+                })}
+              </ul>
+            </div>
+          )}
+          {sortedSpins.length > 0 && (
+            <div>
+              <p className="mb-1.5 text-xs font-medium uppercase text-foreground/70">Dit is er gespind</p>
+              <ul className="space-y-2 text-sm text-foreground/90">
+                {sortedSpins.map((s, i) => {
+                  const dateStr = (s as { date?: string }).date;
+                  const dateLabel = dateStr ? formatDateDisplay(dateStr) : "";
+                  const name = s.user === "erik" ? "Erik" : "Benno";
+                  return (
+                    <li key={s.id ?? i} className="flex items-center gap-2">
+                      <span className="min-w-[7rem] text-foreground/70">{dateLabel}</span>
+                      <span className="font-medium">{name}</span>
+                      <span className="text-foreground/80">→ {s.city}</span>
+                    </li>
+                  );
+                })}
+              </ul>
+            </div>
+          )}
+        </div>
+      )}
     </div>
   );
 }

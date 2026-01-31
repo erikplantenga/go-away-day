@@ -1,7 +1,7 @@
 "use client";
 
 import { useSearchParams } from "next/navigation";
-import { useEffect } from "react";
+import { useEffect, useState } from "react";
 import { validateToken, isValidUserSegment } from "@/lib/auth";
 import type { UserId } from "@/lib/firestore";
 import { ensurePreviewSeeded } from "@/lib/previewStorage";
@@ -15,12 +15,16 @@ export function UserPageClient({ user }: Props) {
   const searchParams = useSearchParams();
   const token = searchParams.get("token");
   const isPreview = searchParams.get("preview") === "echt";
+  const [, setPreviewReady] = useState(false);
 
-  if (typeof window !== "undefined" && isPreview) {
+  useEffect(() => {
+    if (typeof window === "undefined" || !isPreview) return;
     (window as unknown as { __GO_AWAY_DAY_PREVIEW__: boolean; __GO_AWAY_DAY_PREVIEW_PHASE__: string }).__GO_AWAY_DAY_PREVIEW__ = true;
     (window as unknown as { __GO_AWAY_DAY_PREVIEW_PHASE__: string }).__GO_AWAY_DAY_PREVIEW_PHASE__ =
       searchParams.get("phase") || "fruitautomaat";
-  }
+    // eslint-disable-next-line react-hooks/set-state-in-effect -- trigger re-render so getPhase() sees preview
+    setPreviewReady(true);
+  }, [isPreview, searchParams]);
 
   useEffect(() => {
     if (isPreview) void ensurePreviewSeeded();

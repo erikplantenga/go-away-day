@@ -26,6 +26,7 @@ export function ConfettiBurst() {
       size: 8 + Math.random() * 10,
       emoji: Math.random() > 0.55 ? EMOJIS[Math.floor(Math.random() * EMOJIS.length)] : undefined,
     }));
+    // eslint-disable-next-line react-hooks/set-state-in-effect -- init particles for animation
     setParticles(newParticles);
 
     let raf: number;

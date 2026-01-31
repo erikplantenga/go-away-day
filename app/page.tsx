@@ -1,3 +1,4 @@
+import Link from "next/link";
 import { ZoWerktHet } from "@/components/ZoWerktHet";
 import { StartPaginaFeest } from "@/components/StartPaginaFeest";
 
@@ -12,9 +13,9 @@ export default function Home() {
         </p>
         <p className="mt-3 text-sm text-foreground/70">
           Open je link:{" "}
-          <a href="/erik?token=test" className="font-mono underline">/erik?token=test</a>
+          <Link href="/erik?token=test" className="font-mono underline">/erik?token=test</Link>
           {" "}of{" "}
-          <a href="/benno?token=test" className="font-mono underline">/benno?token=test</a>
+          <Link href="/benno?token=test" className="font-mono underline">/benno?token=test</Link>
         </p>
         <p className="mt-2 text-xs text-foreground/60">
           Geen installatie nodig – gewoon openen en testen.

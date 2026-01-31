@@ -1,6 +1,6 @@
 "use client";
 
-import { getPhase } from "@/lib/dates";
+import { getPhase, getCurrentDateString, getStrikeLimitForDate } from "@/lib/dates";
 
 export function PhaseBanner() {
   const phase = getPhase();
@@ -22,9 +22,12 @@ export function PhaseBanner() {
   }
 
   if (phase === "wegstreep") {
+    const dateStr = getCurrentDateString();
+    const limit = getStrikeLimitForDate(dateStr);
+    const text = limit === 1 ? "Streep vandaag elk 1 stad weg." : "Streep vandaag elk 2 steden weg.";
     return (
       <p className="text-center text-lg text-foreground/90">
-        Streep vandaag elk 1 stad weg.
+        {text}
       </p>
     );
   }
@@ -36,7 +39,7 @@ export function PhaseBanner() {
           Je mag vandaag 1 spin doen.
         </p>
         <p className="mt-2 text-center text-sm text-foreground/70">
-          Op 7 februari om 20:00 weten we waar we heen gaan.
+          Op 7 februari om 20:30 weten we waar we heen gaan.
         </p>
       </>
     );

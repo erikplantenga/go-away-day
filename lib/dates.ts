@@ -55,11 +55,6 @@ export function getRevealTime(): Date {
   return new Date(Date.UTC(2026, 1, 7, 19, 30, 0, 0));
 }
 
-/** Huidige tijd in Europe/Amsterdam. */
-export function getZonedNow(): Date {
-  return toZonedTime(new Date(), TIMEZONE);
-}
-
 /**
  * Eerste moment waarop gespind mag: 4 feb 2026 10:00 Amsterdam.
  * Spinnen mag elke dag 1× vanaf 10:00 (4 t/m 7 feb).

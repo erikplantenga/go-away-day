@@ -28,16 +28,13 @@ export function ZoWerktHet({ showDemoHint = false }: Props) {
               gecombineerd en dubbelen gaan eraf.
             </li>
             <li>
-              <strong>1 t/m 3 februari</strong> – Elke dag mag iedereen 1 stad wegstrepen. Na 3
-              dagen blijven 4 steden over.
+              <strong>2 februari</strong> – Iedereen streep 1 stad weg. <strong>3 februari</strong> – iedereen streep 2 steden weg. Na 3 dagen blijven 4 steden over.
             </li>
             <li>
-              <strong>4 t/m 7 februari</strong> – Fruitautomaat: elke dag 1 spin. Het gekozen land
-              krijgt punten. Stand wordt live bijgewerkt.
+              <strong>4 t/m 7 februari</strong> – Fruitautomaat: elke dag 1 spin (vanaf 10:00). De gekozen stad krijgt punten. Stand wordt live bijgewerkt.
             </li>
             <li>
-              <strong>7 februari 20:00</strong> – Het land met de meeste punten wint. Daar gaan we
-              heen!
+              <strong>7 februari 20:30</strong> – De stad met de meeste punten wint. Daar gaan we heen!
             </li>
           </ol>
           {showDemoHint && (

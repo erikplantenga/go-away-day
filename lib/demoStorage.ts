@@ -249,7 +249,6 @@ export async function ensureFruitMachineDemoData(): Promise<void> {
   await ensureDemoCitiesFilled();
   const [cities, removedList] = await Promise.all([getCities(), getRemoved()]);
   if (cities.length >= 10 && removedList.length >= 6) return;
-  const dateStr = new Date().toISOString().slice(0, 10);
   const other: UserId = "benno";
   await ensureDemoOtherUserStruckThree(other);
 }
