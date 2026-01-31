@@ -30,52 +30,58 @@ export function getCurrentDateString(): string {
 }
 
 /**
- * Is it after 7 Feb 2026 20:00 in Amsterdam? (CET = UTC+1, so 19:00 UTC)
+ * Is it after 7 Feb 20:00 in Amsterdam? (year from current date)
  */
 export function isAfterWinnerTime(): boolean {
-  const winnerUtc = new Date(Date.UTC(2026, 1, 7, 19, 0, 0, 0));
   const now = new Date();
-  return now.getTime() >= winnerUtc.getTime();
+  const zoned = toZonedTime(now, TIMEZONE);
+  const m = zoned.getMonth();
+  const d = zoned.getDate();
+  const h = zoned.getHours();
+  if (m > 1 || (m === 1 && d > 7)) return true;
+  if (m === 1 && d === 7 && h >= 20) return true;
+  return false;
 }
 
 /**
- * Is it after 7 Feb 2026 20:00 in Amsterdam? (CET = UTC+1, so 19:00 UTC)
- * Uitslag mag pas vanaf 20:00 zichtbaar zijn.
+ * Is it after 7 Feb 20:00 in Amsterdam this year? Uitslag mag pas vanaf 20:00 zichtbaar zijn.
  */
 export function isAfterRevealTime(): boolean {
-  const revealUtc = new Date(Date.UTC(2026, 1, 7, 19, 0, 0, 0));
   const now = new Date();
-  return now.getTime() >= revealUtc.getTime();
+  return now.getTime() >= getRevealTime().getTime();
 }
 
 /**
- * Exact moment waarop de uitslag zichtbaar wordt (7 feb 2026 20:00 Amsterdam).
+ * Exact moment waarop de uitslag zichtbaar wordt (7 feb 20:00 Amsterdam, huidig jaar).
  */
 export function getRevealTime(): Date {
-  return new Date(Date.UTC(2026, 1, 7, 19, 0, 0, 0));
+  const y = toZonedTime(new Date(), TIMEZONE).getFullYear();
+  return new Date(Date.UTC(y, 1, 7, 19, 0, 0, 0)); // 20:00 CET = 19:00 UTC
 }
 
 /**
- * Eerste moment waarop gespind mag: 4 feb 2026 10:00 Amsterdam.
+ * Eerste moment waarop gespind mag: 4 feb 10:00 Amsterdam (huidig jaar).
  * Spinnen mag elke dag 1× vanaf 10:00 (4 t/m 7 feb).
  */
 export function getSpinOpenTimeFirstDay(): Date {
-  return new Date(Date.UTC(2026, 1, 4, 9, 0, 0, 0)); // 4 feb 10:00 CET
+  const y = toZonedTime(new Date(), TIMEZONE).getFullYear();
+  return new Date(Date.UTC(y, 1, 4, 9, 0, 0, 0)); // 4 feb 10:00 CET
 }
 
-/** Is het vandaag 10:00 of later in Amsterdam? (spinnen mag dan.) */
+/** Is het vandaag 10:00 of later in Amsterdam? (spinnen mag dan, 4–7 feb.) */
 export function isSpinOpenToday(): boolean {
   const now = new Date();
-  const dateStr = formatInTimeZone(now, TIMEZONE, "yyyy-MM-dd");
+  const mmdd = formatInTimeZone(now, TIMEZONE, "MM-dd");
   const hour = parseInt(formatInTimeZone(now, TIMEZONE, "H"), 10);
-  if (dateStr < "2026-02-04" || dateStr > "2026-02-07") return false;
+  if (mmdd < "02-04" || mmdd > "02-07") return false;
   return hour >= 10;
 }
 
 /** Countdown tot je mag spinnen: 4 feb 10:00 (of vandaag 10:00 als we op 4–7 feb zitten). */
 export function getSpinOpenTime(): Date {
   const dateStr = getCurrentDateString();
-  if (dateStr >= "2026-02-04" && dateStr <= "2026-02-07") {
+  const mmdd = dateStr.slice(5);
+  if (mmdd >= "02-04" && mmdd <= "02-07") {
     const [y, m, d] = dateStr.split("-").map(Number);
     return new Date(Date.UTC(y, m - 1, d, 9, 0, 0, 0)); // 10:00 CET = 09:00 UTC
   }
@@ -87,8 +93,9 @@ export function getSpinOpenTime(): Date {
  * 2 feb: 1 stad, 3 feb: 2 steden (eenmalig per dag).
  */
 export function getStrikeLimitForDate(dateStr: string): number {
-  if (dateStr === "2026-02-02") return 1;
-  if (dateStr === "2026-02-03") return 2;
+  const mmdd = dateStr.slice(5);
+  if (mmdd === "02-02") return 1;
+  if (mmdd === "02-03") return 2;
   return 0;
 }
 
@@ -115,18 +122,21 @@ export function getPhase(): Phase {
   if (override) return override;
 
   const dateStr = getCurrentDateString();
-  const feb1 = "2026-02-01";
-  const feb4 = "2026-02-04";
-  const feb7 = "2026-02-07";
+  const mmdd = dateStr.slice(5);
+  const feb1 = "02-01";
+  const feb2 = "02-02";
+  const feb3 = "02-03";
+  const feb4 = "02-04";
+  const feb7 = "02-07";
 
   if (isAfterWinnerTime()) return "finale";
-  if (dateStr >= feb4 && dateStr <= feb7) {
+  if (mmdd >= feb4 && mmdd <= feb7) {
     const hour = parseInt(formatInTimeZone(new Date(), TIMEZONE, "H"), 10);
-    if (dateStr === feb4 && hour < 10) return "countdown_spin";
+    if (mmdd === feb4 && hour < 10) return "countdown_spin";
     return "fruitautomaat";
   }
-  if (dateStr === "2026-02-02" || dateStr === "2026-02-03") return "wegstreep";
-  if (dateStr === feb1) return "city_input";
+  if (mmdd === feb2 || mmdd === feb3) return "wegstreep";
+  if (mmdd === feb1) return "city_input";
   return "countdown";
 }
 

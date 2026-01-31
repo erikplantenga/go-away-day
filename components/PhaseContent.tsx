@@ -13,9 +13,31 @@ import { DemoFlow } from "@/components/DemoFlow";
 
 type Props = { currentUser: UserId };
 
+function DemoLink({ onOpen }: { onOpen: () => void }) {
+  return (
+    <div className="mb-3 flex justify-end">
+      <button
+        type="button"
+        onClick={onOpen}
+        className="rounded-lg border border-amber-500/50 bg-amber-500/10 px-4 py-2 text-sm font-medium text-foreground transition hover:bg-amber-500/20"
+      >
+        🎉 Demo bekijken
+      </button>
+    </div>
+  );
+}
+
 export function PhaseContent({ currentUser }: Props) {
   const phase = getPhase();
   const [showDemo, setShowDemo] = useState(false);
+
+  if (showDemo) {
+    return (
+      <DemoFeest>
+        <DemoFlow currentUser={currentUser} />
+      </DemoFeest>
+    );
+  }
 
   if (phase === "countdown") {
     return (
@@ -23,48 +45,65 @@ export function PhaseContent({ currentUser }: Props) {
         <p className="text-center text-foreground/70">
           Wacht tot 1 februari om steden in te voeren.
         </p>
-        {!showDemo ? (
-          <div className="text-center">
-            <button
-              type="button"
-              onClick={() => setShowDemo(true)}
-              className="rounded-xl border-2 border-amber-500/50 bg-gradient-to-r from-amber-500/20 to-orange-500/20 px-6 py-3 text-base font-semibold text-foreground shadow-lg shadow-amber-500/20 transition hover:from-amber-500/30 hover:to-orange-500/30"
-            >
-              🎉 Demo bekijken – feest! 🎉
-            </button>
-          </div>
-        ) : (
-          <DemoFeest>
-            <DemoFlow currentUser={currentUser} />
-          </DemoFeest>
-        )}
+        <div className="text-center">
+          <button
+            type="button"
+            onClick={() => setShowDemo(true)}
+            className="rounded-xl border-2 border-amber-500/50 bg-gradient-to-r from-amber-500/20 to-orange-500/20 px-6 py-3 text-base font-semibold text-foreground shadow-lg shadow-amber-500/20 transition hover:from-amber-500/30 hover:to-orange-500/30"
+          >
+            🎉 Demo bekijken – feest! 🎉
+          </button>
+        </div>
       </div>
     );
   }
 
   if (phase === "city_input") {
-    return <CityInputForm currentUser={currentUser} />;
+    return (
+      <>
+        <DemoLink onOpen={() => setShowDemo(true)} />
+        <CityInputForm currentUser={currentUser} />
+      </>
+    );
   }
 
   if (phase === "wegstreep") {
-    return <WegstreepList currentUser={currentUser} />;
+    return (
+      <>
+        <DemoLink onOpen={() => setShowDemo(true)} />
+        <WegstreepList currentUser={currentUser} />
+      </>
+    );
   }
 
   if (phase === "countdown_spin") {
-    return <CountdownToSpin />;
+    return (
+      <>
+        <DemoLink onOpen={() => setShowDemo(true)} />
+        <CountdownToSpin />
+      </>
+    );
   }
 
   if (phase === "fruitautomaat") {
     return (
-      <div className="space-y-6">
-        <SlotMachine currentUser={currentUser} />
-        <Leaderboard />
-      </div>
+      <>
+        <DemoLink onOpen={() => setShowDemo(true)} />
+        <div className="space-y-6">
+          <SlotMachine currentUser={currentUser} />
+          <Leaderboard />
+        </div>
+      </>
     );
   }
 
   if (phase === "finale") {
-    return <WinnerScreen />;
+    return (
+      <>
+        <DemoLink onOpen={() => setShowDemo(true)} />
+        <WinnerScreen />
+      </>
+    );
   }
 
   return null;
