@@ -13,6 +13,9 @@ import { SlotMachine } from "@/components/SlotMachine";
 import { Leaderboard } from "@/components/Leaderboard";
 import { WinnerScreen } from "@/components/WinnerScreen";
 import { setWinner } from "@/lib/firestore";
+import { ensureDemoCitiesFilled, ensureFruitMachineDemoData } from "@/lib/demoStorage";
+import { getFactForDate } from "@/lib/dailyFacts";
+import { getCurrentDateString } from "@/lib/dates";
 
 type DemoStep = "cities" | "wegstreep" | "fruitautomaat" | "finale";
 
@@ -23,11 +26,15 @@ export function DemoFlow({ currentUser }: Props) {
 
   useEffect(() => {
     setDemoMode(true);
+    ensureDemoCitiesFilled();
     return () => setDemoMode(false);
   }, []);
 
   const goToWegstreep = () => setStep("wegstreep");
-  const goToFruitautomaat = () => setStep("fruitautomaat");
+  const goToFruitautomaat = async () => {
+    await ensureFruitMachineDemoData();
+    setStep("fruitautomaat");
+  };
   const goToFinale = async () => {
     try {
       await setWinner("Frankrijk");
@@ -38,11 +45,17 @@ export function DemoFlow({ currentUser }: Props) {
   };
 
   if (step === "cities") {
+    const fact = getFactForDate(getCurrentDateString());
     return (
-      <CityInputForm
-        currentUser={currentUser}
-        demoOnGoToWegstreep={goToWegstreep}
-      />
+      <div className="space-y-4">
+        <p className="rounded-lg bg-amber-500/10 px-3 py-2 text-center text-sm italic text-foreground/90">
+          {fact}
+        </p>
+        <CityInputForm
+          currentUser={currentUser}
+          demoOnGoToWegstreep={goToWegstreep}
+        />
+      </div>
     );
   }
 
@@ -50,6 +63,7 @@ export function DemoFlow({ currentUser }: Props) {
     return (
       <div className="space-y-4">
         <p className="text-center text-sm text-foreground/70">🎊 Wegstrepen – feest gaat door!</p>
+        <p className="text-center text-xs text-foreground/60">Klik op een stad om die echt weg te strepen, net als in het echte spel.</p>
         <WegstreepList currentUser={currentUser} />
         <div className="flex flex-col items-center gap-2">
           <p className="text-center text-xs text-foreground/60">Volgende feestje?</p>
@@ -69,6 +83,7 @@ export function DemoFlow({ currentUser }: Props) {
     return (
       <div className="space-y-6">
         <p className="text-center text-sm text-foreground/70">🎰 Fruitautomaat – bijna uitslag!</p>
+        <p className="text-center text-xs text-foreground/60">Zelfde scherm als in het echte spel.</p>
         <SlotMachine currentUser={currentUser} />
         <Leaderboard />
         <div className="flex flex-col items-center gap-2">

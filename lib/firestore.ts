@@ -441,6 +441,8 @@ export function computeWinner(
     .map((c) => ({ country: c, count: spinCountByCountry.get(c) ?? 0 }))
     .sort((a, b) => b.count - a.count);
   if (bySpins[0]!.count > (bySpins[1]?.count ?? 0)) return bySpins[0]!.country;
-  const coinflip = Math.random() < 0.5 ? 0 : 1;
-  return bySpins[coinflip]!.country;
+  /* Gelijke punten én gelijke spins: vast resultaat (alfabetisch eerste) zodat Erik en Benno dezelfde winnaar zien */
+  const stillTied = bySpins.filter((x) => x.count === (bySpins[0]?.count ?? 0)).map((x) => x.country);
+  stillTied.sort((a, b) => a.localeCompare(b));
+  return stillTied[0] ?? "";
 }

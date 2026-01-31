@@ -91,6 +91,16 @@ export function WegstreepList({ currentUser }: Props) {
     return <p className="text-center text-foreground/70">Laden...</p>;
   }
 
+  if (cities.length === 0) {
+    return (
+      <div className="rounded-lg border border-foreground/10 bg-background p-4">
+        <p className="text-center text-foreground/90">
+          Er is nog geen gezamenlijke lijst. Beide moeten op 1 februari 5 steden opgeven.
+        </p>
+      </div>
+    );
+  }
+
   return (
     <div className="space-y-4 rounded-lg border border-foreground/10 bg-background p-4">
       <WhoMustStrikeBanner erikDone={erikStruck} bennoDone={bennoStruck} />

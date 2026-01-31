@@ -8,6 +8,8 @@ import type { CityEntry, RemovedEntry, SpinEntry, GameConfig } from "./firestore
 import { Timestamp } from "firebase/firestore";
 
 const PREFIX = "go-away-day-demo-";
+export const DEMO_STORAGE_PREFIX = PREFIX;
+
 const KEY_CITIES = PREFIX + "cities";
 const KEY_SUBMISSION_ERIK = PREFIX + "submission_erik";
 const KEY_SUBMISSION_BENNO = PREFIX + "submission_benno";
@@ -86,6 +88,33 @@ export async function combineAndDedupeCities(): Promise<CityEntry[]> {
   }
   await setCities(deduped);
   return deduped;
+}
+
+/** Voorg invulde steden voor de demo: start met "dit zijn je gekozen steden". */
+const DEMO_CITIES_ERIK: CityEntry[] = [
+  { city: "Amsterdam", country: "Nederland", addedBy: "erik" },
+  { city: "Rotterdam", country: "Nederland", addedBy: "erik" },
+  { city: "Den Haag", country: "Nederland", addedBy: "erik" },
+  { city: "Utrecht", country: "Nederland", addedBy: "erik" },
+  { city: "Eindhoven", country: "Nederland", addedBy: "erik" },
+];
+const DEMO_CITIES_BENNO: CityEntry[] = [
+  { city: "Parijs", country: "Frankrijk", addedBy: "benno" },
+  { city: "Lyon", country: "Frankrijk", addedBy: "benno" },
+  { city: "Marseille", country: "Frankrijk", addedBy: "benno" },
+  { city: "Bordeaux", country: "Frankrijk", addedBy: "benno" },
+  { city: "Nice", country: "Frankrijk", addedBy: "benno" },
+];
+
+export async function ensureDemoCitiesFilled(): Promise<void> {
+  const [erik, benno] = await Promise.all([
+    getCitySubmission("erik"),
+    getCitySubmission("benno"),
+  ]);
+  if (erik && erik.length >= 5 && benno && benno.length >= 5) return;
+  await setCitySubmission("erik", DEMO_CITIES_ERIK);
+  await setCitySubmission("benno", DEMO_CITIES_BENNO);
+  await combineAndDedupeCities();
 }
 
 export async function getRemoved(): Promise<RemovedEntry[]> {
@@ -175,6 +204,21 @@ export async function getRemainingCountries(): Promise<string[]> {
   return [...new Set(remaining.map((c) => c.country))];
 }
 
+/** Zorg dat de fruitautomaat in de demo altijd landen heeft om te tonen (zelfde beeld als in het echte spel). */
+const DEMO_FRUIT_CITIES: CityEntry[] = [
+  { city: "Amsterdam", country: "Nederland", addedBy: "erik" },
+  { city: "Parijs", country: "Frankrijk", addedBy: "erik" },
+  { city: "Berlijn", country: "Duitsland", addedBy: "benno" },
+  { city: "Madrid", country: "Spanje", addedBy: "benno" },
+];
+
+export async function ensureFruitMachineDemoData(): Promise<void> {
+  const countries = await getRemainingCountries();
+  if (countries.length >= 4) return;
+  await setCities(DEMO_FRUIT_CITIES);
+  writeJson(KEY_REMOVED, []);
+}
+
 export function subscribeSpins(
   callback: (spins: (SpinEntry & { id: string })[]) => void
 ): () => void {
@@ -207,4 +251,15 @@ export async function setConfig(updates: Partial<GameConfig>): Promise<void> {
 
 export async function setWinner(country: string): Promise<void> {
   return setConfig({ winnerLocked: true, winnerCountry: country });
+}
+
+/** Wis alle demo-data zodat je de demo opnieuw kunt doen. Echte speldata blijft onaangeroerd. */
+export function clearDemoStorage(): void {
+  if (typeof window === "undefined") return;
+  const keys: string[] = [];
+  for (let i = 0; i < localStorage.length; i++) {
+    const key = localStorage.key(i);
+    if (key?.startsWith(DEMO_STORAGE_PREFIX)) keys.push(key);
+  }
+  keys.forEach((k) => localStorage.removeItem(k));
 }

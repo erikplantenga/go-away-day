@@ -2,8 +2,7 @@
 
 import { useEffect, useState } from "react";
 import { Fireworks } from "@/components/Fireworks";
-import { getCurrentDateString } from "@/lib/dates";
-import { getFactForDate } from "@/lib/dailyFacts";
+import { clearDemoStorage } from "@/lib/demoStorage";
 
 const COLORS = ["#fbbf24", "#f59e0b", "#ef4444", "#ec4899", "#8b5cf6", "#06b6d4"];
 const EMOJIS = ["🎉", "🎊", "✈️", "🌍", "🌟", "🎈"];
@@ -87,8 +86,6 @@ export function DemoFeest({ children }: Props) {
     return () => clearTimeout(t);
   }, []);
 
-  const fact = getFactForDate(getCurrentDateString());
-
   return (
     <div className="relative overflow-hidden rounded-2xl border-2 border-amber-400/50 bg-gradient-to-br from-amber-500/10 via-orange-500/5 to-transparent shadow-xl shadow-amber-500/20">
       {/* Vuurwerk – blijft doorlopen */}
@@ -102,13 +99,22 @@ export function DemoFeest({ children }: Props) {
         <p className="mb-2 text-center text-base font-semibold text-foreground sm:text-lg">
           🎉 Één groot feest – demo! 🎉
         </p>
-        <p className="mb-2 text-center text-sm text-foreground/70">
+        <p className="mb-4 text-center text-sm text-foreground/70">
           Zo werkt het straks op 1 februari. Geniet van elke stap!
         </p>
-        <p className="mb-4 rounded-lg bg-amber-500/10 px-3 py-2 text-center text-sm italic text-foreground/90">
-          {fact}
-        </p>
         {children}
+        <div className="mt-4 flex justify-center">
+          <button
+            type="button"
+            onClick={() => {
+              clearDemoStorage();
+              window.location.reload();
+            }}
+            className="rounded border border-foreground/20 bg-foreground/5 px-3 py-1.5 text-xs text-foreground/70"
+          >
+            Demo wissen – opnieuw beginnen
+          </button>
+        </div>
       </div>
     </div>
   );

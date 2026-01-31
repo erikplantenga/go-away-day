@@ -263,6 +263,11 @@ export function CityInputForm({ currentUser, demoOnGoToWegstreep }: Props) {
   if (combined) {
     return (
       <div className="rounded-lg border border-foreground/10 bg-background p-4">
+        {demoOnGoToWegstreep && (
+          <p className="mb-2 text-center text-foreground/90 font-medium">
+            Dit zijn je gekozen steden.
+          </p>
+        )}
         <p className="text-center text-foreground/90">
           Beide hebben steden opgegeven. De gezamenlijke lijst is klaar voor de wegstreepronde.
         </p>
