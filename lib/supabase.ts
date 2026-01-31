@@ -126,7 +126,7 @@ export async function getStrikeCountForDate(user: UserId, dateStr: string): Prom
 // --- Spins ---
 interface StoredSpin {
   user: UserId;
-  country: string;
+  city: string;
   date: string;
   points: number;
   timestamp: string;
@@ -136,7 +136,7 @@ export async function getSpins(): Promise<SpinEntry[]> {
   const list = (await getValue<StoredSpin[]>("spins")) ?? [];
   return list.map((s) => ({
     user: s.user,
-    country: s.country,
+    city: (s as StoredSpin & { country?: string }).city ?? (s as StoredSpin & { country?: string }).country ?? "",
     points: s.points,
     timestamp: Timestamp.fromDate(new Date(s.timestamp)),
   }));
@@ -144,14 +144,14 @@ export async function getSpins(): Promise<SpinEntry[]> {
 
 export async function addSpin(
   user: UserId,
-  country: string,
+  city: string,
   dateStr: string,
   points: number = 1
 ): Promise<void> {
   const list = (await getValue<StoredSpin[]>("spins")) ?? [];
   list.push({
     user,
-    country,
+    city,
     date: dateStr,
     points,
     timestamp: new Date().toISOString(),
@@ -167,11 +167,10 @@ export async function hasUserSpunToday(
   return list.some((s) => s.user === user && s.date === dateStr);
 }
 
-export async function getRemainingCountries(): Promise<string[]> {
+export async function getRemainingCities(): Promise<CityEntry[]> {
   const [cities, removed] = await Promise.all([getCities(), getRemoved()]);
   const set = new Set(removed.map((r) => `${r.city}|${r.country ?? ""}`));
-  const remaining = cities.filter((c) => !set.has(`${c.city}|${c.country}`));
-  return [...new Set(remaining.map((c) => c.country))];
+  return cities.filter((c) => !set.has(`${c.city}|${c.country}`));
 }
 
 type Unsubscribe = () => void;
@@ -206,6 +205,6 @@ export async function setConfig(updates: Partial<GameConfig>): Promise<void> {
   await setValue("config", { ...current, ...updates });
 }
 
-export async function setWinner(country: string): Promise<void> {
-  await setConfig({ winnerLocked: true, winnerCountry: country });
+export async function setWinner(city: string): Promise<void> {
+  await setConfig({ winnerLocked: true, winnerCity: city });
 }

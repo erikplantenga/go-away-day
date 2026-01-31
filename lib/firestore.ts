@@ -101,14 +101,14 @@ export interface RemovedEntry {
 
 export interface SpinEntry {
   user: UserId;
-  country: string;
+  city: string;
   timestamp: Timestamp;
   points: number;
 }
 
 export interface GameConfig {
   winnerLocked?: boolean;
-  winnerCountry?: string;
+  winnerCity?: string;
   phaseOverride?: string;
 }
 
@@ -333,22 +333,22 @@ export async function getSpins(): Promise<SpinEntry[]> {
 
 export async function addSpin(
   user: UserId,
-  country: string,
+  city: string,
   dateStr: string,
   points: number = 1
 ): Promise<void> {
-  if (isPreviewMode()) return previewStorage.addSpin(user, country, dateStr, points);
-  if (isDemoMode()) return demoStorage.addSpin(user, country, dateStr, points);
+  if (isPreviewMode()) return previewStorage.addSpin(user, city, dateStr, points);
+  if (isDemoMode()) return demoStorage.addSpin(user, city, dateStr, points);
   if (useBackend() === "supabase")
-    return supabase.addSpin(user, country, dateStr, points);
+    return supabase.addSpin(user, city, dateStr, points);
   if (useBackend() === "local") {
-    if (await useApiBackend()) return apiClient.addSpin(user, country, dateStr, points);
-    return local.addSpin(user, country, dateStr, points);
+    if (await useApiBackend()) return apiClient.addSpin(user, city, dateStr, points);
+    return local.addSpin(user, city, dateStr, points);
   }
   const db = getDb();
   await addDoc(collection(db, "spins"), {
     user,
-    country,
+    city,
     date: dateStr,
     timestamp: serverTimestamp(),
     points,
@@ -377,14 +377,14 @@ export async function hasUserSpunToday(
   return !snap.empty;
 }
 
-/** Get unique countries from the 4 remaining cities (after all wegstreep). */
-export async function getRemainingCountries(): Promise<string[]> {
-  if (isPreviewMode()) return previewStorage.getRemainingCountries();
-  if (isDemoMode()) return demoStorage.getRemainingCountries();
-  if (useBackend() === "supabase") return supabase.getRemainingCountries();
+/** Overgebleven steden na wegstrepen – alleen steden, gebruikt voor spin en winnaar. */
+export async function getRemainingCities(): Promise<CityEntry[]> {
+  if (isPreviewMode()) return previewStorage.getRemainingCities();
+  if (isDemoMode()) return demoStorage.getRemainingCities();
+  if (useBackend() === "supabase") return supabase.getRemainingCities();
   if (useBackend() === "local") {
-    if (await useApiBackend()) return apiClient.getRemainingCountries();
-    return local.getRemainingCountries();
+    if (await useApiBackend()) return apiClient.getRemainingCities();
+    return local.getRemainingCities();
   }
   const [allCities, removedList] = await Promise.all([
     getCities(),
@@ -393,18 +393,9 @@ export async function getRemainingCountries(): Promise<string[]> {
   const removedSet = new Set(
     removedList.map((r) => `${r.city}|${r.country ?? ""}`)
   );
-  const remaining = allCities.filter(
+  return allCities.filter(
     (c) => !removedSet.has(`${c.city}|${c.country}`)
   );
-  const countries = [...new Set(remaining.map((c) => c.country))];
-  return countries;
-}
-
-/** Overgebleven steden (voor demo/preview: tonen bij spinnen). */
-export async function getRemainingCities(): Promise<CityEntry[]> {
-  if (isPreviewMode()) return previewStorage.getRemainingCities();
-  if (isDemoMode()) return demoStorage.getRemainingCities();
-  return [];
 }
 
 export function subscribeSpins(
@@ -470,34 +461,30 @@ export async function setConfig(updates: Partial<GameConfig>): Promise<void> {
   await setDoc(ref, { ...current, ...updates });
 }
 
-export async function setWinner(country: string): Promise<void> {
-  if (isPreviewMode()) return previewStorage.setWinner(country);
-  if (isDemoMode()) return demoStorage.setWinner(country);
-  if (useBackend() === "supabase") return supabase.setWinner(country);
+export async function setWinner(city: string): Promise<void> {
+  if (isPreviewMode()) return previewStorage.setWinner(city);
+  if (isDemoMode()) return demoStorage.setWinner(city);
+  if (useBackend() === "supabase") return supabase.setWinner(city);
   if (useBackend() === "local") {
-    if (await useApiBackend()) return apiClient.setWinner(country);
-    return local.setWinner(country);
+    if (await useApiBackend()) return apiClient.setWinner(city);
+    return local.setWinner(city);
   }
-  await setConfig({ winnerLocked: true, winnerCountry: country });
+  await setConfig({ winnerLocked: true, winnerCity: city });
 }
 
-/** Compute winner from spins: most points; tie = most spins on that country; else coinflip. */
+/** Winnaar uit spins: meeste punten per stad; bij gelijkstand meeste spins op die stad; anders alfabetisch eerste. */
 export function computeWinner(
   spins: (SpinEntry & { id?: string })[]
 ): string {
-  const pointsByCountry = new Map<string, number>();
-  const spinCountByCountry = new Map<string, number>();
+  const pointsByCity = new Map<string, number>();
+  const spinCountByCity = new Map<string, number>();
   for (const s of spins) {
-    pointsByCountry.set(
-      s.country,
-      (pointsByCountry.get(s.country) ?? 0) + (s.points ?? 1)
-    );
-    spinCountByCountry.set(
-      s.country,
-      (spinCountByCountry.get(s.country) ?? 0) + 1
-    );
+    const city = s.city;
+    if (!city) continue;
+    pointsByCity.set(city, (pointsByCity.get(city) ?? 0) + (s.points ?? 1));
+    spinCountByCity.set(city, (spinCountByCity.get(city) ?? 0) + 1);
   }
-  const entries = Array.from(pointsByCountry.entries()).sort(
+  const entries = Array.from(pointsByCity.entries()).sort(
     (a, b) => b[1]! - a[1]!
   );
   if (entries.length === 0) return "";
@@ -505,11 +492,10 @@ export function computeWinner(
   const tied = entries.filter((e) => e[1] === maxPoints).map((e) => e[0]!);
   if (tied.length === 1) return tied[0]!;
   const bySpins = tied
-    .map((c) => ({ country: c, count: spinCountByCountry.get(c) ?? 0 }))
+    .map((c) => ({ city: c, count: spinCountByCity.get(c) ?? 0 }))
     .sort((a, b) => b.count - a.count);
-  if (bySpins[0]!.count > (bySpins[1]?.count ?? 0)) return bySpins[0]!.country;
-  /* Gelijke punten én gelijke spins: vast resultaat (alfabetisch eerste) zodat Erik en Benno dezelfde winnaar zien */
-  const stillTied = bySpins.filter((x) => x.count === (bySpins[0]?.count ?? 0)).map((x) => x.country);
+  if (bySpins[0]!.count > (bySpins[1]?.count ?? 0)) return bySpins[0]!.city;
+  const stillTied = bySpins.filter((x) => x.count === (bySpins[0]?.count ?? 0)).map((x) => x.city);
   stillTied.sort((a, b) => a.localeCompare(b));
   return stillTied[0] ?? "";
 }

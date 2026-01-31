@@ -3,7 +3,6 @@
 import { useState, useEffect, useRef } from "react";
 import type { UserId, CityEntry } from "@/lib/firestore";
 import {
-  getRemainingCountries,
   getRemainingCities,
   addSpin,
   hasUserSpunToday,
@@ -60,8 +59,7 @@ function SpinCountdownTo10() {
 }
 
 export function SlotMachine({ currentUser, onRevealComplete }: Props) {
-  const [countries, setCountries] = useState<string[]>([]);
-  const [demoCities, setDemoCities] = useState<CityEntry[]>([]);
+  const [remainingCities, setRemainingCities] = useState<CityEntry[]>([]);
   const [alreadySpun, setAlreadySpun] = useState(false);
   const [demoSpinCount, setDemoSpinCount] = useState(0);
   const [spinning, setSpinning] = useState(false);
@@ -78,18 +76,15 @@ export function SlotMachine({ currentUser, onRevealComplete }: Props) {
   const isDemo = typeof window !== "undefined" && isDemoMode();
   const demoDone = isDemo && demoSpinCount >= DEMO_SPINS_REQUIRED;
   const canSpin = isDemo ? !demoDone && !spinning : !alreadySpun && !spinning;
-  const itemsCount = isDemo ? demoCities.length : countries.length;
+  const itemsCount = remainingCities.length;
 
   useEffect(() => {
     let cancelled = false;
     async function load() {
       try {
-        if (isDemo) {
-          const cities = await getRemainingCities();
-          if (!cancelled) setDemoCities(cities);
-        } else {
-          const list = await getRemainingCountries();
-          if (!cancelled) setCountries(list);
+        const cities = await getRemainingCities();
+        if (!cancelled) setRemainingCities(cities);
+        if (!isDemo) {
           const spun = await hasUserSpunToday(currentUser, dateStr);
           if (!cancelled) setAlreadySpun(spun);
         }
@@ -122,24 +117,13 @@ export function SlotMachine({ currentUser, onRevealComplete }: Props) {
     setSpinning(true);
     setError(null);
     setResults([null, null, null]);
-    let threeNames: string[];
-    let chosenCountry: string;
-    if (isDemo) {
-      const three: CityEntry[] = [
-        pickRandom(demoCities),
-        pickRandom(demoCities),
-        pickRandom(demoCities),
-      ];
-      threeNames = three.map((c) => c.city);
-      chosenCountry = three[1]!.country;
-    } else {
-      threeNames = [
-        pickRandom(countries),
-        pickRandom(countries),
-        pickRandom(countries),
-      ];
-      chosenCountry = threeNames[1]!;
-    }
+    const three: CityEntry[] = [
+      pickRandom(remainingCities),
+      pickRandom(remainingCities),
+      pickRandom(remainingCities),
+    ];
+    const threeNames = three.map((c) => c.city);
+    const chosenCity = three[1]!.city;
     const isLastDemoSpin = isDemo && demoSpinCount + 1 >= DEMO_SPINS_REQUIRED;
     timeoutsRef.current.forEach((t) => clearTimeout(t));
     const start = PAUSE_BEFORE_REVEAL_MS;
@@ -152,7 +136,7 @@ export function SlotMachine({ currentUser, onRevealComplete }: Props) {
         setShowFireworks(true);
       }, start + REVEAL_DELAY_MS * 3),
       setTimeout(() => {
-        addSpin(currentUser, chosenCountry, dateStr, 1)
+        addSpin(currentUser, chosenCity, dateStr, 1)
           .then(() => {
             if (isDemo) {
               setDemoSpinCount((n) => n + 1);
@@ -286,7 +270,7 @@ export function SlotMachine({ currentUser, onRevealComplete }: Props) {
         ))}
       </div>
       <p className="text-center text-sm font-medium text-foreground/80">
-        {isDemo ? "Steden uit de demo." : "Landen uit de 4 overgebleven steden."}
+        {isDemo ? "Steden uit de demo." : "De 4 overgebleven steden."}
         {isDemo && (
           <span className="block mt-1 text-foreground/70">
             Demo: {demoSpinCount}/{DEMO_SPINS_REQUIRED} spins

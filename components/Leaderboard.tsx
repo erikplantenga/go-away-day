@@ -5,16 +5,16 @@ import { subscribeSpins } from "@/lib/firestore";
 import type { SpinEntry } from "@/lib/firestore";
 import { isAfterRevealTime } from "@/lib/dates";
 
-function aggregateByCountry(
+function aggregateByCity(
   spins: (SpinEntry & { id: string })[]
-): { country: string; points: number }[] {
+): { city: string; points: number }[] {
   const map = new Map<string, number>();
   for (const s of spins) {
-    const n = (map.get(s.country) ?? 0) + (s.points ?? 1);
-    map.set(s.country, n);
+    const n = (map.get(s.city) ?? 0) + (s.points ?? 1);
+    map.set(s.city, n);
   }
   return Array.from(map.entries())
-    .map(([country, points]) => ({ country, points }))
+    .map(([city, points]) => ({ city, points }))
     .sort((a, b) => b.points - a.points);
 }
 
@@ -26,7 +26,7 @@ export function Leaderboard() {
     return () => unsub();
   }, []);
 
-  const standings = aggregateByCountry(spins);
+  const standings = aggregateByCity(spins);
   const showStand = isAfterRevealTime();
 
   return (
@@ -40,13 +40,13 @@ export function Leaderboard() {
         <p className="text-sm text-foreground/70">Nog geen spins.</p>
       ) : (
         <ul className="space-y-2">
-          {standings.map(({ country, points }, i) => (
+          {standings.map(({ city, points }, i) => (
             <li
-              key={country}
+              key={city}
               className="flex items-center justify-between rounded border border-foreground/10 px-3 py-2"
             >
               <span className="font-medium">
-                {i + 1}. {country}
+                {i + 1}. {city}
               </span>
               <span className="text-foreground/80">{points} pt</span>
             </li>

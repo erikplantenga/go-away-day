@@ -67,7 +67,7 @@ export async function POST(req: NextRequest) {
       if (op === "addSpin") {
         await fb.addSpin({
           user: body.user,
-          country: body.country,
+          city: body.city,
           date: body.dateStr,
           points: body.points ?? 1,
         });
@@ -77,15 +77,15 @@ export async function POST(req: NextRequest) {
         return NextResponse.json({
           data: await fb.hasUserSpunToday(body.user, body.dateStr),
         });
-      if (op === "getRemainingCountries")
-        return NextResponse.json({ data: await fb.getRemainingCountries() });
+      if (op === "getRemainingCities")
+        return NextResponse.json({ data: await fb.getRemainingCities() });
       if (op === "getConfig") return NextResponse.json({ data: await fb.getConfig() });
       if (op === "setConfig") {
         await fb.setConfig(body.updates);
         return NextResponse.json({ ok: true });
       }
       if (op === "setWinner") {
-        await fb.setWinner(body.country);
+        await fb.setWinner(body.city);
         return NextResponse.json({ ok: true });
       }
     }
@@ -176,7 +176,7 @@ export async function POST(req: NextRequest) {
       const list = v ? JSON.parse(v) : [];
       list.push({
         user: body.user,
-        country: body.country,
+        city: body.city,
         date: body.dateStr,
         points: body.points ?? 1,
         timestamp: new Date().toISOString(),
@@ -193,14 +193,13 @@ export async function POST(req: NextRequest) {
       );
       return NextResponse.json({ data: found });
     }
-    if (op === "getRemainingCountries") {
+    if (op === "getRemainingCities") {
       const [citiesV, removedV] = await Promise.all([get("cities"), get("removed")]);
       const cities: CityEntry[] = citiesV ? JSON.parse(citiesV) : [];
       const removed: RemovedEntry[] = removedV ? JSON.parse(removedV) : [];
       const set = new Set(removed.map((r: RemovedEntry) => `${r.city}|${r.country ?? ""}`));
       const remaining = cities.filter((c) => !set.has(`${c.city}|${c.country}`));
-      const countries = [...new Set(remaining.map((c) => c.country))];
-      return NextResponse.json({ data: countries });
+      return NextResponse.json({ data: remaining });
     }
     if (op === "getConfig") {
       const v = await get("config");
@@ -215,7 +214,7 @@ export async function POST(req: NextRequest) {
     if (op === "setWinner") {
       const currentV = await get("config");
       const current: GameConfig = currentV ? JSON.parse(currentV) : {};
-      await set("config", { ...current, winnerLocked: true, winnerCountry: body.country });
+      await set("config", { ...current, winnerLocked: true, winnerCity: body.city });
       return NextResponse.json({ ok: true });
     }
   } catch (e) {

@@ -42,7 +42,7 @@ export function DemoFlow({ currentUser }: Props) {
   };
   const goToFinale = async () => {
     try {
-      await setWinner("Frankrijk");
+      await setWinner("Parijs");
     } catch {
       // demo: toon uitslag ook als backend faalt
     }
@@ -88,7 +88,7 @@ export function DemoFlow({ currentUser }: Props) {
   return (
     <div className="space-y-4">
       <p className="text-center text-sm text-foreground/70">🏆 Het feest is rond – winnaar!</p>
-      <WinnerScreen demoWinner="Frankrijk" demoWinnerCity="Parijs" />
+      <WinnerScreen demoWinner="Parijs" />
     </div>
   );
 }

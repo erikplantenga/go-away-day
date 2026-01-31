@@ -90,7 +90,7 @@ export async function addRemoved(entry: {
   await d.collection("removed").add(entry);
 }
 
-export async function getSpins(): Promise<{ user: string; country: string; date: string; points: number; timestamp: string }[]> {
+export async function getSpins(): Promise<{ user: string; city: string; date: string; points: number; timestamp: string }[]> {
   const d = db();
   if (!d) return [];
   const snap = await d.collection("spins").orderBy("timestamp", "asc").get();
@@ -106,7 +106,7 @@ export async function getSpins(): Promise<{ user: string; country: string; date:
     return {
       id: doc.id,
       user: data?.user ?? "",
-      country: data?.country ?? "",
+      city: (data?.city ?? data?.country ?? "") as string,
       date: data?.date ?? "",
       points: data?.points ?? 1,
       timestamp: iso,
@@ -116,7 +116,7 @@ export async function getSpins(): Promise<{ user: string; country: string; date:
 
 export async function addSpin(entry: {
   user: string;
-  country: string;
+  city: string;
   date: string;
   points: number;
 }): Promise<void> {
@@ -143,8 +143,8 @@ export async function setConfig(updates: Partial<GameConfig>): Promise<void> {
   await ref.set({ ...current, ...updates });
 }
 
-export async function setWinner(country: string): Promise<void> {
-  await setConfig({ winnerLocked: true, winnerCountry: country });
+export async function setWinner(city: string): Promise<void> {
+  await setConfig({ winnerLocked: true, winnerCity: city });
 }
 
 export async function hasUserStruckToday(user: string, dateStr: string): Promise<boolean> {
@@ -174,11 +174,10 @@ export async function hasUserSpunToday(user: string, dateStr: string): Promise<b
   return !snap.empty;
 }
 
-export async function getRemainingCountries(): Promise<string[]> {
+export async function getRemainingCities(): Promise<CityEntry[]> {
   const [cities, removed] = await Promise.all([getCities(), getRemoved()]);
   const set = new Set(removed.map((r) => `${r.city}|${r.country ?? ""}`));
-  const remaining = cities.filter((c) => !set.has(`${c.city}|${c.country}`));
-  return [...new Set(remaining.map((c) => c.country))];
+  return cities.filter((c) => !set.has(`${c.city}|${c.country}`));
 }
 
 export async function combineAndDedupeCities(): Promise<CityEntry[]> {

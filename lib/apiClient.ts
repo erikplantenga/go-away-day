@@ -78,7 +78,7 @@ export async function getStrikeCountForDate(user: UserId, dateStr: string): Prom
 
 interface StoredSpin {
   user: UserId;
-  country: string;
+  city: string;
   date: string;
   points: number;
   timestamp: string;
@@ -86,10 +86,10 @@ interface StoredSpin {
 
 export async function getSpins(): Promise<SpinEntry[]> {
   const res = await post("getSpins");
-  const list = (res.data ?? []) as StoredSpin[];
+  const list = (res.data ?? []) as (StoredSpin & { country?: string })[];
   return list.map((s) => ({
     user: s.user,
-    country: s.country,
+    city: s.city ?? (s as StoredSpin & { country?: string }).country ?? "",
     points: s.points,
     timestamp: Timestamp.fromDate(new Date(s.timestamp)),
   }));
@@ -97,11 +97,11 @@ export async function getSpins(): Promise<SpinEntry[]> {
 
 export async function addSpin(
   user: UserId,
-  country: string,
+  city: string,
   dateStr: string,
   points: number = 1
 ): Promise<void> {
-  await post("addSpin", { user, country, dateStr, points });
+  await post("addSpin", { user, city, dateStr, points });
 }
 
 export async function hasUserSpunToday(user: UserId, dateStr: string): Promise<boolean> {
@@ -109,9 +109,9 @@ export async function hasUserSpunToday(user: UserId, dateStr: string): Promise<b
   return (res.data ?? false) as boolean;
 }
 
-export async function getRemainingCountries(): Promise<string[]> {
-  const res = await post("getRemainingCountries");
-  return (res.data ?? []) as string[];
+export async function getRemainingCities(): Promise<import("./firestore").CityEntry[]> {
+  const res = await post("getRemainingCities");
+  return (res.data ?? []) as import("./firestore").CityEntry[];
 }
 
 export function subscribeSpins(
@@ -137,6 +137,6 @@ export async function setConfig(updates: Partial<GameConfig>): Promise<void> {
   await post("setConfig", { updates });
 }
 
-export async function setWinner(country: string): Promise<void> {
-  await post("setWinner", { country });
+export async function setWinner(city: string): Promise<void> {
+  await post("setWinner", { city });
 }

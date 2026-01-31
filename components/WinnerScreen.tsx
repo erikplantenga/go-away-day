@@ -18,13 +18,11 @@ function formatCountdown(ms: number): string {
 }
 
 type WinnerScreenProps = {
-  /** Demo: toon direct deze winnaar (land) zonder laden */
+  /** Demo: toon direct deze winnaar (stad) zonder laden */
   demoWinner?: string;
-  /** Demo: toon ook een stad als uitslag */
-  demoWinnerCity?: string;
 };
 
-export function WinnerScreen({ demoWinner, demoWinnerCity }: WinnerScreenProps = {}) {
+export function WinnerScreen({ demoWinner }: WinnerScreenProps = {}) {
   const [winner, setWinnerState] = useState<string | null>(demoWinner ?? null);
   const [loading, setLoading] = useState(!demoWinner);
   const [error, setError] = useState<string | null>(null);
@@ -53,8 +51,9 @@ export function WinnerScreen({ demoWinner, demoWinnerCity }: WinnerScreenProps =
       try {
         const config = await getConfig();
         if (cancelled) return;
-        if (config.winnerLocked && config.winnerCountry) {
-          setWinnerState(config.winnerCountry);
+        const savedWinner = config.winnerCity ?? (config as { winnerCountry?: string }).winnerCountry;
+        if (config.winnerLocked && savedWinner) {
+          setWinnerState(savedWinner);
           setLoading(false);
           return;
         }
@@ -62,19 +61,20 @@ export function WinnerScreen({ demoWinner, demoWinnerCity }: WinnerScreenProps =
         if (cancelled) return;
         const configAgain = await getConfig();
         if (cancelled) return;
-        if (configAgain.winnerLocked && configAgain.winnerCountry) {
-          setWinnerState(configAgain.winnerCountry);
+        const savedAgain = configAgain.winnerCity ?? (configAgain as { winnerCountry?: string }).winnerCountry;
+        if (configAgain.winnerLocked && savedAgain) {
+          setWinnerState(savedAgain);
           setLoading(false);
           return;
         }
-        const country = computeWinner(spins);
-        if (!country) {
+        const city = computeWinner(spins);
+        if (!city) {
           setWinnerState(null);
           setLoading(false);
           return;
         }
-        await setWinner(country);
-        if (!cancelled) setWinnerState(country);
+        await setWinner(city);
+        if (!cancelled) setWinnerState(city);
       } catch (e) {
         if (!cancelled)
           setError(e instanceof Error ? e.message : "Laden mislukt");
@@ -132,9 +132,7 @@ export function WinnerScreen({ demoWinner, demoWinnerCity }: WinnerScreenProps =
     );
   }
 
-  const displayWinner = demoWinnerCity && demoWinner
-    ? `${demoWinnerCity}, ${demoWinner}`
-    : winner ?? "";
+  const displayWinner = winner ?? "";
 
   return (
     <div className="rounded-xl border-2 border-foreground/20 bg-foreground/5 p-8 text-center">

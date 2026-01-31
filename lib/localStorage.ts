@@ -125,7 +125,7 @@ export async function getStrikeCountForDate(user: UserId, dateStr: string): Prom
 
 interface StoredSpin {
   user: UserId;
-  country: string;
+  city: string;
   date: string;
   points: number;
   timestamp: string;
@@ -135,7 +135,7 @@ export async function getSpins(): Promise<SpinEntry[]> {
   const list = readJson<StoredSpin[]>(KEY_SPINS, []);
   return list.map((s) => ({
     user: s.user,
-    country: s.country,
+    city: (s as StoredSpin & { country?: string }).city ?? (s as StoredSpin & { country?: string }).country ?? "",
     points: s.points,
     timestamp: Timestamp.fromDate(new Date(s.timestamp)),
   }));
@@ -143,14 +143,14 @@ export async function getSpins(): Promise<SpinEntry[]> {
 
 export async function addSpin(
   user: UserId,
-  country: string,
+  city: string,
   dateStr: string,
   points: number = 1
 ): Promise<void> {
   const list = readJson<StoredSpin[]>(KEY_SPINS, []);
   list.push({
     user,
-    country,
+    city,
     date: dateStr,
     points,
     timestamp: new Date().toISOString(),
@@ -170,7 +170,7 @@ export async function hasUserSpunToday(
   );
 }
 
-export async function getRemainingCountries(): Promise<string[]> {
+export async function getRemainingCities(): Promise<CityEntry[]> {
   const [allCities, removedList] = await Promise.all([
     getCities(),
     getRemoved(),
@@ -178,10 +178,9 @@ export async function getRemainingCountries(): Promise<string[]> {
   const removedSet = new Set(
     removedList.map((r) => `${r.city}|${r.country ?? ""}`)
   );
-  const remaining = allCities.filter(
+  return allCities.filter(
     (c) => !removedSet.has(`${c.city}|${c.country}`)
   );
-  return [...new Set(remaining.map((c) => c.country))];
 }
 
 export function subscribeSpins(
@@ -211,6 +210,6 @@ export async function setConfig(updates: Partial<GameConfig>): Promise<void> {
   return Promise.resolve();
 }
 
-export async function setWinner(country: string): Promise<void> {
-  return setConfig({ winnerLocked: true, winnerCountry: country });
+export async function setWinner(city: string): Promise<void> {
+  return setConfig({ winnerLocked: true, winnerCity: city });
 }

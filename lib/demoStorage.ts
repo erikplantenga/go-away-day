@@ -183,17 +183,17 @@ export async function getStrikeCountForDate(user: UserId, dateStr: string): Prom
 
 interface StoredSpin {
   user: UserId;
-  country: string;
+  city: string;
   date: string;
   points: number;
   timestamp: string;
 }
 
 export async function getSpins(): Promise<SpinEntry[]> {
-  const list = readJson<StoredSpin[]>(KEY_SPINS, []);
+  const list = readJson<(StoredSpin & { country?: string })[]>(KEY_SPINS, []);
   return list.map((s) => ({
     user: s.user,
-    country: s.country,
+    city: s.city ?? s.country ?? "",
     points: s.points,
     timestamp: Timestamp.fromDate(new Date(s.timestamp)),
   }));
@@ -201,14 +201,14 @@ export async function getSpins(): Promise<SpinEntry[]> {
 
 export async function addSpin(
   user: UserId,
-  country: string,
+  city: string,
   dateStr: string,
   points: number = 1
 ): Promise<void> {
   const list = readJson<StoredSpin[]>(KEY_SPINS, []);
   list.push({
     user,
-    country,
+    city,
     date: dateStr,
     points,
     timestamp: new Date().toISOString(),
@@ -226,20 +226,6 @@ export async function hasUserSpunToday(
   return Promise.resolve(
     list.some((s) => s.user === user && s.date === dateStr)
   );
-}
-
-export async function getRemainingCountries(): Promise<string[]> {
-  const [allCities, removedList] = await Promise.all([
-    getCities(),
-    getRemoved(),
-  ]);
-  const removedSet = new Set(
-    removedList.map((r) => `${r.city}|${r.country ?? ""}`)
-  );
-  const remaining = allCities.filter(
-    (c) => !removedSet.has(`${c.city}|${c.country}`)
-  );
-  return [...new Set(remaining.map((c) => c.country))];
 }
 
 /** Overgebleven steden (voor demo: tonen bij spinnen). */
@@ -298,8 +284,8 @@ export async function setConfig(updates: Partial<GameConfig>): Promise<void> {
   return Promise.resolve();
 }
 
-export async function setWinner(country: string): Promise<void> {
-  return setConfig({ winnerLocked: true, winnerCountry: country });
+export async function setWinner(city: string): Promise<void> {
+  return setConfig({ winnerLocked: true, winnerCity: city });
 }
 
 /** Wis alle demo-data zodat je de demo opnieuw kunt doen. Echte speldata blijft onaangeroerd. */
