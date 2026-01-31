@@ -19,6 +19,13 @@ import {
 import * as local from "./localStorage";
 import * as supabase from "./supabase";
 import * as apiClient from "./apiClient";
+import * as demoStorage from "./demoStorage";
+
+/** Demo-modus: kopie van het spel met eigen opslag (geen echte data). */
+export function isDemoMode(): boolean {
+  if (typeof window === "undefined") return false;
+  return !!(window as unknown as { __GO_AWAY_DAY_DEMO__?: boolean }).__GO_AWAY_DAY_DEMO__;
+}
 
 const firebaseConfig = {
   apiKey: process.env.NEXT_PUBLIC_FIREBASE_API_KEY,
@@ -102,6 +109,7 @@ export interface GameConfig {
 const CITIES_DOC = "combined";
 
 export async function getCities(): Promise<CityEntry[]> {
+  if (isDemoMode()) return demoStorage.getCities();
   if (useBackend() === "supabase") return supabase.getCities();
   if (useBackend() === "local") {
     if (await useApiBackend()) return apiClient.getCities();
@@ -116,6 +124,7 @@ export async function getCities(): Promise<CityEntry[]> {
 }
 
 export async function setCities(cities: CityEntry[]): Promise<void> {
+  if (isDemoMode()) return demoStorage.setCities(cities);
   if (useBackend() === "supabase") return supabase.setCities(cities);
   if (useBackend() === "local") {
     if (await useApiBackend()) return apiClient.setCities(cities);
@@ -130,6 +139,7 @@ export async function setCitySubmission(
   user: UserId,
   cities: CityEntry[]
 ): Promise<void> {
+  if (isDemoMode()) return demoStorage.setCitySubmission(user, cities);
   if (useBackend() === "supabase") return supabase.setCitySubmission(user, cities);
   if (useBackend() === "local") {
     if (await useApiBackend()) return apiClient.setCitySubmission(user, cities);
@@ -145,6 +155,7 @@ export async function setCitySubmission(
 export async function getCitySubmission(
   user: UserId
 ): Promise<CityEntry[] | null> {
+  if (isDemoMode()) return demoStorage.getCitySubmission(user);
   if (useBackend() === "supabase") return supabase.getCitySubmission(user);
   if (useBackend() === "local") {
     if (await useApiBackend()) return apiClient.getCitySubmission(user);
@@ -157,6 +168,7 @@ export async function getCitySubmission(
 }
 
 export async function hasBothSubmitted(): Promise<boolean> {
+  if (isDemoMode()) return demoStorage.hasBothSubmitted();
   if (useBackend() === "supabase") return supabase.hasBothSubmitted();
   if (useBackend() === "local") {
     if (await useApiBackend()) return apiClient.hasBothSubmitted();
@@ -170,6 +182,7 @@ export async function hasBothSubmitted(): Promise<boolean> {
 }
 
 export async function combineAndDedupeCities(): Promise<CityEntry[]> {
+  if (isDemoMode()) return demoStorage.combineAndDedupeCities();
   if (useBackend() === "supabase") return supabase.combineAndDedupeCities();
   if (useBackend() === "local") {
     if (await useApiBackend()) return apiClient.combineAndDedupeCities();
@@ -195,6 +208,7 @@ export async function combineAndDedupeCities(): Promise<CityEntry[]> {
 
 // --- Removed (wegstreep) ---
 export async function getRemoved(): Promise<RemovedEntry[]> {
+  if (isDemoMode()) return demoStorage.getRemoved();
   if (useBackend() === "supabase") return supabase.getRemoved();
   if (useBackend() === "local") {
     if (await useApiBackend()) return apiClient.getRemoved();
@@ -211,6 +225,7 @@ export async function addRemoved(
   removedBy: UserId,
   date: string
 ): Promise<void> {
+  if (isDemoMode()) return demoStorage.addRemoved(city, country, removedBy, date);
   if (useBackend() === "supabase")
     return supabase.addRemoved(city, country, removedBy, date);
   if (useBackend() === "local") {
@@ -249,6 +264,7 @@ export async function hasUserStruckToday(
 
 // --- Spins ---
 export async function getSpins(): Promise<SpinEntry[]> {
+  if (isDemoMode()) return demoStorage.getSpins();
   if (useBackend() === "supabase") return supabase.getSpins();
   if (useBackend() === "local") {
     if (await useApiBackend()) return apiClient.getSpins();
@@ -289,6 +305,7 @@ export async function hasUserSpunToday(
   user: UserId,
   dateStr: string
 ): Promise<boolean> {
+  if (isDemoMode()) return demoStorage.hasUserSpunToday(user, dateStr);
   if (useBackend() === "supabase")
     return supabase.hasUserSpunToday(user, dateStr);
   if (useBackend() === "local") {
@@ -307,6 +324,7 @@ export async function hasUserSpunToday(
 
 /** Get unique countries from the 4 remaining cities (after all wegstreep). */
 export async function getRemainingCountries(): Promise<string[]> {
+  if (isDemoMode()) return demoStorage.getRemainingCountries();
   if (useBackend() === "supabase") return supabase.getRemainingCountries();
   if (useBackend() === "local") {
     if (await useApiBackend()) return apiClient.getRemainingCountries();
@@ -329,6 +347,7 @@ export async function getRemainingCountries(): Promise<string[]> {
 export function subscribeSpins(
   callback: (spins: (SpinEntry & { id: string })[]) => void
 ): Unsubscribe {
+  if (isDemoMode()) return demoStorage.subscribeSpins(callback);
   if (useBackend() === "supabase") return supabase.subscribeSpins(callback);
   if (useBackend() === "local") {
     let unsub: (() => void) | null = null;
@@ -360,6 +379,7 @@ export function subscribeSpins(
 const CONFIG_DOC = "game";
 
 export async function getConfig(): Promise<GameConfig> {
+  if (isDemoMode()) return demoStorage.getConfig();
   if (useBackend() === "supabase") return supabase.getConfig();
   if (useBackend() === "local") {
     if (await useApiBackend()) return apiClient.getConfig();
@@ -372,6 +392,7 @@ export async function getConfig(): Promise<GameConfig> {
 }
 
 export async function setConfig(updates: Partial<GameConfig>): Promise<void> {
+  if (isDemoMode()) return demoStorage.setConfig(updates);
   if (useBackend() === "supabase") return supabase.setConfig(updates);
   if (useBackend() === "local") {
     if (await useApiBackend()) return apiClient.setConfig(updates);
@@ -384,6 +405,7 @@ export async function setConfig(updates: Partial<GameConfig>): Promise<void> {
 }
 
 export async function setWinner(country: string): Promise<void> {
+  if (isDemoMode()) return demoStorage.setWinner(country);
   if (useBackend() === "supabase") return supabase.setWinner(country);
   if (useBackend() === "local") {
     if (await useApiBackend()) return apiClient.setWinner(country);

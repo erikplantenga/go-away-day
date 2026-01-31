@@ -17,14 +17,19 @@ function formatCountdown(ms: number): string {
   return `${min}:${sec.toString().padStart(2, "0")}`;
 }
 
-export function WinnerScreen() {
-  const [winner, setWinnerState] = useState<string | null>(null);
-  const [loading, setLoading] = useState(true);
+type WinnerScreenProps = {
+  /** Demo: toon direct deze winnaar zonder laden */
+  demoWinner?: string;
+};
+
+export function WinnerScreen({ demoWinner }: WinnerScreenProps = {}) {
+  const [winner, setWinnerState] = useState<string | null>(demoWinner ?? null);
+  const [loading, setLoading] = useState(!demoWinner);
   const [error, setError] = useState<string | null>(null);
   const [clicked, setClicked] = useState(false);
   const [countdown, setCountdown] = useState<string>("");
 
-  const showReveal = isAfterRevealTime();
+  const showReveal = !!demoWinner || isAfterRevealTime();
 
   useEffect(() => {
     if (!showReveal && clicked) {
@@ -40,7 +45,7 @@ export function WinnerScreen() {
   }, [showReveal, clicked]);
 
   useEffect(() => {
-    if (!showReveal) return;
+    if (!showReveal || demoWinner) return;
     let cancelled = false;
     async function load() {
       try {
@@ -79,7 +84,7 @@ export function WinnerScreen() {
     return () => {
       cancelled = true;
     };
-  }, [showReveal]);
+  }, [showReveal, demoWinner]);
 
   if (!showReveal) {
     return (

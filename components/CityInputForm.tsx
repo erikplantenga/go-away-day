@@ -8,13 +8,15 @@ import {
   hasBothSubmitted,
   combineAndDedupeCities,
   getCities,
+  isDemoMode,
   type CityEntry,
 } from "@/lib/firestore";
 
 const DRAFT_KEY = "go-away-day-city-draft";
 
 function getDraftKey(user: UserId): string {
-  return `${DRAFT_KEY}-${user}`;
+  const base = isDemoMode() ? "go-away-day-demo-draft" : DRAFT_KEY;
+  return `${base}-${user}`;
 }
 
 function loadDraft(user: UserId): CityEntry[] | null {
@@ -46,7 +48,11 @@ function saveDraft(user: UserId, cities: CityEntry[]): void {
   } catch {}
 }
 
-type Props = { currentUser: UserId };
+type Props = {
+  currentUser: UserId;
+  /** Demo: toon knop om door te gaan naar wegstrepen */
+  demoOnGoToWegstreep?: () => void;
+};
 
 function otherUser(u: UserId): UserId {
   return u === "erik" ? "benno" : "erik";
@@ -79,7 +85,7 @@ function getDemoCitiesForOther(u: UserId): CityEntry[] {
   return list.map((c) => ({ ...c, addedBy: other }));
 }
 
-export function CityInputForm({ currentUser }: Props) {
+export function CityInputForm({ currentUser, demoOnGoToWegstreep }: Props) {
   const [cities, setCitiesState] = useState<CityEntry[]>(() =>
     Array(5)
       .fill(null)
@@ -260,6 +266,17 @@ export function CityInputForm({ currentUser }: Props) {
         <p className="text-center text-foreground/90">
           Beide hebben steden opgegeven. De gezamenlijke lijst is klaar voor de wegstreepronde.
         </p>
+        {demoOnGoToWegstreep && (
+          <div className="mt-4 flex justify-center">
+            <button
+              type="button"
+              onClick={demoOnGoToWegstreep}
+              className="rounded-lg border border-amber-500/50 bg-amber-500/20 px-4 py-2 text-sm font-medium text-foreground"
+            >
+              🎊 Demo: ga door naar wegstrepen →
+            </button>
+          </div>
+        )}
       </div>
     );
   }

@@ -2,6 +2,8 @@
 
 import { useEffect, useState } from "react";
 import { Fireworks } from "@/components/Fireworks";
+import { getCurrentDateString } from "@/lib/dates";
+import { getFactForDate } from "@/lib/dailyFacts";
 
 const COLORS = ["#fbbf24", "#f59e0b", "#ef4444", "#ec4899", "#8b5cf6", "#06b6d4"];
 const EMOJIS = ["🎉", "🎊", "✈️", "🌍", "🌟", "🎈"];
@@ -85,21 +87,26 @@ export function DemoFeest({ children }: Props) {
     return () => clearTimeout(t);
   }, []);
 
+  const fact = getFactForDate(getCurrentDateString());
+
   return (
     <div className="relative overflow-hidden rounded-2xl border-2 border-amber-400/50 bg-gradient-to-br from-amber-500/10 via-orange-500/5 to-transparent shadow-xl shadow-amber-500/20">
-      {/* Vuurwerk in de demo-box */}
-      <div className="pointer-events-none absolute inset-0 z-0 h-64 overflow-hidden rounded-2xl sm:h-72">
+      {/* Vuurwerk – blijft doorlopen */}
+      <div className="pointer-events-none absolute inset-0 z-0 h-72 overflow-hidden rounded-2xl sm:h-80">
         <Fireworks />
       </div>
       {/* Confetti bij openen */}
       {showConfetti && <MiniConfetti />}
       {/* Inhoud */}
       <div className="relative z-20 p-4 sm:p-6">
-        <p className="mb-4 text-center text-base font-semibold text-foreground sm:text-lg">
-          🎉 Demo – zo werkt het straks op 1 februari! 🎉
+        <p className="mb-2 text-center text-base font-semibold text-foreground sm:text-lg">
+          🎉 Één groot feest – demo! 🎉
         </p>
-        <p className="mb-4 text-center text-sm text-foreground/70">
-          Dit is een demo – de echte ronde start 1 februari.
+        <p className="mb-2 text-center text-sm text-foreground/70">
+          Zo werkt het straks op 1 februari. Geniet van elke stap!
+        </p>
+        <p className="mb-4 rounded-lg bg-amber-500/10 px-3 py-2 text-center text-sm italic text-foreground/90">
+          {fact}
         </p>
         {children}
       </div>

@@ -9,6 +9,7 @@ import { SlotMachine } from "@/components/SlotMachine";
 import { Leaderboard } from "@/components/Leaderboard";
 import { WinnerScreen } from "@/components/WinnerScreen";
 import { DemoFeest } from "@/components/DemoFeest";
+import { DemoFlow } from "@/components/DemoFlow";
 
 type Props = { currentUser: UserId };
 
@@ -34,7 +35,7 @@ export function PhaseContent({ currentUser }: Props) {
           </div>
         ) : (
           <DemoFeest>
-            <CityInputForm currentUser={currentUser} />
+            <DemoFlow currentUser={currentUser} />
           </DemoFeest>
         )}
       </div>
