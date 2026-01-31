@@ -207,12 +207,12 @@ export function SlotMachine({ currentUser, onRevealComplete }: Props) {
     return (
       <div className="rounded-lg border border-foreground/10 bg-background p-4 text-center">
         <p className="text-sm text-foreground/80">
-          {isDemo ? "Uitslag over" : "Uitslag om 20:30. Nog"}
+          {isDemo ? "Uitslag over" : "Uitslag om 20:00. Nog"}
         </p>
         <p className="mt-2 text-3xl font-mono font-bold tabular-nums text-foreground">
           {countdownSec}
         </p>
-        <p className="text-sm text-foreground/70">{isDemo ? "seconden" : "seconden tot 20:30"}</p>
+        <p className="text-sm text-foreground/70">{isDemo ? "seconden" : "seconden tot 20:00"}</p>
       </div>
     );
   }
@@ -223,6 +223,11 @@ export function SlotMachine({ currentUser, onRevealComplete }: Props) {
         <p className="text-center text-lg font-bold text-foreground">
           {isDemo ? `Je hebt ${DEMO_SPINS_REQUIRED}× gespind.` : "Je hebt gespind."}
         </p>
+        {!isDemo && (
+          <p className="text-center text-sm text-foreground/80">
+            Morgen om 10:00 mag je nog een keer.
+          </p>
+        )}
         {isDemo && (
           <p className="text-center text-sm italic text-foreground/80">
             {currentUser === "erik" ? "Benno" : "Erik"} heeft ook gespind.

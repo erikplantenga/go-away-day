@@ -39,7 +39,7 @@ export function PhaseBanner() {
           Je mag vandaag 1 spin doen.
         </p>
         <p className="mt-2 text-center text-sm text-foreground/70">
-          Op 7 februari om 20:30 weten we waar we heen gaan.
+          Op 7 februari om 20:00 weten we waar we heen gaan.
         </p>
       </>
     );

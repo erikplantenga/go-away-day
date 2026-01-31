@@ -98,6 +98,7 @@ export function CityInputForm({ currentUser, demoOnGoToWegstreep }: Props) {
   const [saving, setSaving] = useState(false);
   const [demoOtherSaving, setDemoOtherSaving] = useState(false);
   const [error, setError] = useState<string | null>(null);
+  const [showConfirmSubmit, setShowConfirmSubmit] = useState(false);
 
   useEffect(() => {
     let cancelled = false;
@@ -211,6 +212,27 @@ export function CityInputForm({ currentUser, demoOnGoToWegstreep }: Props) {
     }
   };
 
+  const doSubmit = async (entries: CityEntry[]) => {
+    setSaving(true);
+    setError(null);
+    try {
+      await setCitySubmission(currentUser, entries);
+      if (typeof window !== "undefined") localStorage.removeItem(getDraftKey(currentUser));
+      setSubmitted(true);
+      setShowConfirmSubmit(false);
+      const both = await hasBothSubmitted();
+      if (both) {
+        const existing = await getCities();
+        if (existing.length === 0) await combineAndDedupeCities();
+        setCombined(true);
+      }
+    } catch (e) {
+      setError(e instanceof Error ? e.message : "Opslaan mislukt");
+    } finally {
+      setSaving(false);
+    }
+  };
+
   const handleSubmit = async (e: React.FormEvent) => {
     e.preventDefault();
     const entries = cities
@@ -237,23 +259,11 @@ export function CityInputForm({ currentUser, demoOnGoToWegstreep }: Props) {
         return;
       }
     }
-    setSaving(true);
-    setError(null);
-    try {
-      await setCitySubmission(currentUser, entries);
-      if (typeof window !== "undefined") localStorage.removeItem(getDraftKey(currentUser));
-      setSubmitted(true);
-      const both = await hasBothSubmitted();
-      if (both) {
-        const existing = await getCities();
-        if (existing.length === 0) await combineAndDedupeCities();
-        setCombined(true);
-      }
-    } catch (e) {
-      setError(e instanceof Error ? e.message : "Opslaan mislukt");
-    } finally {
-      setSaving(false);
+    if (!isDemoMode()) {
+      setShowConfirmSubmit(true);
+      return;
     }
+    await doSubmit(entries);
   };
 
   if (loading) {
@@ -332,6 +342,36 @@ export function CityInputForm({ currentUser, demoOnGoToWegstreep }: Props) {
             </div>
           </>
         ) : null}
+      </div>
+    );
+  }
+
+  if (showConfirmSubmit) {
+    const entries = cities
+      .map((c) => ({ city: c.city.trim(), country: c.country.trim(), addedBy: currentUser }))
+      .filter((c) => c.city && c.country);
+    return (
+      <div className="space-y-4 rounded-lg border border-foreground/10 bg-background p-4">
+        <p className="text-center font-medium text-foreground">
+          Weet je het zeker? Je kunt niet meer terug.
+        </p>
+        <div className="flex gap-3">
+          <button
+            type="button"
+            onClick={() => setShowConfirmSubmit(false)}
+            className="flex-1 rounded-lg border border-foreground/30 bg-foreground/10 py-2.5 font-medium text-foreground"
+          >
+            Annuleren
+          </button>
+          <button
+            type="button"
+            disabled={saving}
+            onClick={() => doSubmit(entries as CityEntry[])}
+            className="flex-1 rounded-lg bg-foreground py-2.5 font-medium text-background disabled:opacity-50"
+          >
+            {saving ? "Bezig..." : "Bevestigen"}
+          </button>
+        </div>
       </div>
     );
   }

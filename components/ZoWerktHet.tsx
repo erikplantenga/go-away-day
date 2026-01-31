@@ -34,7 +34,7 @@ export function ZoWerktHet({ showDemoHint = false }: Props) {
               <strong>4 t/m 7 februari</strong> – Fruitautomaat: elke dag 1 spin (vanaf 10:00). De gekozen stad krijgt punten. Stand wordt live bijgewerkt.
             </li>
             <li>
-              <strong>7 februari 20:30</strong> – De stad met de meeste punten wint. Daar gaan we heen!
+              <strong>7 februari 20:00</strong> – De stad met de meeste punten wint. Daar gaan we heen!
             </li>
           </ol>
           {showDemoHint && (

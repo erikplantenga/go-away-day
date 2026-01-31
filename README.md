@@ -1,7 +1,7 @@
 # Go Away Day
 
 Waar gaan Erik & Benno in oktober 2026 naartoe?  
-1 feb: 5 steden opgeven → 2–3 feb: wegstrepen → 4–7 feb: fruitautomaat → 7 feb 20:30: winnaar.
+1 feb: 5 steden opgeven → 2–3 feb: wegstrepen → 4–7 feb: fruitautomaat → 7 feb 20:00: winnaar.
 
 ---
 

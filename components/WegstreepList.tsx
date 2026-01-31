@@ -34,6 +34,7 @@ export function WegstreepList({ currentUser, onVolgende }: Props) {
   const [loading, setLoading] = useState(true);
   const [striking, setStriking] = useState<string | null>(null);
   const [error, setError] = useState<string | null>(null);
+  const [confirmStrikeKey, setConfirmStrikeKey] = useState<string | null>(null);
   const dateStr = getCurrentDateString();
 
   const isDemo = !!onVolgende;
@@ -72,8 +73,18 @@ export function WegstreepList({ currentUser, onVolgende }: Props) {
   const strikeCountCurrent = currentUser === "erik" ? strikeCountErik : strikeCountBenno;
   const canStrike = requiredToday > 0 && strikeCountCurrent < requiredToday;
 
+  const handleStrikeClick = (city: CityEntry) => {
+    if (!canStrike || removedSet.has(cityKey(city))) return;
+    if (!isDemo) {
+      setConfirmStrikeKey(cityKey(city));
+      return;
+    }
+    handleStrike(city);
+  };
+
   const handleStrike = async (city: CityEntry) => {
     if (!canStrike || removedSet.has(cityKey(city))) return;
+    setConfirmStrikeKey(null);
     setStriking(cityKey(city));
     setError(null);
     try {
@@ -115,6 +126,37 @@ export function WegstreepList({ currentUser, onVolgende }: Props) {
           Wegstrepen is definitief – dit kun je niet herstellen!
         </div>
       )}
+      {!isDemo && confirmStrikeKey && (() => {
+        const city = cities.find((c) => cityKey(c) === confirmStrikeKey);
+        if (!city) return null;
+        return (
+          <div className="rounded-lg border-2 border-amber-500/60 bg-amber-500/15 p-4 text-center">
+            <p className="font-medium text-foreground">
+              Weet je het zeker? Je kunt niet meer terug.
+            </p>
+            <p className="mt-1 text-sm text-foreground/80">
+              {city.city}, {city.country} wordt definitief weggestreept.
+            </p>
+            <div className="mt-4 flex gap-3">
+              <button
+                type="button"
+                onClick={() => setConfirmStrikeKey(null)}
+                className="flex-1 rounded-lg border border-foreground/30 bg-foreground/10 py-2 text-sm font-medium text-foreground"
+              >
+                Annuleren
+              </button>
+              <button
+                type="button"
+                onClick={() => handleStrike(city)}
+                disabled={striking !== null}
+                className="flex-1 rounded-lg bg-red-600 py-2 text-sm font-medium text-white disabled:opacity-50"
+              >
+                {striking === confirmStrikeKey ? "Bezig..." : "Ja, wegstrepen"}
+              </button>
+            </div>
+          </div>
+        );
+      })()}
       <WhoMustStrikeBanner
         erikCount={strikeCountErik}
         bennoCount={strikeCountBenno}
@@ -142,7 +184,7 @@ export function WegstreepList({ currentUser, onVolgende }: Props) {
                 <button
                   type="button"
                   disabled={!canStrike || striking !== null}
-                  onClick={() => handleStrike(c)}
+                  onClick={() => handleStrikeClick(c)}
                   className="rounded bg-red-600 px-3 py-1.5 text-sm font-medium text-white disabled:opacity-50"
                 >
                   {striking === cityKey(c) ? "Bezig..." : "Wegstrepen"}

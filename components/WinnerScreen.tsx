@@ -127,7 +127,7 @@ export function WinnerScreen({ demoWinner }: WinnerScreenProps = {}) {
         ) : (
           <div>
             <p className="text-lg font-medium text-foreground">
-              De uitslag komt om 20:30, spannend he?
+              De uitslag komt om 20:00, spannend he?
             </p>
             <p className="mt-4 text-2xl font-mono font-bold tabular-nums text-foreground">
               {countdown}

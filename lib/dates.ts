@@ -39,20 +39,20 @@ export function isAfterWinnerTime(): boolean {
 }
 
 /**
- * Is it after 7 Feb 2026 20:30 in Amsterdam? (CET = UTC+1, so 19:30 UTC)
- * Uitslag mag pas vanaf 20:30 zichtbaar zijn.
+ * Is it after 7 Feb 2026 20:00 in Amsterdam? (CET = UTC+1, so 19:00 UTC)
+ * Uitslag mag pas vanaf 20:00 zichtbaar zijn.
  */
 export function isAfterRevealTime(): boolean {
-  const revealUtc = new Date(Date.UTC(2026, 1, 7, 19, 30, 0, 0));
+  const revealUtc = new Date(Date.UTC(2026, 1, 7, 19, 0, 0, 0));
   const now = new Date();
   return now.getTime() >= revealUtc.getTime();
 }
 
 /**
- * Exact moment waarop de uitslag zichtbaar wordt (7 feb 2026 20:30 Amsterdam).
+ * Exact moment waarop de uitslag zichtbaar wordt (7 feb 2026 20:00 Amsterdam).
  */
 export function getRevealTime(): Date {
-  return new Date(Date.UTC(2026, 1, 7, 19, 30, 0, 0));
+  return new Date(Date.UTC(2026, 1, 7, 19, 0, 0, 0));
 }
 
 /**

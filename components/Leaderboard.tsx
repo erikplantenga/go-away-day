@@ -34,7 +34,7 @@ export function Leaderboard() {
       <h2 className="mb-3 font-semibold text-foreground">Stand</h2>
       {!showStand ? (
         <p className="text-sm text-foreground/70">
-          De stand wordt op 7 februari om 20:30 bekend.
+          De stand wordt op 7 februari om 20:00 bekend.
         </p>
       ) : standings.length === 0 ? (
         <p className="text-sm text-foreground/70">Nog geen spins.</p>
