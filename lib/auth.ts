@@ -10,11 +10,12 @@ export function validateToken(
   user: string,
   token: string | null
 ): UserId | null {
-  if (!token) return null;
   if (noTokensSet) {
+    // Lokaal testen: geen token nodig, elke gebruiker mag door
     if (user === "erik" || user === "benno") return user as UserId;
     return null;
   }
+  if (!token) return null;
   if (user === "erik" && token === TOKEN_ERIK) return "erik";
   if (user === "benno" && token === TOKEN_BENNO) return "benno";
   return null;
