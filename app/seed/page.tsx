@@ -8,9 +8,9 @@ import {
   type CityEntry,
 } from "@/lib/firestore";
 
-/** Eenmalige seed: 10 steden (5 Erik, 5 Benno) – jij hebt ze doorgegeven. */
-const ERIK_CITIES: string[] = ["Gdansk", "Boedapest", "Helsinki", "Ljubljana", "Napels"];
-const BENNO_CITIES: string[] = ["Malta", "Istanbul", "Sicilië", "Cyprus", "Porto"];
+/** Eenmalige seed: 10 steden (5 Erik, 5 Benno) – omgedraaid: Erik = Malta t/m Porto, Benno = Gdansk t/m Napels. */
+const ERIK_CITIES: string[] = ["Malta", "Istanbul", "Sicilië", "Cyprus", "Porto"];
+const BENNO_CITIES: string[] = ["Gdansk", "Boedapest", "Helsinki", "Ljubljana", "Napels"];
 
 function toEntries(cities: string[], addedBy: "erik" | "benno"): CityEntry[] {
   return cities.map((city) => ({ city, addedBy }));
