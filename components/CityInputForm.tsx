@@ -155,6 +155,7 @@ export function CityInputForm({ currentUser }: Props) {
   const [saving, setSaving] = useState(false);
   const [error, setError] = useState<string | null>(null);
   const [showConfirmSubmit, setShowConfirmSubmit] = useState(false);
+  const [refreshing, setRefreshing] = useState(false);
 
   useEffect(() => {
     let cancelled = false;
@@ -334,26 +335,42 @@ export function CityInputForm({ currentUser }: Props) {
             <p className="text-center text-sm text-foreground/70">
               Wacht tot {otherUser(currentUser) === "erik" ? "Erik" : "Benno"} ook 5 steden heeft ingevoerd. Werkt vanzelf (elke 2 sec).
             </p>
-            <div className="flex justify-center">
+            <div className="flex flex-col items-center gap-2">
               <button
                 type="button"
+                disabled={refreshing}
                 onClick={async () => {
-                  const both = await hasBothSubmitted();
-                  if (both) {
-                    const existing = await getCities();
-                    if (existing.length === 0) {
+                  setRefreshing(true);
+                  setError(null);
+                  try {
+                    const [erikList, bennoList] = await Promise.all([
+                      getCitySubmission("erik"),
+                      getCitySubmission("benno"),
+                    ]);
+                    const erikOk = erikList && erikList.filter((c) => c.city.trim()).length === 5;
+                    const bennoOk = bennoList && bennoList.filter((c) => c.city.trim()).length === 5;
+                    if (erikOk && bennoOk) {
+                      setOtherSubmitted(true);
                       try {
                         await combineAndDedupeCities();
-                      } catch {}
+                      } catch {
+                        // Lijst tonen lukt ook zonder persist (CombinedListWithCountdown merged lokaal)
+                      }
+                      setCombined(true);
                     }
-                    setOtherSubmitted(true);
-                    setCombined(true);
+                  } catch (e) {
+                    setError(e instanceof Error ? e.message : "Vernieuwen mislukt");
+                  } finally {
+                    setRefreshing(false);
                   }
                 }}
-                className="rounded-lg border border-foreground/30 bg-foreground/10 px-4 py-2 text-sm font-medium text-foreground"
+                className="rounded-lg border-2 border-amber-500/60 bg-amber-500/20 px-5 py-2.5 text-sm font-semibold text-foreground disabled:opacity-50"
               >
-                Vernieuw – heb ik de lijst al?
+                {refreshing ? "Bezig…" : "Vernieuw – ga naar lijst + countdown"}
               </button>
+              <p className="text-center text-xs text-foreground/60">
+                Als Benno ook 5 steden heeft ingevuld, ga je direct naar de gezamenlijke lijst.
+              </p>
             </div>
           </>
         ) : null}
