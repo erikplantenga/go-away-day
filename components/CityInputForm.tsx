@@ -12,6 +12,20 @@ import {
 } from "@/lib/firestore";
 import { getWegstreepDay1StartTime } from "@/lib/dates";
 
+/** Merge twee lijsten en dedupe op city|country (case-insensitive). */
+function mergeAndDedupe(erik: CityEntry[], benno: CityEntry[]): CityEntry[] {
+  const seen = new Set<string>();
+  const out: CityEntry[] = [];
+  for (const c of [...erik, ...benno]) {
+    const key = `${c.city.toLowerCase()}|${(c.country ?? "").toLowerCase()}`;
+    if (!seen.has(key)) {
+      seen.add(key);
+      out.push(c);
+    }
+  }
+  return out;
+}
+
 const DRAFT_KEY = "go-away-day-city-draft";
 
 function getDraftKey(user: UserId): string {
@@ -65,13 +79,30 @@ function formatCountdown(ms: number): string {
 function CombinedListWithCountdown() {
   const [cities, setCities] = useState<CityEntry[]>([]);
   const [countdown, setCountdown] = useState("");
+  const [loading, setLoading] = useState(true);
+
   useEffect(() => {
     let cancelled = false;
-    getCities().then((list) => {
-      if (!cancelled) setCities(list);
-    });
+    async function load() {
+      const list = await getCities();
+      if (!cancelled) {
+        setCities(list);
+        if (list.length === 0) {
+          const [erik, benno] = await Promise.all([
+            getCitySubmission("erik"),
+            getCitySubmission("benno"),
+          ]);
+          if (!cancelled && (erik?.length ?? 0) + (benno?.length ?? 0) > 0) {
+            setCities(mergeAndDedupe(erik ?? [], benno ?? []));
+          }
+        }
+        setLoading(false);
+      }
+    }
+    load();
     return () => { cancelled = true; };
   }, []);
+
   useEffect(() => {
     const update = () => {
       const target = getWegstreepDay1StartTime();
@@ -88,16 +119,20 @@ function CombinedListWithCountdown() {
       <p className="text-center font-medium text-foreground/90">
         Beide hebben steden opgegeven. De gezamenlijke lijst (dubbelen eraf):
       </p>
-      <ul className="space-y-1 rounded border border-foreground/10 bg-foreground/5 px-3 py-2">
-        {cities.map((c, i) => (
-          <li key={i} className="font-medium text-foreground">
-            {c.city}
-            {c.country ? ` (${c.country})` : ""}
-          </li>
-        ))}
-      </ul>
+      {loading ? (
+        <p className="text-center text-sm text-foreground/70">Laden...</p>
+      ) : (
+        <ul className="space-y-1 rounded border border-foreground/10 bg-foreground/5 px-3 py-2">
+          {cities.map((c, i) => (
+            <li key={i} className="font-medium text-foreground">
+              {c.city}
+              {c.country ? ` (${c.country})` : ""}
+            </li>
+          ))}
+        </ul>
+      )}
       <p className="text-center text-sm text-foreground/70">
-        Countdown tot de eerste wegstreep-dag (2 februari):
+        Volgende opdracht: 2 februari – elk 1 stad wegstrepen. Countdown:
       </p>
       <p className="text-center text-2xl font-mono font-bold tabular-nums text-foreground">
         {countdown}
@@ -142,7 +177,11 @@ export function CityInputForm({ currentUser }: Props) {
         const existing = await getCities();
         if (existing.length > 0) setCombined(true);
         else if (both) {
-          await combineAndDedupeCities();
+          try {
+            await combineAndDedupeCities();
+          } catch {
+            // Toch naar lijst + countdown; CombinedListWithCountdown haalt beide lijsten op
+          }
           if (!cancelled) setCombined(true);
         }
       } catch (e) {
@@ -177,7 +216,11 @@ export function CityInputForm({ currentUser }: Props) {
         } catch {
           await new Promise((r) => setTimeout(r, 800));
           if (cancelled) return;
-          await combineAndDedupeCities();
+          try {
+            await combineAndDedupeCities();
+          } catch {
+            // Toch naar lijst + countdown
+          }
         }
         if (!cancelled) setCombined(true);
       } catch {
@@ -273,14 +316,45 @@ export function CityInputForm({ currentUser }: Props) {
   }
 
   if (submitted) {
+    const myCities = cities
+      .map((c) => c.city.trim())
+      .filter(Boolean);
     return (
-      <div className="rounded-lg border border-foreground/10 bg-background p-4">
+      <div className="space-y-4 rounded-lg border border-foreground/10 bg-background p-4">
         <p className="text-center text-foreground/90">Je hebt je 5 steden opgegeven.</p>
-        {!otherSubmitted && (
-          <p className="mt-2 text-center text-sm text-foreground/70">
-            Wacht tot {otherUser(currentUser) === "erik" ? "Erik" : "Benno"} ook 5 steden heeft ingevoerd. Werkt vanzelf bij (elke 2 sec).
+        {myCities.length > 0 && (
+          <p className="text-center text-sm text-foreground/80">
+            Jouw steden: {myCities.join(", ")}
           </p>
         )}
+        {!otherSubmitted ? (
+          <>
+            <p className="text-center text-sm text-foreground/70">
+              Wacht tot {otherUser(currentUser) === "erik" ? "Erik" : "Benno"} ook 5 steden heeft ingevoerd. Werkt vanzelf (elke 2 sec).
+            </p>
+            <div className="flex justify-center">
+              <button
+                type="button"
+                onClick={async () => {
+                  const both = await hasBothSubmitted();
+                  if (both) {
+                    const existing = await getCities();
+                    if (existing.length === 0) {
+                      try {
+                        await combineAndDedupeCities();
+                      } catch {}
+                    }
+                    setOtherSubmitted(true);
+                    setCombined(true);
+                  }
+                }}
+                className="rounded-lg border border-foreground/30 bg-foreground/10 px-4 py-2 text-sm font-medium text-foreground"
+              >
+                Vernieuw – heb ik de lijst al?
+              </button>
+            </div>
+          </>
+        ) : null}
       </div>
     );
   }
