@@ -117,9 +117,9 @@ function CombinedListWithCountdown() {
   return (
     <div className="space-y-4 rounded-lg border border-foreground/10 bg-background p-4">
       <p className="text-center font-medium text-foreground/90">
-        Beide hebben steden opgegeven. De gezamenlijke lijst (dubbelen eraf):
+        De complete lijst van Erik én Benno (dubbelen eraf):
       </p>
-      <p className="text-center text-xs text-foreground/60">Niet meer wijzigen – we hebben reeds ingevoerd.</p>
+      <p className="text-center text-xs text-foreground/60">Beide hebben 5 steden opgegeven. Niet meer wijzigen.</p>
       {loading ? (
         <p className="text-center text-sm text-foreground/70">Laden...</p>
       ) : (
@@ -128,6 +128,11 @@ function CombinedListWithCountdown() {
             <li key={i} className="font-medium text-foreground">
               {c.city}
               {c.country ? ` (${c.country})` : ""}
+              {c.addedBy && (
+                <span className="ml-1.5 text-xs font-normal text-foreground/60">
+                  ({c.addedBy === "erik" ? "Erik" : "Benno"})
+                </span>
+              )}
             </li>
           ))}
         </ul>
