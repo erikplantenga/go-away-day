@@ -59,7 +59,12 @@ export default function SeedPage() {
         {status === "loading" ? "Bezig…" : "Opnieuw invullen"}
       </button>
       {status === "ok" && (
-        <p className="text-center text-sm text-green-600 dark:text-green-400">{message}</p>
+        <>
+          <p className="text-center text-sm text-green-600 dark:text-green-400">{message}</p>
+          <p className="text-center text-xs text-foreground/70">
+            Belangrijk: laat Benno ook <strong>go-away-day.vercel.app/seed</strong> op zijn telefoon openen – dan ziet hij dezelfde lijst. Jij ziet de lijst op /erik (met token), Benno op /benno (met token). Morgen kunnen jullie allebei strepen.
+          </p>
+        </>
       )}
       {status === "error" && (
         <p className="text-center text-sm text-red-600 dark:text-red-400">{message}</p>

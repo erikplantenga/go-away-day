@@ -84,20 +84,20 @@ function CombinedListWithCountdown() {
   useEffect(() => {
     let cancelled = false;
     async function load() {
-      const list = await getCities();
-      if (!cancelled) {
+      const [list, erikSub, bennoSub] = await Promise.all([
+        getCities(),
+        getCitySubmission("erik"),
+        getCitySubmission("benno"),
+      ]);
+      if (cancelled) return;
+      const merged = mergeAndDedupe(erikSub ?? [], bennoSub ?? []);
+      /* Toon altijd de volledige lijst: voorkeur voor merged als die meer heeft dan getCities() (beide spelers). */
+      if (merged.length >= list.length) {
+        setCities(merged);
+      } else {
         setCities(list);
-        if (list.length === 0) {
-          const [erik, benno] = await Promise.all([
-            getCitySubmission("erik"),
-            getCitySubmission("benno"),
-          ]);
-          if (!cancelled && (erik?.length ?? 0) + (benno?.length ?? 0) > 0) {
-            setCities(mergeAndDedupe(erik ?? [], benno ?? []));
-          }
-        }
-        setLoading(false);
       }
+      setLoading(false);
     }
     load();
     return () => { cancelled = true; };
