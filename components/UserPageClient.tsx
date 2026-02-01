@@ -65,6 +65,11 @@ export function UserPageClient({ user }: Props) {
       <p className="mt-4 text-center text-xs text-foreground/50">
         Data: {getBackendLabel()}
       </p>
+      {getBackendLabel() === "Lokaal" && (
+        <p className="mt-2 rounded border border-amber-500/50 bg-amber-500/10 px-3 py-2 text-center text-xs text-amber-800 dark:text-amber-200">
+          Wegstrepen wordt nu niet gedeeld met Benno. Zet in Vercel de 6 Firebase-variabelen (NEXT_PUBLIC_FIREBASE_*) → redeploy. Zie FIREBASE-STAP-VOOR-STAP.md.
+        </p>
+      )}
     </>
   );
 }
