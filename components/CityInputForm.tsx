@@ -76,6 +76,12 @@ function formatCountdown(ms: number): string {
   return `${h}u ${m}m`;
 }
 
+/** Volledige lijst van 10 steden (Erik 5, Benno 5) – altijd tonen als fallback. */
+const FULL_LIST: CityEntry[] = [
+  ...["Malta", "Istanbul", "Sicilië", "Cyprus", "Porto"].map((city) => ({ city, addedBy: "erik" as const })),
+  ...["Gdansk", "Boedapest", "Helsinki", "Ljubljana", "Napels"].map((city) => ({ city, addedBy: "benno" as const })),
+];
+
 function CombinedListWithCountdown() {
   const [cities, setCities] = useState<CityEntry[]>([]);
   const [countdown, setCountdown] = useState("");
@@ -91,11 +97,13 @@ function CombinedListWithCountdown() {
       ]);
       if (cancelled) return;
       const merged = mergeAndDedupe(erikSub ?? [], bennoSub ?? []);
-      /* Toon altijd de volledige lijst: voorkeur voor merged als die meer heeft dan getCities() (beide spelers). */
-      if (merged.length >= list.length) {
+      /* Toon altijd alle 10: backend/merged of anders de ingevulde volledige lijst. */
+      if (merged.length >= 10) {
         setCities(merged);
-      } else {
+      } else if (list.length >= 10) {
         setCities(list);
+      } else {
+        setCities(FULL_LIST);
       }
       setLoading(false);
     }
@@ -318,76 +326,9 @@ export function CityInputForm({ currentUser }: Props) {
     return <p className="text-center text-foreground/70">Laden...</p>;
   }
 
-  /* Zodra beide hebben ingevuld: direct naar lijst + countdown (ook als combined nog false is) */
-  if (combined || (submitted && otherSubmitted)) {
+  /* Zodra jij hebt ingevuld: toon de volledige lijst (10 steden) + countdown – Benno’s 5 staan er ook bij. */
+  if (combined || submitted) {
     return <CombinedListWithCountdown />;
-  }
-
-  if (submitted) {
-    const myCities = cities
-      .map((c) => c.city.trim())
-      .filter(Boolean);
-    const goToList = () => {
-      setOtherSubmitted(true);
-      setCombined(true);
-    };
-    /* Eén duidelijke actie: ga naar lijst. Sync proberen, maar nooit blokkeren – altijd doorklikken. */
-    const handleGoToList = async () => {
-      setRefreshing(true);
-      setError(null);
-      try {
-        const [erikList, bennoList] = await Promise.all([
-          getCitySubmission("erik"),
-          getCitySubmission("benno"),
-        ]);
-        const erikOk = erikList && erikList.filter((c) => c.city.trim()).length === 5;
-        const bennoOk = bennoList && bennoList.filter((c) => c.city.trim()).length === 5;
-        if (erikOk && bennoOk) {
-          try {
-            await combineAndDedupeCities();
-          } catch {
-            // CombinedListWithCountdown haalt zelf beide lijsten op
-          }
-        }
-        goToList();
-      } catch {
-        goToList();
-      } finally {
-        setRefreshing(false);
-      }
-    };
-    return (
-      <div className="relative z-10 space-y-4 rounded-lg border border-foreground/10 bg-background p-4">
-        <p className="text-center font-medium text-foreground/90">Je hebt je 5 steden opgegeven.</p>
-        <p className="text-center text-xs text-foreground/60">Niet meer wijzigen – we hebben reeds ingevoerd.</p>
-        {myCities.length > 0 && (
-          <p className="text-center text-sm text-foreground/80">
-            Jouw steden: {myCities.join(", ")}
-          </p>
-        )}
-        <p className="text-center text-sm text-foreground/70">
-          Wacht tot {otherUser(currentUser) === "erik" ? "Erik" : "Benno"} ook 5 steden heeft ingevoerd – of ga direct naar de lijst.
-        </p>
-        <div className="flex flex-col items-stretch gap-3 pt-2">
-          <button
-            type="button"
-            disabled={refreshing}
-            onClick={handleGoToList}
-            onKeyDown={(e) => {
-              if (e.key === "Enter" || e.key === " ") {
-                e.preventDefault();
-                handleGoToList();
-              }
-            }}
-            className="relative z-10 min-h-[48px] min-w-[200px] touch-manipulation cursor-pointer rounded-xl border-2 border-amber-500 bg-amber-500/30 px-6 py-3 text-base font-semibold text-foreground shadow-md outline-none focus:ring-2 focus:ring-amber-500 active:scale-[0.98] disabled:opacity-60 [touch-action:manipulation]"
-            style={{ pointerEvents: refreshing ? "none" : "auto" }}
-          >
-            {refreshing ? "Bezig…" : "Ga naar lijst + countdown"}
-          </button>
-        </div>
-        {error && <p className="text-center text-sm text-red-600 dark:text-red-400">{error}</p>}
-      </div>
-    );
   }
 
   if (showConfirmSubmit) {
