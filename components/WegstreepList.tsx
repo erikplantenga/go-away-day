@@ -126,8 +126,23 @@ export function WegstreepList({ currentUser }: Props) {
   return (
     <div className="space-y-4 rounded-lg border border-foreground/10 bg-background p-4">
       <div className="rounded-lg border-2 border-red-500/50 bg-red-500/10 px-3 py-2 text-center text-sm font-semibold text-red-700 dark:text-red-400">
-        Wegstrepen is definitief – dit kun je niet herstellen!
+        Wegstrepen is definitief – no way back, dit kun je niet herstellen!
       </div>
+      {removed.length > 0 && (
+        <div className="rounded-lg border border-foreground/15 bg-foreground/5 px-3 py-2">
+          <p className="mb-1.5 text-xs font-medium uppercase tracking-wide text-foreground/60">
+            Wie heeft wat weggestreept
+          </p>
+          <ul className="space-y-0.5 text-sm text-foreground/90">
+            {removed.map((r, i) => (
+              <li key={i} className="flex items-center gap-2">
+                <span className="line-through">{r.city}</span>
+                <span className="text-foreground/60">(door {r.removedBy === "erik" ? "Erik" : "Benno"})</span>
+              </li>
+            ))}
+          </ul>
+        </div>
+      )}
       {confirmStrikeKey && (() => {
         const city = cities.find((c) => cityKey(c) === confirmStrikeKey);
         if (!city) return null;
@@ -164,8 +179,8 @@ export function WegstreepList({ currentUser }: Props) {
         bennoCount={strikeCountBenno}
         required={requiredToday}
       />
-      <p className="text-sm text-foreground/70">
-        Vandaag mag je {requiredToday} {requiredToday === 1 ? "stad" : "steden"} wegstrepen (eenmalig).
+      <p className="text-sm font-medium text-foreground/80">
+        Vandaag mag je {requiredToday} {requiredToday === 1 ? "stad" : "steden"} wegstrepen – eenmalig, no way back.
       </p>
       <ul className="space-y-2">
         {cities.map((c) => {
