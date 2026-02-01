@@ -70,6 +70,13 @@ export default function SeedPage() {
         <p className="text-center text-sm text-red-600 dark:text-red-400">{message}</p>
       )}
       <p className="text-center text-xs text-foreground/60">
+        Heb je Firebase in Vercel staan? Open dan eenmalig{" "}
+        <a href="/api/seed" className="underline" target="_blank" rel="noopener noreferrer">
+          /api/seed
+        </a>{" "}
+        – dan vult de server de lijst in en zien jullie allebei dezelfde 10 steden. Anders: open /seed op beide telefoons.
+      </p>
+      <p className="text-center text-xs text-foreground/60">
         <Link href="/" className="underline">
           ← Terug naar home
         </Link>
