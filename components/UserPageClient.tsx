@@ -4,6 +4,7 @@ import { useSearchParams } from "next/navigation";
 import { useEffect, useState } from "react";
 import { validateToken, isValidUserSegment } from "@/lib/auth";
 import type { UserId } from "@/lib/firestore";
+import { getBackendLabel } from "@/lib/firestore";
 import { ensurePreviewSeeded } from "@/lib/previewStorage";
 import { PhaseBanner } from "@/components/PhaseBanner";
 import { PhaseContent } from "@/components/PhaseContent";
@@ -61,6 +62,9 @@ export function UserPageClient({ user }: Props) {
         <PhaseBanner />
       </div>
       <PhaseContent currentUser={currentUser} />
+      <p className="mt-4 text-center text-xs text-foreground/50">
+        Data: {getBackendLabel()}
+      </p>
     </>
   );
 }

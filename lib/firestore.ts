@@ -56,6 +56,14 @@ function useBackend(): "supabase" | "firebase" | "local" {
   return "local";
 }
 
+/** Welke backend de app nu gebruikt (voor in de UI). */
+export function getBackendLabel(): "Supabase" | "Firebase" | "Lokaal" {
+  const b = useBackend();
+  if (b === "supabase") return "Supabase";
+  if (b === "firebase") return "Firebase";
+  return "Lokaal";
+}
+
 let apiBackendPromise: Promise<boolean> | null = null;
 async function useApiBackend(): Promise<boolean> {
   if (apiBackendPromise === null) {
