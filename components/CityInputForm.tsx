@@ -11,6 +11,7 @@ import {
   isDemoMode,
   type CityEntry,
 } from "@/lib/firestore";
+import { getWegstreepDay1StartTime } from "@/lib/dates";
 
 const DRAFT_KEY = "go-away-day-city-draft";
 
@@ -26,13 +27,11 @@ function loadDraft(user: UserId): CityEntry[] | null {
     if (!raw) return null;
     const arr = JSON.parse(raw) as unknown;
     if (!Array.isArray(arr) || arr.length !== 5) return null;
-    const ok = arr.every(
-      (x) => x && typeof x.city === "string" && typeof x.country === "string"
-    );
+    const ok = arr.every((x) => x && typeof x.city === "string");
     if (!ok) return null;
-    return arr.map((c: { city: string; country: string }) => ({
+    return arr.map((c: { city: string; country?: string }) => ({
       city: String(c.city),
-      country: String(c.country),
+      country: c.country != null ? String(c.country) : "",
       addedBy: user,
     }));
   } catch {
@@ -56,6 +55,76 @@ type Props = {
 
 function otherUser(u: UserId): UserId {
   return u === "erik" ? "benno" : "erik";
+}
+
+function formatCountdown(ms: number): string {
+  if (ms <= 0) return "0:00";
+  const totalSec = Math.floor(ms / 1000);
+  const d = Math.floor(totalSec / 86400);
+  const rest = totalSec % 86400;
+  const h = Math.floor(rest / 3600);
+  const m = Math.floor((rest % 3600) / 60);
+  if (d > 0) return `${d}d ${h}u ${m}m`;
+  return `${h}u ${m}m`;
+}
+
+function CombinedListWithCountdown({
+  demoOnGoToWegstreep,
+}: {
+  demoOnGoToWegstreep?: () => void;
+}) {
+  const [cities, setCities] = useState<CityEntry[]>([]);
+  const [countdown, setCountdown] = useState("");
+  useEffect(() => {
+    let cancelled = false;
+    getCities().then((list) => {
+      if (!cancelled) setCities(list);
+    });
+    return () => { cancelled = true; };
+  }, []);
+  useEffect(() => {
+    const update = () => {
+      const target = getWegstreepDay1StartTime();
+      const left = Math.max(0, target.getTime() - Date.now());
+      setCountdown(formatCountdown(left));
+    };
+    update();
+    const t = setInterval(update, 1000);
+    return () => clearInterval(t);
+  }, []);
+
+  return (
+    <div className="space-y-4 rounded-lg border border-foreground/10 bg-background p-4">
+      <p className="text-center font-medium text-foreground/90">
+        Beide hebben steden opgegeven. De gezamenlijke lijst (dubbelen eraf):
+      </p>
+      <ul className="space-y-1 rounded border border-foreground/10 bg-foreground/5 px-3 py-2">
+        {cities.map((c, i) => (
+          <li key={i} className="font-medium text-foreground">
+            {c.city}
+            {c.country ? ` (${c.country})` : ""}
+          </li>
+        ))}
+      </ul>
+      <p className="text-center text-sm text-foreground/70">
+        Countdown tot de eerste wegstreep-dag (2 februari):
+      </p>
+      <p className="text-center text-2xl font-mono font-bold tabular-nums text-foreground">
+        {countdown}
+      </p>
+      {demoOnGoToWegstreep && (
+        <div className="mt-4 flex justify-center">
+          <button
+            type="button"
+            onClick={demoOnGoToWegstreep}
+            className="rounded-lg border border-amber-500/50 bg-amber-500/20 px-4 py-2 text-sm font-medium text-foreground"
+          >
+            🎊 Demo: ga door naar wegstrepen →
+          </button>
+        </div>
+      )}
+    </div>
+  );
 }
 
 const DEMO_DUTCH = [
@@ -236,26 +305,24 @@ export function CityInputForm({ currentUser, demoOnGoToWegstreep }: Props) {
   const handleSubmit = async (e: React.FormEvent) => {
     e.preventDefault();
     const entries = cities
-      .map((c) => ({ city: c.city.trim(), country: c.country.trim(), addedBy: currentUser }))
-      .filter((c) => c.city && c.country);
+      .map((c) => ({ city: c.city.trim(), country: (c.country ?? "").trim(), addedBy: currentUser }))
+      .filter((c) => c.city);
     if (entries.length !== 5) {
-      setError("Vul precies 5 steden in (stad + land).");
+      setError("Vul precies 5 steden in.");
       return;
     }
     const other = otherUser(currentUser);
     const otherSubmission = await getCitySubmission(other);
     if (otherSubmission && otherSubmission.length > 0) {
       const otherSet = new Set(
-        otherSubmission.map((c) => `${c.city.trim().toLowerCase()}|${c.country.trim().toLowerCase()}`)
+        otherSubmission.map((c) => `${c.city.trim().toLowerCase()}|${(c.country ?? "").trim().toLowerCase()}`)
       );
       const duplicates = entries.filter(
-        (c) => otherSet.has(`${c.city.toLowerCase()}|${c.country.toLowerCase()}`)
+        (c) => otherSet.has(`${c.city.toLowerCase()}|${(c.country ?? "").toLowerCase()}`)
       );
       if (duplicates.length > 0) {
-        const list = duplicates.map((c) => `${c.city}, ${c.country}`).join("; ");
-        setError(
-          `Deze stad is al ingevuld: ${list}. Kies een andere stad of vul het opnieuw in.`
-        );
+        const list = duplicates.map((c) => c.city).join(", ");
+        setError(`Deze stad is al ingevuld: ${list}. Kies een andere stad.`);
         return;
       }
     }
@@ -269,27 +336,9 @@ export function CityInputForm({ currentUser, demoOnGoToWegstreep }: Props) {
 
   if (combined) {
     return (
-      <div className="rounded-lg border border-foreground/10 bg-background p-4">
-        {demoOnGoToWegstreep && (
-          <p className="mb-2 text-center text-foreground/90 font-medium">
-            Dit zijn je gekozen steden.
-          </p>
-        )}
-        <p className="text-center text-foreground/90">
-          Beide hebben steden opgegeven. De gezamenlijke lijst is klaar voor de wegstreepronde.
-        </p>
-        {demoOnGoToWegstreep && (
-          <div className="mt-4 flex justify-center">
-            <button
-              type="button"
-              onClick={demoOnGoToWegstreep}
-              className="rounded-lg border border-amber-500/50 bg-amber-500/20 px-4 py-2 text-sm font-medium text-foreground"
-            >
-              🎊 Demo: ga door naar wegstrepen →
-            </button>
-          </div>
-        )}
-      </div>
+      <CombinedListWithCountdown
+        demoOnGoToWegstreep={demoOnGoToWegstreep}
+      />
     );
   }
 
@@ -345,12 +394,12 @@ export function CityInputForm({ currentUser, demoOnGoToWegstreep }: Props) {
 
   if (showConfirmSubmit) {
     const entries = cities
-      .map((c) => ({ city: c.city.trim(), country: c.country.trim(), addedBy: currentUser }))
-      .filter((c) => c.city && c.country);
+      .map((c) => ({ city: c.city.trim(), country: (c.country ?? "").trim(), addedBy: currentUser }))
+      .filter((c) => c.city);
     return (
       <div className="space-y-4 rounded-lg border border-foreground/10 bg-background p-4">
         <p className="text-center font-medium text-foreground">
-          Weet je het zeker? Je kunt niet meer terug.
+          Weet je het zeker? No way back!
         </p>
         <div className="flex gap-3">
           <button
@@ -375,7 +424,7 @@ export function CityInputForm({ currentUser, demoOnGoToWegstreep }: Props) {
 
   return (
     <form onSubmit={handleSubmit} className="space-y-4 rounded-lg border border-foreground/10 bg-background p-4">
-      <p className="text-sm text-foreground/80">Geef 5 steden op (stad + land).</p>
+      <p className="text-sm text-foreground/80">Geef 5 steden op (alleen stad, land mag maar hoeft niet).</p>
       <div className="flex flex-wrap gap-2">
         <button
           type="button"
@@ -394,20 +443,13 @@ export function CityInputForm({ currentUser, demoOnGoToWegstreep }: Props) {
         </button>
       </div>
       {[0, 1, 2, 3, 4].map((i) => (
-        <div key={i} className="grid grid-cols-2 gap-2">
+        <div key={i}>
           <input
             type="text"
             placeholder="Stad"
             value={cities[i]?.city ?? ""}
             onChange={(e) => handleChange(i, "city", e.target.value)}
-            className="rounded border border-foreground/20 bg-background px-3 py-2 text-foreground"
-          />
-          <input
-            type="text"
-            placeholder="Land"
-            value={cities[i]?.country ?? ""}
-            onChange={(e) => handleChange(i, "country", e.target.value)}
-            className="rounded border border-foreground/20 bg-background px-3 py-2 text-foreground"
+            className="w-full rounded border border-foreground/20 bg-background px-3 py-2 text-foreground"
           />
         </div>
       ))}

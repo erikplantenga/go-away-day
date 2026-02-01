@@ -8,7 +8,7 @@ export function PhaseBanner() {
   if (phase === "countdown") {
     return (
       <p className="text-center text-lg text-foreground/90">
-        Morgen (1 februari) moeten we allebei 5 steden opgeven.
+        Steden invullen vanaf 12:00 op 1 februari.
       </p>
     );
   }
@@ -16,7 +16,7 @@ export function PhaseBanner() {
   if (phase === "city_input") {
     return (
       <p className="text-center text-lg text-foreground/90">
-        Geef vandaag elk 5 steden op.
+        Geef vandaag elk 5 steden op (alleen stad).
       </p>
     );
   }

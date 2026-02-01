@@ -6,21 +6,21 @@ import { getRevealTime, isAfterRevealTime } from "@/lib/dates";
 import { getFactForDate } from "@/lib/dailyFacts";
 import { Fireworks } from "@/components/Fireworks";
 
-/** Europese steden – mooie foto's, roteer op dag van de maand */
-const EUROPE_PHOTOS = [
-  "https://images.unsplash.com/photo-1539650116574-75c0c6d73f6e?w=800&q=80", // Amsterdam
-  "https://images.unsplash.com/photo-1502602898657-3e1fe06a947a?w=800&q=80", // Paris
-  "https://images.unsplash.com/photo-1583422409516-2895a77efded?w=800&q=80", // Barcelona
-  "https://images.unsplash.com/photo-1569949230765-3c4c2c539d3a?w=800&q=80", // Lisbon
-  "https://images.unsplash.com/photo-1513635269975-59663e0ac1ad?w=800&q=80", // London
-  "https://images.unsplash.com/photo-1545569341-9eb8b30979d9?w=800&q=80", // Rome
-  "https://images.unsplash.com/photo-1570168007204-dfb528c6958f?w=800&q=80", // Prague
+/** Gradient-achtergronden per dag (geen externe afbeeldingen – werkt altijd) */
+const GRADIENTS = [
+  "linear-gradient(135deg, #1e3a5f 0%, #2d5a87 50%, #1e3a5f 100%)",
+  "linear-gradient(135deg, #2d4a3e 0%, #3d6b5a 50%, #2d4a3e 100%)",
+  "linear-gradient(135deg, #4a3728 0%, #6b5344 50%, #4a3728 100%)",
+  "linear-gradient(135deg, #3d2d4a 0%, #5a4a6b 50%, #3d2d4a 100%)",
+  "linear-gradient(135deg, #4a2d2d 0%, #6b4a4a 50%, #4a2d2d 100%)",
+  "linear-gradient(135deg, #2d3d4a 0%, #4a5a6b 50%, #2d3d4a 100%)",
+  "linear-gradient(135deg, #3d4a2d 0%, #5a6b4a 50%, #3d4a2d 100%)",
 ];
 
-function getPhotoForDate(dateStr: string): string {
+function getBackgroundForDate(dateStr: string): string {
   const day = parseInt(dateStr.slice(8, 10), 10) || 1;
-  const i = (day - 1) % EUROPE_PHOTOS.length;
-  return EUROPE_PHOTOS[i] ?? EUROPE_PHOTOS[0]!;
+  const i = (day - 1) % GRADIENTS.length;
+  return GRADIENTS[i] ?? GRADIENTS[0]!;
 }
 
 function formatCountdown(ms: number): { days: number; hours: number } {
@@ -35,7 +35,7 @@ export function FeestDag() {
   const [countdown, setCountdown] = useState<{ days: number; hours: number } | null>(null);
   const dateStr = getCurrentDateString();
   const fact = getFactForDate(dateStr);
-  const photoUrl = getPhotoForDate(dateStr);
+  const backgroundStyle = getBackgroundForDate(dateStr);
   const showCountdown = !isAfterRevealTime();
 
   useEffect(() => {
@@ -57,13 +57,10 @@ export function FeestDag() {
           <Fireworks />
         </div>
       )}
-      <div className="relative z-0 aspect-[2/1] w-full">
-        <img
-          src={photoUrl}
-          alt="Europa"
-          className="h-full w-full object-cover"
-          loading="lazy"
-        />
+      <div
+        className="relative z-0 aspect-[2/1] w-full"
+        style={{ background: backgroundStyle }}
+      >
         <div className="absolute inset-0 bg-gradient-to-t from-black/80 via-black/20 to-transparent" />
         <div className="absolute bottom-0 left-0 right-0 p-5 text-white">
           {showCountdown && countdown !== null && (

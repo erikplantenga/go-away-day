@@ -1,7 +1,7 @@
 "use client";
 
 import { useState, useEffect } from "react";
-import { getPhase, getSpinOpenTime } from "@/lib/dates";
+import { getPhase, getSpinOpenTime, getCityInputOpenTime } from "@/lib/dates";
 import type { UserId } from "@/lib/firestore";
 import { CityInputForm } from "@/components/CityInputForm";
 import { WegstreepList } from "@/components/WegstreepList";
@@ -41,20 +41,10 @@ export function PhaseContent({ currentUser }: Props) {
 
   if (phase === "countdown") {
     return (
-      <div className="space-y-4">
-        <p className="text-center text-foreground/70">
-          Wacht tot 1 februari om steden in te voeren.
-        </p>
-        <div className="text-center">
-          <button
-            type="button"
-            onClick={() => setShowDemo(true)}
-            className="rounded-xl border-2 border-amber-500/50 bg-gradient-to-r from-amber-500/20 to-orange-500/20 px-6 py-3 text-base font-semibold text-foreground shadow-lg shadow-amber-500/20 transition hover:from-amber-500/30 hover:to-orange-500/30"
-          >
-            🎉 Demo bekijken – feest! 🎉
-          </button>
-        </div>
-      </div>
+      <>
+        <DemoLink onOpen={() => setShowDemo(true)} />
+        <CountdownToCityInput onOpenDemo={() => setShowDemo(true)} />
+      </>
     );
   }
 
@@ -115,6 +105,57 @@ function formatCountdown(ms: number): string {
   const min = Math.floor(totalSec / 60);
   const sec = totalSec % 60;
   return `${min}:${sec.toString().padStart(2, "0")}`;
+}
+
+function formatCountdownLong(ms: number): { days: number; hours: number; min: number } {
+  if (ms <= 0) return { days: 0, hours: 0, min: 0 };
+  const totalSec = Math.floor(ms / 1000);
+  const days = Math.floor(totalSec / 86400);
+  const rest = totalSec % 86400;
+  const hours = Math.floor(rest / 3600);
+  const min = Math.floor((rest % 3600) / 60);
+  return { days, hours, min };
+}
+
+function CountdownToCityInput({ onOpenDemo }: { onOpenDemo: () => void }) {
+  const [countdown, setCountdown] = useState("");
+  const [long, setLong] = useState<{ days: number; hours: number; min: number } | null>(null);
+  useEffect(() => {
+    const update = () => {
+      const openAt = getCityInputOpenTime();
+      const left = Math.max(0, openAt.getTime() - Date.now());
+      setCountdown(formatCountdown(left));
+      setLong(formatCountdownLong(left));
+    };
+    update();
+    const t = setInterval(update, 1000);
+    return () => clearInterval(t);
+  }, []);
+
+  return (
+    <div className="space-y-4 rounded-xl border-2 border-amber-500/50 bg-amber-500/10 p-8 text-center">
+      <p className="text-lg font-semibold text-foreground">
+        Steden invullen vanaf 12:00 op 1 februari
+      </p>
+      <p className="text-3xl font-mono font-bold tabular-nums text-foreground">
+        {countdown}
+      </p>
+      {long && (long.days > 0 || long.hours > 0 || long.min > 0) && (
+        <p className="text-sm text-foreground/70">
+          nog {long.days > 0 ? `${long.days}d ` : ""}{long.hours}u {long.min}m te gaan
+        </p>
+      )}
+      <div className="pt-4">
+        <button
+          type="button"
+          onClick={onOpenDemo}
+          className="rounded-lg border border-amber-500/50 bg-amber-500/20 px-4 py-2 text-sm font-medium text-foreground"
+        >
+          🎉 Demo bekijken
+        </button>
+      </div>
+    </div>
+  );
 }
 
 function CountdownToSpin() {

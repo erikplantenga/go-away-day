@@ -80,7 +80,7 @@ export async function combineAndDedupeCities(): Promise<CityEntry[]> {
   const seen = new Set<string>();
   const deduped: CityEntry[] = [];
   for (const c of all) {
-    const key = `${c.city.toLowerCase()}|${c.country.toLowerCase()}`;
+    const key = `${c.city.toLowerCase()}|${(c.country ?? "").toLowerCase()}`;
     if (!seen.has(key)) {
       seen.add(key);
       deduped.push(c);
@@ -134,12 +134,12 @@ export async function ensureDemoOtherUserStruckThree(otherUser: UserId): Promise
   const otherCount = removedList.filter((r) => r.removedBy === otherUser).length;
   if (otherCount >= 3) return;
   const remaining = cities.filter(
-    (c) => !removedSet.has(`${c.city}|${c.country}`)
+    (c) => !removedSet.has(`${c.city}|${c.country ?? ""}`)
   );
   const toStrike = shuffle(remaining).slice(0, 3 - otherCount);
   const dateStr = new Date().toISOString().slice(0, 10);
   for (const c of toStrike) {
-    await addRemoved(c.city, c.country, otherUser, dateStr);
+    await addRemoved(c.city, c.country ?? undefined, otherUser, dateStr);
   }
 }
 
@@ -238,7 +238,7 @@ export async function getRemainingCities(): Promise<CityEntry[]> {
     removedList.map((r) => `${r.city}|${r.country ?? ""}`)
   );
   return allCities.filter(
-    (c) => !removedSet.has(`${c.city}|${c.country}`)
+    (c) => !removedSet.has(`${c.city}|${c.country ?? ""}`)
   );
 }
 

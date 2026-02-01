@@ -79,7 +79,7 @@ export async function combineAndDedupeCities(): Promise<CityEntry[]> {
   const seen = new Set<string>();
   const deduped: CityEntry[] = [];
   for (const c of all) {
-    const key = `${c.city.toLowerCase()}|${c.country.toLowerCase()}`;
+    const key = `${c.city.toLowerCase()}|${(c.country ?? "").toLowerCase()}`;
     if (!seen.has(key)) {
       seen.add(key);
       deduped.push(c);
@@ -123,7 +123,7 @@ export async function ensurePreviewSeeded(): Promise<void> {
   const dateStr = "2026-02-02";
 
   const remaining = cities.filter(
-    (c) => !removedSet.has(`${c.city}|${c.country}`)
+    (c) => !removedSet.has(`${c.city}|${c.country ?? ""}`)
   );
   const shuffle = <T>(arr: T[]): T[] => {
     const out = [...arr];
@@ -137,7 +137,7 @@ export async function ensurePreviewSeeded(): Promise<void> {
   if (erikStrikes < 3) {
     const toStrike = shuffle(remaining).slice(0, 3 - erikStrikes);
     for (const c of toStrike) {
-      await addRemoved(c.city, c.country, "erik", dateStr);
+      await addRemoved(c.city, c.country ?? undefined, "erik", dateStr);
     }
   }
   const removedList2 = await getRemoved();
@@ -145,13 +145,13 @@ export async function ensurePreviewSeeded(): Promise<void> {
     removedList2.map((r) => `${r.city}|${r.country ?? ""}`)
   );
   const remaining2 = cities.filter(
-    (c) => !removedSet2.has(`${c.city}|${c.country}`)
+    (c) => !removedSet2.has(`${c.city}|${c.country ?? ""}`)
   );
   const bennoStrikesNow = removedList2.filter((r) => r.removedBy === "benno").length;
   if (bennoStrikesNow < 3) {
     const toStrike = shuffle(remaining2).slice(0, 3 - bennoStrikesNow);
     for (const c of toStrike) {
-      await addRemoved(c.city, c.country, "benno", dateStr);
+      await addRemoved(c.city, c.country ?? undefined, "benno", dateStr);
     }
   }
 }
@@ -248,7 +248,7 @@ export async function getRemainingCities(): Promise<CityEntry[]> {
     removedList.map((r) => `${r.city}|${r.country ?? ""}`)
   );
   return allCities.filter(
-    (c) => !removedSet.has(`${c.city}|${c.country}`)
+    (c) => !removedSet.has(`${c.city}|${c.country ?? ""}`)
   );
 }
 

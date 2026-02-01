@@ -78,7 +78,7 @@ export async function combineAndDedupeCities(): Promise<CityEntry[]> {
   const seen = new Set<string>();
   const deduped: CityEntry[] = [];
   for (const c of all) {
-    const k = `${c.city.toLowerCase()}|${c.country.toLowerCase()}`;
+    const k = `${c.city.toLowerCase()}|${(c.country ?? "").toLowerCase()}`;
     if (!seen.has(k)) {
       seen.add(k);
       deduped.push(c);
@@ -170,7 +170,7 @@ export async function hasUserSpunToday(
 export async function getRemainingCities(): Promise<CityEntry[]> {
   const [cities, removed] = await Promise.all([getCities(), getRemoved()]);
   const set = new Set(removed.map((r) => `${r.city}|${r.country ?? ""}`));
-  return cities.filter((c) => !set.has(`${c.city}|${c.country}`));
+  return cities.filter((c) => !set.has(`${c.city}|${c.country ?? ""}`));
 }
 
 type Unsubscribe = () => void;

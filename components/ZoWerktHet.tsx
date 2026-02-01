@@ -24,7 +24,7 @@ export function ZoWerktHet({ showDemoHint = false }: Props) {
         <div className="border-t border-foreground/10 px-4 py-3 text-sm text-foreground/90">
           <ol className="list-decimal space-y-2 pl-4">
             <li>
-              <strong>1 februari</strong> – Vul elk 5 steden in (stad + land). De lijsten worden
+              <strong>1 februari 12:00</strong> – Vul elk 5 steden in (alleen stad). De lijsten worden
               gecombineerd en dubbelen gaan eraf.
             </li>
             <li>

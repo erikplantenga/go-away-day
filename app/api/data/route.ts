@@ -124,7 +124,7 @@ export async function POST(req: NextRequest) {
       const seen = new Set<string>();
       const deduped: CityEntry[] = [];
       for (const c of all) {
-        const k = `${c.city.toLowerCase()}|${c.country.toLowerCase()}`;
+        const k = `${c.city.toLowerCase()}|${(c.country ?? "").toLowerCase()}`;
         if (!seen.has(k)) {
           seen.add(k);
           deduped.push(c);
@@ -202,7 +202,7 @@ export async function POST(req: NextRequest) {
       const cities: CityEntry[] = citiesV ? JSON.parse(citiesV) : [];
       const removed: RemovedEntry[] = removedV ? JSON.parse(removedV) : [];
       const set = new Set(removed.map((r: RemovedEntry) => `${r.city}|${r.country ?? ""}`));
-      const remaining = cities.filter((c) => !set.has(`${c.city}|${c.country}`));
+      const remaining = cities.filter((c) => !set.has(`${c.city}|${c.country ?? ""}`));
       return NextResponse.json({ data: remaining });
     }
     if (op === "getConfig") {

@@ -190,7 +190,7 @@ export function WinnerScreen({ demoWinner }: WinnerScreenProps = {}) {
             <div className="mb-4">
               <p className="mb-1.5 text-xs font-medium uppercase text-foreground/70">Dit waren de steden</p>
               <p className="text-sm text-foreground/90">
-                {summaryCities.map((c) => `${c.city} (${c.country})`).join(", ")}
+                {summaryCities.map((c) => (c.country ? `${c.city} (${c.country})` : c.city)).join(", ")}
               </p>
             </div>
           )}

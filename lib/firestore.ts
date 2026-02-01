@@ -89,7 +89,7 @@ export type UserId = "erik" | "benno";
 
 export interface CityEntry {
   city: string;
-  country: string;
+  country?: string;
   addedBy: UserId;
 }
 
@@ -210,7 +210,7 @@ export async function combineAndDedupeCities(): Promise<CityEntry[]> {
   const seen = new Set<string>();
   const deduped: CityEntry[] = [];
   for (const c of all) {
-    const key = `${c.city.toLowerCase()}|${c.country.toLowerCase()}`;
+    const key = `${c.city.toLowerCase()}|${(c.country ?? "").toLowerCase()}`;
     if (!seen.has(key)) {
       seen.add(key);
       deduped.push(c);
@@ -395,7 +395,7 @@ export async function getRemainingCities(): Promise<CityEntry[]> {
     removedList.map((r) => `${r.city}|${r.country ?? ""}`)
   );
   return allCities.filter(
-    (c) => !removedSet.has(`${c.city}|${c.country}`)
+    (c) => !removedSet.has(`${c.city}|${c.country ?? ""}`)
   );
 }
 

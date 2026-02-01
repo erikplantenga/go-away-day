@@ -89,6 +89,30 @@ export function getSpinOpenTime(): Date {
 }
 
 /**
+ * Moment waarop steden invullen opent: 1 feb 12:00 Amsterdam (huidig jaar).
+ */
+export function getCityInputOpenTime(): Date {
+  const y = toZonedTime(new Date(), TIMEZONE).getFullYear();
+  return new Date(Date.UTC(y, 1, 1, 11, 0, 0, 0)); // 1 feb 12:00 CET = 11:00 UTC
+}
+
+/**
+ * Start eerste wegstreep-dag: 2 feb 00:00 Amsterdam (huidig jaar).
+ */
+export function getWegstreepDay1StartTime(): Date {
+  const y = toZonedTime(new Date(), TIMEZONE).getFullYear();
+  return new Date(Date.UTC(y, 1, 1, 23, 0, 0, 0)); // 2 feb 00:00 CET = 1 feb 23:00 UTC
+}
+
+/**
+ * Start tweede wegstreep-dag: 3 feb 00:00 Amsterdam (huidig jaar).
+ */
+export function getWegstreepDay2StartTime(): Date {
+  const y = toZonedTime(new Date(), TIMEZONE).getFullYear();
+  return new Date(Date.UTC(y, 1, 2, 23, 0, 0, 0)); // 3 feb 00:00 CET = 2 feb 23:00 UTC
+}
+
+/**
  * Maximaal aantal wegstrepen per gebruiker op deze datum.
  * 2 feb: 1 stad, 3 feb: 2 steden (eenmalig per dag).
  */
@@ -136,7 +160,11 @@ export function getPhase(): Phase {
     return "fruitautomaat";
   }
   if (mmdd === feb2 || mmdd === feb3) return "wegstreep";
-  if (mmdd === feb1) return "city_input";
+  if (mmdd === feb1) {
+    const hour = parseInt(formatInTimeZone(new Date(), TIMEZONE, "H"), 10);
+    if (hour < 12) return "countdown"; // Steden invullen pas vanaf 12:00
+    return "city_input";
+  }
   return "countdown";
 }
 

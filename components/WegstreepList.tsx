@@ -11,7 +11,7 @@ import {
   getStrikeCount,
   getStrikeCountForDate,
 } from "@/lib/firestore";
-import { getCurrentDateString, getStrikeLimitForDate } from "@/lib/dates";
+import { getCurrentDateString, getStrikeLimitForDate, getWegstreepDay2StartTime, getSpinOpenTime } from "@/lib/dates";
 import { WhoMustStrikeBanner } from "@/components/WhoMustStrikeBanner";
 
 const DEMO_REQUIRED_STRIKES = 3;
@@ -23,7 +23,7 @@ type Props = {
 };
 
 function cityKey(c: CityEntry): string {
-  return `${c.city}|${c.country}`;
+  return `${c.city}|${c.country ?? ""}`;
 }
 
 export function WegstreepList({ currentUser, onVolgende }: Props) {
@@ -35,9 +35,27 @@ export function WegstreepList({ currentUser, onVolgende }: Props) {
   const [striking, setStriking] = useState<string | null>(null);
   const [error, setError] = useState<string | null>(null);
   const [confirmStrikeKey, setConfirmStrikeKey] = useState<string | null>(null);
+  const [nextCountdown, setNextCountdown] = useState("");
   const dateStr = getCurrentDateString();
 
   const isDemo = !!onVolgende;
+
+  useEffect(() => {
+    if (isDemo) return;
+    const update = () => {
+      const mmdd = dateStr.slice(5);
+      const target = mmdd === "02-02" ? getWegstreepDay2StartTime() : getSpinOpenTime();
+      const left = Math.max(0, target.getTime() - Date.now());
+      const sec = Math.floor(left / 1000);
+      const d = Math.floor(sec / 86400);
+      const h = Math.floor((sec % 86400) / 3600);
+      const m = Math.floor((sec % 3600) / 60);
+      setNextCountdown(d > 0 ? `${d}d ${h}u ${m}m` : `${h}u ${m}m`);
+    };
+    update();
+    const t = setInterval(update, 1000);
+    return () => clearInterval(t);
+  }, [dateStr, isDemo]);
   const requiredToday = isDemo ? DEMO_REQUIRED_STRIKES : getStrikeLimitForDate(dateStr);
 
   useEffect(() => {
@@ -84,10 +102,10 @@ export function WegstreepList({ currentUser, onVolgende }: Props) {
     setStriking(cityKey(city));
     setError(null);
     try {
-      await addRemoved(city.city, city.country, currentUser, dateStr);
+      await addRemoved(city.city, city.country ?? undefined, currentUser, dateStr);
       setRemoved((prev) => [
         ...prev,
-        { city: city.city, country: city.country, removedBy: currentUser, date: dateStr },
+        { city: city.city, country: city.country ?? undefined, removedBy: currentUser, date: dateStr },
       ]);
       if (currentUser === "erik") setStrikeCountErik((n) => n + 1);
       else setStrikeCountBenno((n) => n + 1);
@@ -114,6 +132,8 @@ export function WegstreepList({ currentUser, onVolgende }: Props) {
 
   const bothDone = isDemo && strikeCountErik >= DEMO_REQUIRED_STRIKES && strikeCountBenno >= DEMO_REQUIRED_STRIKES;
   const stillNeeded = requiredToday - strikeCountCurrent;
+  const mmdd = dateStr.slice(5);
+  const nextLabel = mmdd === "02-02" ? "2 februari – 2 steden wegstrepen" : "4 februari 10:00 – spinnen";
 
   return (
     <div className="space-y-4 rounded-lg border border-foreground/10 bg-background p-4">
@@ -131,7 +151,7 @@ export function WegstreepList({ currentUser, onVolgende }: Props) {
               Weet je het zeker? Je kunt niet meer terug.
             </p>
             <p className="mt-1 text-sm text-foreground/80">
-              {city.city}, {city.country} wordt {isDemo ? "weggestreept" : "definitief weggestreept"}.
+              {city.country ? `${city.city}, ${city.country}` : city.city} wordt {isDemo ? "weggestreept" : "definitief weggestreept"}.
             </p>
             <div className="mt-4 flex gap-3">
               <button
@@ -174,7 +194,7 @@ export function WegstreepList({ currentUser, onVolgende }: Props) {
               <span
                 className={`font-medium ${isRemoved ? "line-through text-foreground/60" : ""}`}
               >
-                {c.city}, {c.country}
+                {c.country ? `${c.city}, ${c.country}` : c.city}
               </span>
               {!isRemoved && (
                 <button
@@ -192,6 +212,11 @@ export function WegstreepList({ currentUser, onVolgende }: Props) {
       </ul>
       {error && (
         <p className="text-sm text-red-600 dark:text-red-400">{error}</p>
+      )}
+      {!isDemo && nextCountdown && (
+        <div className="rounded border border-foreground/10 bg-foreground/5 px-3 py-2 text-center text-sm text-foreground/80">
+          Volgende opdracht: {nextLabel} – nog {nextCountdown}
+        </div>
       )}
       {onVolgende && (
         <div className="flex flex-col items-center gap-2 border-t border-foreground/10 pt-4">
