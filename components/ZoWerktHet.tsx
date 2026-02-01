@@ -32,6 +32,9 @@ export function ZoWerktHet() {
               <strong>7 februari 20:00</strong> – De stad met de meeste punten wint. Daar gaan we heen!
             </li>
           </ol>
+          <p className="mt-3 rounded border border-foreground/15 bg-foreground/5 px-3 py-2 text-xs italic text-foreground/80">
+            <strong>Eerlijk spel:</strong> Erik en Benno hebben allebei dezelfde rechten. Niemand kan de uitslag sturen: jullie kiezen elk je eigen steden, strepen elk je eigen keuzes weg, en de fruitautomaat kiest willekeurig. Geen van beiden heeft invloed op de ander.
+          </p>
         </div>
       )}
     </div>
