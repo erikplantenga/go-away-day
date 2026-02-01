@@ -174,6 +174,15 @@ export function CityInputForm({ currentUser }: Props) {
     let cancelled = false;
     async function load() {
       try {
+        /* Eerst checken of de gezamenlijke lijst al in Firebase staat (na /api/seed) – dan direct lijst tonen. */
+        const existing = await getCities();
+        if (!cancelled && existing.length >= 10) {
+          setCombined(true);
+          setSubmitted(true);
+          setOtherSubmitted(true);
+          setLoading(false);
+          return;
+        }
         const [mySubmission, both] = await Promise.all([
           getCitySubmission(currentUser),
           hasBothSubmitted(),
@@ -189,7 +198,6 @@ export function CityInputForm({ currentUser }: Props) {
           const draft = loadDraft(currentUser);
           if (draft && draft.length === 5) setCitiesState(draft);
         }
-        const existing = await getCities();
         if (existing.length > 0) setCombined(true);
         else if (both) {
           try {
