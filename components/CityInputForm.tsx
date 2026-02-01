@@ -119,6 +119,7 @@ function CombinedListWithCountdown() {
       <p className="text-center font-medium text-foreground/90">
         Beide hebben steden opgegeven. De gezamenlijke lijst (dubbelen eraf):
       </p>
+      <p className="text-center text-xs text-foreground/60">Niet meer wijzigen – we hebben reeds ingevoerd.</p>
       {loading ? (
         <p className="text-center text-sm text-foreground/70">Laden...</p>
       ) : (
@@ -321,7 +322,8 @@ export function CityInputForm({ currentUser }: Props) {
       .filter(Boolean);
     return (
       <div className="space-y-4 rounded-lg border border-foreground/10 bg-background p-4">
-        <p className="text-center text-foreground/90">Je hebt je 5 steden opgegeven.</p>
+        <p className="text-center font-medium text-foreground/90">Je hebt je 5 steden opgegeven.</p>
+        <p className="text-center text-xs text-foreground/60">Niet meer wijzigen – we hebben reeds ingevoerd.</p>
         {myCities.length > 0 && (
           <p className="text-center text-sm text-foreground/80">
             Jouw steden: {myCities.join(", ")}
