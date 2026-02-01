@@ -19,8 +19,8 @@ export function ZoWerktHet() {
         <div className="border-t border-foreground/10 px-4 py-3 text-sm text-foreground/90">
           <ol className="list-decimal space-y-2 pl-4">
             <li>
-              <strong>1 februari 12:00</strong> – Vul elk 5 steden in (alleen stad). De lijsten worden
-              gecombineerd en dubbelen gaan eraf.
+              <strong>1 februari 12:00</strong> – Vul elk 5 steden in (alleen stad). Geen dubbelen: heeft
+              de ander een stad al ingevuld, dan moet jij een andere invullen. De lijsten worden gecombineerd.
             </li>
             <li>
               <strong>2 februari</strong> – Iedereen streep 1 stad weg. <strong>3 februari</strong> – iedereen streep 2 steden weg. Na 3 dagen blijven 4 steden over.

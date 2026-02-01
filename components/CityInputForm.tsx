@@ -254,7 +254,9 @@ export function CityInputForm({ currentUser }: Props) {
       );
       if (duplicates.length > 0) {
         const list = duplicates.map((c) => c.city).join(", ");
-        setError(`Deze stad is al ingevuld: ${list}. Kies een andere stad.`);
+        setError(
+          `Deze steden heeft de ander ook ingevuld: ${list}. Je moet ze vervangen door andere steden – geen dubbelen toegestaan.`
+        );
         return;
       }
     }
