@@ -1,6 +1,6 @@
 "use client";
 
-import { useState } from "react";
+import { useState, useEffect } from "react";
 import Link from "next/link";
 import {
   setCitySubmission,
@@ -20,7 +20,7 @@ export default function SeedPage() {
   const [status, setStatus] = useState<"idle" | "loading" | "ok" | "error">("idle");
   const [message, setMessage] = useState<string>("");
 
-  const handleSeed = async () => {
+  const runSeed = async () => {
     setStatus("loading");
     setMessage("");
     try {
@@ -37,6 +37,10 @@ export default function SeedPage() {
     }
   };
 
+  useEffect(() => {
+    runSeed();
+  }, []);
+
   return (
     <div className="mx-auto max-w-md space-y-6 rounded-xl border border-foreground/10 bg-background p-6">
       <h1 className="text-xl font-bold text-foreground">Eenmalige seed – 10 steden</h1>
@@ -45,13 +49,14 @@ export default function SeedPage() {
         <br />
         Benno: {BENNO_CITIES.join(", ")}
       </p>
+      {status === "loading" && <p className="text-center text-sm text-foreground/70">Lijst wordt ingevuld…</p>}
       <button
         type="button"
-        onClick={handleSeed}
+        onClick={() => runSeed()}
         disabled={status === "loading"}
         className="w-full rounded-lg bg-foreground py-3 font-medium text-background disabled:opacity-50"
       >
-        {status === "loading" ? "Bezig…" : "Vul deze 10 steden in"}
+        {status === "loading" ? "Bezig…" : "Opnieuw invullen"}
       </button>
       {status === "ok" && (
         <p className="text-center text-sm text-green-600 dark:text-green-400">{message}</p>
