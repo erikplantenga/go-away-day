@@ -8,92 +8,39 @@ import { WegstreepList } from "@/components/WegstreepList";
 import { SlotMachine } from "@/components/SlotMachine";
 import { Leaderboard } from "@/components/Leaderboard";
 import { WinnerScreen } from "@/components/WinnerScreen";
-import { DemoFeest } from "@/components/DemoFeest";
-import { DemoFlow } from "@/components/DemoFlow";
 
 type Props = { currentUser: UserId };
 
-function DemoLink({ onOpen }: { onOpen: () => void }) {
-  return (
-    <div className="mb-3 flex justify-end">
-      <button
-        type="button"
-        onClick={onOpen}
-        className="rounded-lg border border-amber-500/50 bg-amber-500/10 px-4 py-2 text-sm font-medium text-foreground transition hover:bg-amber-500/20"
-      >
-        🎉 Demo bekijken
-      </button>
-    </div>
-  );
-}
-
 export function PhaseContent({ currentUser }: Props) {
   const phase = getPhase();
-  const [showDemo, setShowDemo] = useState(false);
-
-  if (showDemo) {
-    return (
-      <DemoFeest>
-        <DemoFlow currentUser={currentUser} />
-      </DemoFeest>
-    );
-  }
 
   if (phase === "countdown") {
-    return (
-      <>
-        <DemoLink onOpen={() => setShowDemo(true)} />
-        <CountdownToCityInput onOpenDemo={() => setShowDemo(true)} />
-      </>
-    );
+    return <CountdownToCityInput />;
   }
 
   if (phase === "city_input") {
-    return (
-      <>
-        <DemoLink onOpen={() => setShowDemo(true)} />
-        <CityInputForm currentUser={currentUser} />
-      </>
-    );
+    return <CityInputForm currentUser={currentUser} />;
   }
 
   if (phase === "wegstreep") {
-    return (
-      <>
-        <DemoLink onOpen={() => setShowDemo(true)} />
-        <WegstreepList currentUser={currentUser} />
-      </>
-    );
+    return <WegstreepList currentUser={currentUser} />;
   }
 
   if (phase === "countdown_spin") {
-    return (
-      <>
-        <DemoLink onOpen={() => setShowDemo(true)} />
-        <CountdownToSpin />
-      </>
-    );
+    return <CountdownToSpin />;
   }
 
   if (phase === "fruitautomaat") {
     return (
-      <>
-        <DemoLink onOpen={() => setShowDemo(true)} />
-        <div className="space-y-6">
-          <SlotMachine currentUser={currentUser} />
-          <Leaderboard />
-        </div>
-      </>
+      <div className="space-y-6">
+        <SlotMachine currentUser={currentUser} />
+        <Leaderboard />
+      </div>
     );
   }
 
   if (phase === "finale") {
-    return (
-      <>
-        <DemoLink onOpen={() => setShowDemo(true)} />
-        <WinnerScreen />
-      </>
-    );
+    return <WinnerScreen />;
   }
 
   return null;
@@ -117,7 +64,7 @@ function formatCountdownLong(ms: number): { days: number; hours: number; min: nu
   return { days, hours, min };
 }
 
-function CountdownToCityInput({ onOpenDemo }: { onOpenDemo: () => void }) {
+function CountdownToCityInput() {
   const [countdown, setCountdown] = useState("");
   const [long, setLong] = useState<{ days: number; hours: number; min: number } | null>(null);
   useEffect(() => {
@@ -145,15 +92,6 @@ function CountdownToCityInput({ onOpenDemo }: { onOpenDemo: () => void }) {
           nog {long.days > 0 ? `${long.days}d ` : ""}{long.hours}u {long.min}m te gaan
         </p>
       )}
-      <div className="pt-4">
-        <button
-          type="button"
-          onClick={onOpenDemo}
-          className="rounded-lg border border-amber-500/50 bg-amber-500/20 px-4 py-2 text-sm font-medium text-foreground"
-        >
-          🎉 Demo bekijken
-        </button>
-      </div>
     </div>
   );
 }

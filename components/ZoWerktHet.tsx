@@ -2,12 +2,7 @@
 
 import { useState } from "react";
 
-type Props = {
-  /** Optional: show demo hint only when we're in city_input and have demo buttons */
-  showDemoHint?: boolean;
-};
-
-export function ZoWerktHet({ showDemoHint = false }: Props) {
+export function ZoWerktHet() {
   const [open, setOpen] = useState(false);
 
   return (
@@ -37,14 +32,6 @@ export function ZoWerktHet({ showDemoHint = false }: Props) {
               <strong>7 februari 20:00</strong> – De stad met de meeste punten wint. Daar gaan we heen!
             </li>
           </ol>
-          {showDemoHint && (
-            <p className="mt-3 rounded bg-foreground/5 p-2 text-foreground/80">
-              <strong>Demo:</strong> Bij het formulier hieronder kun je op &quot;Vul voorbeeld
-              in&quot; klikken om 5 voorbeeldsteden in te vullen. Klik daarna op &quot;Vul ook de
-              andere 5 in (demo)&quot; om de andere persoon te simuleren. Tot slot &quot;Steden
-              opgeven&quot; – zo zie je hoe de gecombineerde lijst ontstaat.
-            </p>
-          )}
         </div>
       )}
     </div>

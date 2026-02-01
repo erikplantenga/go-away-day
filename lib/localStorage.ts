@@ -213,15 +213,3 @@ export async function setConfig(updates: Partial<GameConfig>): Promise<void> {
 export async function setWinner(city: string): Promise<void> {
   return setConfig({ winnerLocked: true, winnerCity: city });
 }
-
-/** Wis alle speldata (alleen voor development/testing). */
-export function clearGameData(): void {
-  if (typeof window === "undefined") return;
-  localStorage.removeItem(KEY_CITIES);
-  localStorage.removeItem(KEY_SUBMISSION_ERIK);
-  localStorage.removeItem(KEY_SUBMISSION_BENNO);
-  localStorage.removeItem(KEY_REMOVED);
-  localStorage.removeItem(KEY_SPINS);
-  localStorage.removeItem(KEY_CONFIG);
-  dispatchSpinsChange();
-}

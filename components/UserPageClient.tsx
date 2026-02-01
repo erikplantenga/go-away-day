@@ -56,7 +56,7 @@ export function UserPageClient({ user }: Props) {
         </p>
       )}
       <FeestDag />
-      <ZoWerktHet showDemoHint />
+      <ZoWerktHet />
       <div className="mb-6 rounded-lg border border-foreground/10 bg-background p-4">
         <PhaseBanner />
       </div>

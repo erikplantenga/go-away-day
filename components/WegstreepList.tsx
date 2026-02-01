@@ -8,25 +8,18 @@ import {
   getCities,
   getRemoved,
   addRemoved,
-  getStrikeCount,
   getStrikeCountForDate,
 } from "@/lib/firestore";
 import { getCurrentDateString, getStrikeLimitForDate, getWegstreepDay2StartTime, getSpinOpenTime } from "@/lib/dates";
 import { WhoMustStrikeBanner } from "@/components/WhoMustStrikeBanner";
 
-const DEMO_REQUIRED_STRIKES = 3;
-
-type Props = {
-  currentUser: UserId;
-  /** Demo: toon Volgende / Ga door alleen als beide 3 hebben weggestreept */
-  onVolgende?: () => void;
-};
+type Props = { currentUser: UserId };
 
 function cityKey(c: CityEntry): string {
   return `${c.city}|${c.country ?? ""}`;
 }
 
-export function WegstreepList({ currentUser, onVolgende }: Props) {
+export function WegstreepList({ currentUser }: Props) {
   const [cities, setCities] = useState<CityEntry[]>([]);
   const [removed, setRemoved] = useState<RemovedEntry[]>([]);
   const [strikeCountErik, setStrikeCountErik] = useState(0);
@@ -37,11 +30,9 @@ export function WegstreepList({ currentUser, onVolgende }: Props) {
   const [confirmStrikeKey, setConfirmStrikeKey] = useState<string | null>(null);
   const [nextCountdown, setNextCountdown] = useState("");
   const dateStr = getCurrentDateString();
-
-  const isDemo = !!onVolgende;
+  const requiredToday = getStrikeLimitForDate(dateStr);
 
   useEffect(() => {
-    if (isDemo) return;
     const update = () => {
       const mmdd = dateStr.slice(5);
       const target = mmdd === "02-02" ? getWegstreepDay2StartTime() : getSpinOpenTime();
@@ -55,8 +46,7 @@ export function WegstreepList({ currentUser, onVolgende }: Props) {
     update();
     const t = setInterval(update, 1000);
     return () => clearInterval(t);
-  }, [dateStr, isDemo]);
-  const requiredToday = isDemo ? DEMO_REQUIRED_STRIKES : getStrikeLimitForDate(dateStr);
+  }, [dateStr]);
 
   useEffect(() => {
     let cancelled = false;
@@ -65,8 +55,8 @@ export function WegstreepList({ currentUser, onVolgende }: Props) {
         const [allCities, removedList, erikCount, bennoCount] = await Promise.all([
           getCities(),
           getRemoved(),
-          isDemo ? getStrikeCount("erik") : getStrikeCountForDate("erik", dateStr),
-          isDemo ? getStrikeCount("benno") : getStrikeCountForDate("benno", dateStr),
+          getStrikeCountForDate("erik", dateStr),
+          getStrikeCountForDate("benno", dateStr),
         ]);
         if (cancelled) return;
         setCities(allCities);
@@ -83,7 +73,7 @@ export function WegstreepList({ currentUser, onVolgende }: Props) {
     return () => {
       cancelled = true;
     };
-  }, [dateStr, isDemo]);
+  }, [dateStr]);
 
   const removedSet = new Set(
     removed.map((r) => `${r.city}|${r.country ?? ""}`)
@@ -130,18 +120,14 @@ export function WegstreepList({ currentUser, onVolgende }: Props) {
     );
   }
 
-  const bothDone = isDemo && strikeCountErik >= DEMO_REQUIRED_STRIKES && strikeCountBenno >= DEMO_REQUIRED_STRIKES;
-  const stillNeeded = requiredToday - strikeCountCurrent;
   const mmdd = dateStr.slice(5);
   const nextLabel = mmdd === "02-02" ? "2 februari – 2 steden wegstrepen" : "4 februari 10:00 – spinnen";
 
   return (
     <div className="space-y-4 rounded-lg border border-foreground/10 bg-background p-4">
-      {!isDemo && (
-        <div className="rounded-lg border-2 border-red-500/50 bg-red-500/10 px-3 py-2 text-center text-sm font-semibold text-red-700 dark:text-red-400">
-          Wegstrepen is definitief – dit kun je niet herstellen!
-        </div>
-      )}
+      <div className="rounded-lg border-2 border-red-500/50 bg-red-500/10 px-3 py-2 text-center text-sm font-semibold text-red-700 dark:text-red-400">
+        Wegstrepen is definitief – dit kun je niet herstellen!
+      </div>
       {confirmStrikeKey && (() => {
         const city = cities.find((c) => cityKey(c) === confirmStrikeKey);
         if (!city) return null;
@@ -151,7 +137,7 @@ export function WegstreepList({ currentUser, onVolgende }: Props) {
               Weet je het zeker? Je kunt niet meer terug.
             </p>
             <p className="mt-1 text-sm text-foreground/80">
-              {city.country ? `${city.city}, ${city.country}` : city.city} wordt {isDemo ? "weggestreept" : "definitief weggestreept"}.
+              {city.country ? `${city.city}, ${city.country}` : city.city} wordt definitief weggestreept.
             </p>
             <div className="mt-4 flex gap-3">
               <button
@@ -179,9 +165,7 @@ export function WegstreepList({ currentUser, onVolgende }: Props) {
         required={requiredToday}
       />
       <p className="text-sm text-foreground/70">
-        {isDemo
-          ? `Kies 1 stad om weg te strepen. Je moet er ${DEMO_REQUIRED_STRIKES} wegestreept hebben om verder te kunnen.`
-          : `Vandaag mag je ${requiredToday} ${requiredToday === 1 ? "stad" : "steden"} wegstrepen (eenmalig).`}
+        Vandaag mag je {requiredToday} {requiredToday === 1 ? "stad" : "steden"} wegstrepen (eenmalig).
       </p>
       <ul className="space-y-2">
         {cities.map((c) => {
@@ -213,26 +197,9 @@ export function WegstreepList({ currentUser, onVolgende }: Props) {
       {error && (
         <p className="text-sm text-red-600 dark:text-red-400">{error}</p>
       )}
-      {!isDemo && nextCountdown && (
+      {nextCountdown && (
         <div className="rounded border border-foreground/10 bg-foreground/5 px-3 py-2 text-center text-sm text-foreground/80">
           Volgende opdracht: {nextLabel} – nog {nextCountdown}
-        </div>
-      )}
-      {onVolgende && (
-        <div className="flex flex-col items-center gap-2 border-t border-foreground/10 pt-4">
-          {!bothDone ? (
-            <p className="text-center text-sm font-medium text-foreground/90">
-              Je moet nog {stillNeeded} {stillNeeded === 1 ? "stad" : "steden"} wegstrepen om verder te kunnen.
-            </p>
-          ) : null}
-          <button
-            type="button"
-            onClick={onVolgende}
-            disabled={!bothDone}
-            className="rounded-lg border-2 border-amber-500/50 bg-amber-500/20 px-4 py-2 text-sm font-medium text-foreground disabled:opacity-50"
-          >
-            {bothDone ? "🎰 Demo: ga door naar fruitautomaat →" : `Eerst ${DEMO_REQUIRED_STRIKES} steden wegstrepen`}
-          </button>
         </div>
       )}
     </div>

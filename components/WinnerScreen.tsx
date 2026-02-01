@@ -21,23 +21,18 @@ function formatCountdown(ms: number): string {
   return `${min}:${sec.toString().padStart(2, "0")}`;
 }
 
-type WinnerScreenProps = {
-  /** Demo: toon direct deze winnaar (stad) zonder laden */
-  demoWinner?: string;
-};
-
-export function WinnerScreen({ demoWinner }: WinnerScreenProps = {}) {
-  const [winner, setWinnerState] = useState<string | null>(demoWinner ?? null);
+export function WinnerScreen() {
+  const [winner, setWinnerState] = useState<string | null>(null);
   const [summaryCities, setSummaryCities] = useState<CityEntry[]>([]);
   const [summaryRemoved, setSummaryRemoved] = useState<RemovedEntry[]>([]);
   const [spins, setSpinsState] = useState<(SpinEntry & { id: string; date?: string })[]>([]);
-  const [loading, setLoading] = useState(!demoWinner);
+  const [loading, setLoading] = useState(true);
   const [error, setError] = useState<string | null>(null);
   const [clicked, setClicked] = useState(false);
   const [countdown, setCountdown] = useState<string>("");
 
-  const showReveal = !!demoWinner || isAfterRevealTime();
-  const isRealGameReveal = showReveal && !demoWinner;
+  const showReveal = isAfterRevealTime();
+  const isRealGameReveal = showReveal;
 
   useEffect(() => {
     if (!showReveal && clicked) {
@@ -53,7 +48,7 @@ export function WinnerScreen({ demoWinner }: WinnerScreenProps = {}) {
   }, [showReveal, clicked]);
 
   useEffect(() => {
-    if (!showReveal || demoWinner) return;
+    if (!showReveal) return;
     let cancelled = false;
     async function load() {
       try {
@@ -111,7 +106,7 @@ export function WinnerScreen({ demoWinner }: WinnerScreenProps = {}) {
     return () => {
       cancelled = true;
     };
-  }, [showReveal, demoWinner]);
+  }, [showReveal]);
 
   if (!showReveal) {
     return (

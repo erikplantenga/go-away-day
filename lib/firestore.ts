@@ -20,19 +20,12 @@ import {
 import * as local from "./localStorage";
 import * as supabase from "./supabase";
 import * as apiClient from "./apiClient";
-import * as demoStorage from "./demoStorage";
 import * as previewStorage from "./previewStorage";
 
 /** Preview-modus: echte flow met vooringevulde data (?preview=echt). */
 export function isPreviewMode(): boolean {
   if (typeof window === "undefined") return false;
   return !!(window as unknown as { __GO_AWAY_DAY_PREVIEW__?: boolean }).__GO_AWAY_DAY_PREVIEW__;
-}
-
-/** Demo-modus: kopie van het spel met eigen opslag (geen echte data). */
-export function isDemoMode(): boolean {
-  if (typeof window === "undefined") return false;
-  return !!(window as unknown as { __GO_AWAY_DAY_DEMO__?: boolean }).__GO_AWAY_DAY_DEMO__;
 }
 
 const firebaseConfig = {
@@ -118,7 +111,6 @@ const CITIES_DOC = "combined";
 
 export async function getCities(): Promise<CityEntry[]> {
   if (isPreviewMode()) return previewStorage.getCities();
-  if (isDemoMode()) return demoStorage.getCities();
   if (useBackend() === "supabase") return supabase.getCities();
   if (useBackend() === "local") {
     if (await useApiBackend()) return apiClient.getCities();
@@ -134,7 +126,6 @@ export async function getCities(): Promise<CityEntry[]> {
 
 export async function setCities(cities: CityEntry[]): Promise<void> {
   if (isPreviewMode()) return previewStorage.setCities(cities);
-  if (isDemoMode()) return demoStorage.setCities(cities);
   if (useBackend() === "supabase") return supabase.setCities(cities);
   if (useBackend() === "local") {
     if (await useApiBackend()) return apiClient.setCities(cities);
@@ -150,7 +141,6 @@ export async function setCitySubmission(
   cities: CityEntry[]
 ): Promise<void> {
   if (isPreviewMode()) return previewStorage.setCitySubmission(user, cities);
-  if (isDemoMode()) return demoStorage.setCitySubmission(user, cities);
   if (useBackend() === "supabase") return supabase.setCitySubmission(user, cities);
   if (useBackend() === "local") {
     if (await useApiBackend()) return apiClient.setCitySubmission(user, cities);
@@ -167,7 +157,6 @@ export async function getCitySubmission(
   user: UserId
 ): Promise<CityEntry[] | null> {
   if (isPreviewMode()) return previewStorage.getCitySubmission(user);
-  if (isDemoMode()) return demoStorage.getCitySubmission(user);
   if (useBackend() === "supabase") return supabase.getCitySubmission(user);
   if (useBackend() === "local") {
     if (await useApiBackend()) return apiClient.getCitySubmission(user);
@@ -181,7 +170,6 @@ export async function getCitySubmission(
 
 export async function hasBothSubmitted(): Promise<boolean> {
   if (isPreviewMode()) return previewStorage.hasBothSubmitted();
-  if (isDemoMode()) return demoStorage.hasBothSubmitted();
   if (useBackend() === "supabase") return supabase.hasBothSubmitted();
   if (useBackend() === "local") {
     if (await useApiBackend()) return apiClient.hasBothSubmitted();
@@ -196,7 +184,6 @@ export async function hasBothSubmitted(): Promise<boolean> {
 
 export async function combineAndDedupeCities(): Promise<CityEntry[]> {
   if (isPreviewMode()) return previewStorage.combineAndDedupeCities();
-  if (isDemoMode()) return demoStorage.combineAndDedupeCities();
   if (useBackend() === "supabase") return supabase.combineAndDedupeCities();
   if (useBackend() === "local") {
     if (await useApiBackend()) return apiClient.combineAndDedupeCities();
@@ -223,7 +210,6 @@ export async function combineAndDedupeCities(): Promise<CityEntry[]> {
 // --- Removed (wegstreep) ---
 export async function getRemoved(): Promise<RemovedEntry[]> {
   if (isPreviewMode()) return previewStorage.getRemoved();
-  if (isDemoMode()) return demoStorage.getRemoved();
   if (useBackend() === "supabase") return supabase.getRemoved();
   if (useBackend() === "local") {
     if (await useApiBackend()) return apiClient.getRemoved();
@@ -241,7 +227,6 @@ export async function addRemoved(
   date: string
 ): Promise<void> {
   if (isPreviewMode()) return previewStorage.addRemoved(city, country, removedBy, date);
-  if (isDemoMode()) return demoStorage.addRemoved(city, country, removedBy, date);
   if (useBackend() === "supabase")
     return supabase.addRemoved(city, country, removedBy, date);
   if (useBackend() === "local") {
@@ -263,7 +248,6 @@ export async function hasUserStruckToday(
   dateStr: string
 ): Promise<boolean> {
   if (isPreviewMode()) return previewStorage.hasUserStruckToday(user, dateStr);
-  if (isDemoMode()) return demoStorage.hasUserStruckToday(user, dateStr);
   if (useBackend() === "supabase")
     return supabase.hasUserStruckToday(user, dateStr);
   if (useBackend() === "local") {
@@ -283,7 +267,6 @@ export async function hasUserStruckToday(
 /** Aantal keer dat deze gebruiker een stad heeft weggestreept (je moet er 3 doen om verder te kunnen). */
 export async function getStrikeCount(user: UserId): Promise<number> {
   if (isPreviewMode()) return previewStorage.getStrikeCount(user);
-  if (isDemoMode()) return demoStorage.getStrikeCount(user);
   if (useBackend() === "supabase") return supabase.getStrikeCount(user);
   if (useBackend() === "local") {
     if (await useApiBackend()) return apiClient.getStrikeCount(user);
@@ -298,7 +281,6 @@ export async function getStrikeCount(user: UserId): Promise<number> {
 /** Aantal keer dat deze gebruiker op dateStr heeft weggestreept (2 feb max 1, 3 feb max 2). */
 export async function getStrikeCountForDate(user: UserId, dateStr: string): Promise<number> {
   if (isPreviewMode()) return previewStorage.getStrikeCountForDate(user, dateStr);
-  if (isDemoMode()) return demoStorage.getStrikeCountForDate(user, dateStr);
   if (useBackend() === "supabase") return supabase.getStrikeCountForDate(user, dateStr);
   if (useBackend() === "local") {
     if (await useApiBackend()) return apiClient.getStrikeCountForDate(user, dateStr);
@@ -317,7 +299,6 @@ export async function getStrikeCountForDate(user: UserId, dateStr: string): Prom
 // --- Spins ---
 export async function getSpins(): Promise<SpinEntry[]> {
   if (isPreviewMode()) return previewStorage.getSpins();
-  if (isDemoMode()) return demoStorage.getSpins();
   if (useBackend() === "supabase") return supabase.getSpins();
   if (useBackend() === "local") {
     if (await useApiBackend()) return apiClient.getSpins();
@@ -339,7 +320,6 @@ export async function addSpin(
   points: number = 1
 ): Promise<void> {
   if (isPreviewMode()) return previewStorage.addSpin(user, city, dateStr, points);
-  if (isDemoMode()) return demoStorage.addSpin(user, city, dateStr, points);
   if (useBackend() === "supabase")
     return supabase.addSpin(user, city, dateStr, points);
   if (useBackend() === "local") {
@@ -361,7 +341,6 @@ export async function hasUserSpunToday(
   dateStr: string
 ): Promise<boolean> {
   if (isPreviewMode()) return previewStorage.hasUserSpunToday(user, dateStr);
-  if (isDemoMode()) return demoStorage.hasUserSpunToday(user, dateStr);
   if (useBackend() === "supabase")
     return supabase.hasUserSpunToday(user, dateStr);
   if (useBackend() === "local") {
@@ -381,7 +360,6 @@ export async function hasUserSpunToday(
 /** Overgebleven steden na wegstrepen – alleen steden, gebruikt voor spin en winnaar. */
 export async function getRemainingCities(): Promise<CityEntry[]> {
   if (isPreviewMode()) return previewStorage.getRemainingCities();
-  if (isDemoMode()) return demoStorage.getRemainingCities();
   if (useBackend() === "supabase") return supabase.getRemainingCities();
   if (useBackend() === "local") {
     if (await useApiBackend()) return apiClient.getRemainingCities();
@@ -403,7 +381,6 @@ export function subscribeSpins(
   callback: (spins: (SpinEntry & { id: string })[]) => void
 ): Unsubscribe {
   if (isPreviewMode()) return previewStorage.subscribeSpins(callback);
-  if (isDemoMode()) return demoStorage.subscribeSpins(callback);
   if (useBackend() === "supabase") return supabase.subscribeSpins(callback);
   if (useBackend() === "local") {
     let unsub: (() => void) | null = null;
@@ -436,7 +413,6 @@ const CONFIG_DOC = "game";
 
 export async function getConfig(): Promise<GameConfig> {
   if (isPreviewMode()) return previewStorage.getConfig();
-  if (isDemoMode()) return demoStorage.getConfig();
   if (useBackend() === "supabase") return supabase.getConfig();
   if (useBackend() === "local") {
     if (await useApiBackend()) return apiClient.getConfig();
@@ -450,7 +426,6 @@ export async function getConfig(): Promise<GameConfig> {
 
 export async function setConfig(updates: Partial<GameConfig>): Promise<void> {
   if (isPreviewMode()) return previewStorage.setConfig(updates);
-  if (isDemoMode()) return demoStorage.setConfig(updates);
   if (useBackend() === "supabase") return supabase.setConfig(updates);
   if (useBackend() === "local") {
     if (await useApiBackend()) return apiClient.setConfig(updates);
@@ -464,23 +439,12 @@ export async function setConfig(updates: Partial<GameConfig>): Promise<void> {
 
 export async function setWinner(city: string): Promise<void> {
   if (isPreviewMode()) return previewStorage.setWinner(city);
-  if (isDemoMode()) return demoStorage.setWinner(city);
   if (useBackend() === "supabase") return supabase.setWinner(city);
   if (useBackend() === "local") {
     if (await useApiBackend()) return apiClient.setWinner(city);
     return local.setWinner(city);
   }
   await setConfig({ winnerLocked: true, winnerCity: city });
-}
-
-/** Wis alle speldata (alleen voor development/testing). Werkt alleen met localStorage. */
-export function clearGameData(): void {
-  if (isDemoMode() || isPreviewMode()) return;
-  if (useBackend() !== "local") {
-    console.warn("clearGameData werkt alleen met localStorage backend");
-    return;
-  }
-  local.clearGameData();
 }
 
 /** Winnaar uit spins: meeste punten per stad; bij gelijkstand meeste spins op die stad; anders alfabetisch eerste. */
