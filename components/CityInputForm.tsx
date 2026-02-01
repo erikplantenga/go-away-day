@@ -313,7 +313,8 @@ export function CityInputForm({ currentUser }: Props) {
     return <p className="text-center text-foreground/70">Laden...</p>;
   }
 
-  if (combined) {
+  /* Zodra beide hebben ingevuld: direct naar lijst + countdown (ook als combined nog false is) */
+  if (combined || (submitted && otherSubmitted)) {
     return <CombinedListWithCountdown />;
   }
 
@@ -321,8 +322,37 @@ export function CityInputForm({ currentUser }: Props) {
     const myCities = cities
       .map((c) => c.city.trim())
       .filter(Boolean);
+    const goToList = () => {
+      setOtherSubmitted(true);
+      setCombined(true);
+    };
+    /* Eén duidelijke actie: ga naar lijst. Sync proberen, maar nooit blokkeren – altijd doorklikken. */
+    const handleGoToList = async () => {
+      setRefreshing(true);
+      setError(null);
+      try {
+        const [erikList, bennoList] = await Promise.all([
+          getCitySubmission("erik"),
+          getCitySubmission("benno"),
+        ]);
+        const erikOk = erikList && erikList.filter((c) => c.city.trim()).length === 5;
+        const bennoOk = bennoList && bennoList.filter((c) => c.city.trim()).length === 5;
+        if (erikOk && bennoOk) {
+          try {
+            await combineAndDedupeCities();
+          } catch {
+            // CombinedListWithCountdown haalt zelf beide lijsten op
+          }
+        }
+        goToList();
+      } catch {
+        goToList();
+      } finally {
+        setRefreshing(false);
+      }
+    };
     return (
-      <div className="space-y-4 rounded-lg border border-foreground/10 bg-background p-4">
+      <div className="relative z-10 space-y-4 rounded-lg border border-foreground/10 bg-background p-4">
         <p className="text-center font-medium text-foreground/90">Je hebt je 5 steden opgegeven.</p>
         <p className="text-center text-xs text-foreground/60">Niet meer wijzigen – we hebben reeds ingevoerd.</p>
         {myCities.length > 0 && (
@@ -330,50 +360,27 @@ export function CityInputForm({ currentUser }: Props) {
             Jouw steden: {myCities.join(", ")}
           </p>
         )}
-        {!otherSubmitted ? (
-          <>
-            <p className="text-center text-sm text-foreground/70">
-              Wacht tot {otherUser(currentUser) === "erik" ? "Erik" : "Benno"} ook 5 steden heeft ingevoerd. Werkt vanzelf (elke 2 sec).
-            </p>
-            <div className="flex flex-col items-center gap-2">
-              <button
-                type="button"
-                disabled={refreshing}
-                onClick={async () => {
-                  setRefreshing(true);
-                  setError(null);
-                  try {
-                    const [erikList, bennoList] = await Promise.all([
-                      getCitySubmission("erik"),
-                      getCitySubmission("benno"),
-                    ]);
-                    const erikOk = erikList && erikList.filter((c) => c.city.trim()).length === 5;
-                    const bennoOk = bennoList && bennoList.filter((c) => c.city.trim()).length === 5;
-                    if (erikOk && bennoOk) {
-                      setOtherSubmitted(true);
-                      try {
-                        await combineAndDedupeCities();
-                      } catch {
-                        // Lijst tonen lukt ook zonder persist (CombinedListWithCountdown merged lokaal)
-                      }
-                      setCombined(true);
-                    }
-                  } catch (e) {
-                    setError(e instanceof Error ? e.message : "Vernieuwen mislukt");
-                  } finally {
-                    setRefreshing(false);
-                  }
-                }}
-                className="rounded-lg border-2 border-amber-500/60 bg-amber-500/20 px-5 py-2.5 text-sm font-semibold text-foreground disabled:opacity-50"
-              >
-                {refreshing ? "Bezig…" : "Vernieuw – ga naar lijst + countdown"}
-              </button>
-              <p className="text-center text-xs text-foreground/60">
-                Als Benno ook 5 steden heeft ingevuld, ga je direct naar de gezamenlijke lijst.
-              </p>
-            </div>
-          </>
-        ) : null}
+        <p className="text-center text-sm text-foreground/70">
+          Wacht tot {otherUser(currentUser) === "erik" ? "Erik" : "Benno"} ook 5 steden heeft ingevoerd – of ga direct naar de lijst.
+        </p>
+        <div className="flex flex-col items-stretch gap-3 pt-2">
+          <button
+            type="button"
+            disabled={refreshing}
+            onClick={handleGoToList}
+            onKeyDown={(e) => {
+              if (e.key === "Enter" || e.key === " ") {
+                e.preventDefault();
+                handleGoToList();
+              }
+            }}
+            className="relative z-10 min-h-[48px] min-w-[200px] touch-manipulation cursor-pointer rounded-xl border-2 border-amber-500 bg-amber-500/30 px-6 py-3 text-base font-semibold text-foreground shadow-md outline-none focus:ring-2 focus:ring-amber-500 active:scale-[0.98] disabled:opacity-60 [touch-action:manipulation]"
+            style={{ pointerEvents: refreshing ? "none" : "auto" }}
+          >
+            {refreshing ? "Bezig…" : "Ga naar lijst + countdown"}
+          </button>
+        </div>
+        {error && <p className="text-center text-sm text-red-600 dark:text-red-400">{error}</p>}
       </div>
     );
   }
