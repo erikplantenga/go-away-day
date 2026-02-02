@@ -44,19 +44,36 @@ export function isAfterWinnerTime(): boolean {
 }
 
 /**
- * Is it after 7 Feb 20:00 in Amsterdam this year? Uitslag mag pas vanaf 20:00 zichtbaar zijn.
+ * Is it after 7 Feb 20:31 in Amsterdam? Uitslag mag pas na de ceremonie (20:30 + 60 sec spin) zichtbaar zijn.
  */
 export function isAfterRevealTime(): boolean {
   const now = new Date();
-  return now.getTime() >= getRevealTime().getTime();
+  return now.getTime() >= getCeremonyRevealTime().getTime();
 }
 
 /**
  * Exact moment waarop de uitslag zichtbaar wordt (7 feb 20:00 Amsterdam, huidig jaar).
+ * Gebruikt o.a. voor countdown vóór de ceremonie.
  */
 export function getRevealTime(): Date {
   const y = toZonedTime(new Date(), TIMEZONE).getFullYear();
   return new Date(Date.UTC(y, 1, 7, 19, 0, 0, 0)); // 20:00 CET = 19:00 UTC
+}
+
+/**
+ * Start ceremonie: 7 feb 20:30 Amsterdam – dan begint de “laatste spin” (60 sec).
+ */
+export function getCeremonyStartTime(): Date {
+  const y = toZonedTime(new Date(), TIMEZONE).getFullYear();
+  return new Date(Date.UTC(y, 1, 7, 19, 30, 0, 0)); // 20:30 CET
+}
+
+/**
+ * Einde ceremonie: 7 feb 20:31 Amsterdam (20:30 + 60 sec spin) – dan is de uitslag zichtbaar.
+ */
+export function getCeremonyRevealTime(): Date {
+  const y = toZonedTime(new Date(), TIMEZONE).getFullYear();
+  return new Date(Date.UTC(y, 1, 7, 19, 31, 0, 0)); // 20:31 CET
 }
 
 /**

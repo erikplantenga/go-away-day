@@ -29,7 +29,7 @@ export function ZoWerktHet() {
               <strong>4 t/m 7 februari</strong> – Fruitautomaat: elke dag 1 spin (vanaf 10:00). De gekozen stad krijgt punten. Stand wordt live bijgewerkt.
             </li>
             <li>
-              <strong>7 februari 20:00</strong> – De stad met de meeste punten wint. Daar gaan we heen!
+              <strong>7 februari 20:00</strong> – Druk op “Bekijk de uitslag”. Nog even wachten tot 20:30, dan de laatste spin (60 sec) – en dan weten we het. Daar gaan we heen!
             </li>
           </ol>
           <p className="mt-3 rounded border border-foreground/15 bg-foreground/5 px-3 py-2 text-xs italic text-foreground/80">

@@ -1,6 +1,6 @@
 "use client";
 
-import { useState, useEffect } from "react";
+import { useState, useEffect, useRef } from "react";
 import {
   getConfig,
   getCities,
@@ -10,8 +10,11 @@ import {
   setWinner,
 } from "@/lib/firestore";
 import type { SpinEntry, CityEntry, RemovedEntry } from "@/lib/firestore";
-import { isAfterRevealTime, getRevealTime } from "@/lib/dates";
+import { isAfterRevealTime, getRevealTime, getCeremonyStartTime } from "@/lib/dates";
 import { formatDateDisplay } from "@/lib/dates";
+import { ConfettiBurst } from "@/components/ConfettiBurst";
+
+const CEREMONY_SPIN_DURATION_MS = 60_000;
 
 function formatCountdown(ms: number): string {
   if (ms <= 0) return "0:00";
@@ -30,25 +33,56 @@ export function WinnerScreen() {
   const [error, setError] = useState<string | null>(null);
   const [clicked, setClicked] = useState(false);
   const [countdown, setCountdown] = useState<string>("");
+  const [ceremonySpinEnd, setCeremonySpinEnd] = useState<number | null>(null);
+  const [ceremonyReveal, setCeremonyReveal] = useState(false);
+  const [spinSecLeft, setSpinSecLeft] = useState<number | null>(null);
+  const spinStartRef = useRef<number | null>(null);
 
   const showReveal = isAfterRevealTime();
   const isRealGameReveal = showReveal;
+  const ceremonyStart = getCeremonyStartTime().getTime();
+  const now = Date.now();
+  const isAfterCeremonyStart = now >= ceremonyStart;
 
   useEffect(() => {
-    if (!showReveal && clicked) {
-      const revealAt = getRevealTime();
+    if (!showReveal && clicked && !isAfterCeremonyStart) {
+      const ceremonyAt = getCeremonyStartTime();
       const update = () => {
-        const left = revealAt.getTime() - Date.now();
+        const left = ceremonyAt.getTime() - Date.now();
         setCountdown(left <= 0 ? "0:00" : formatCountdown(left));
       };
       update();
       const t = setInterval(update, 1000);
       return () => clearInterval(t);
     }
-  }, [showReveal, clicked]);
+  }, [showReveal, clicked, isAfterCeremonyStart]);
 
   useEffect(() => {
-    if (!showReveal) return;
+    if (!clicked || !isAfterCeremonyStart || ceremonySpinEnd !== null) return;
+    spinStartRef.current = Date.now();
+    setSpinSecLeft(60);
+    const t = setTimeout(() => {
+      setCeremonySpinEnd(Date.now());
+      setCeremonyReveal(true);
+      setSpinSecLeft(0);
+    }, CEREMONY_SPIN_DURATION_MS);
+    return () => clearTimeout(t);
+  }, [clicked, isAfterCeremonyStart, ceremonySpinEnd]);
+
+  useEffect(() => {
+    if (spinSecLeft === null || spinSecLeft <= 0) return;
+    const iv = setInterval(() => {
+      const start = spinStartRef.current;
+      if (!start) return;
+      const elapsed = Date.now() - start;
+      const left = Math.max(0, Math.ceil((CEREMONY_SPIN_DURATION_MS - elapsed) / 1000));
+      setSpinSecLeft(left);
+    }, 1000);
+    return () => clearInterval(iv);
+  }, [spinSecLeft]);
+
+  useEffect(() => {
+    if (!showReveal && !(clicked && isAfterCeremonyStart)) return;
     let cancelled = false;
     async function load() {
       try {
@@ -106,9 +140,25 @@ export function WinnerScreen() {
     return () => {
       cancelled = true;
     };
-  }, [showReveal]);
+  }, [showReveal, clicked, isAfterCeremonyStart]);
 
-  if (!showReveal) {
+  if (!showReveal && !ceremonyReveal) {
+    if (clicked && isAfterCeremonyStart && ceremonySpinEnd !== null) {
+      return null;
+    }
+    if (clicked && isAfterCeremonyStart) {
+      const secLeft = spinSecLeft ?? 60;
+      return (
+        <div className="rounded-xl border-2 border-amber-500/50 bg-amber-500/10 p-8 text-center">
+          <p className="text-lg font-bold text-foreground">De laatste spin!</p>
+          <p className="mt-2 text-sm text-foreground/80">Nog even… dan weten we het.</p>
+          <p className="mt-6 text-5xl font-mono font-bold tabular-nums text-foreground">
+            {secLeft}
+          </p>
+          <p className="mt-1 text-sm text-foreground/70">seconden</p>
+        </div>
+      );
+    }
     return (
       <div className="rounded-xl border-2 border-foreground/20 bg-foreground/5 p-8 text-center">
         {!clicked ? (
@@ -117,17 +167,17 @@ export function WinnerScreen() {
             onClick={() => setClicked(true)}
             className="rounded-lg bg-foreground px-6 py-3 font-medium text-background"
           >
-            Klik hier voor uitslag
+            Bekijk de uitslag
           </button>
         ) : (
           <div>
             <p className="text-lg font-medium text-foreground">
-              De uitslag komt om 20:00, spannend he?
+              Nog even wachten
             </p>
             <p className="mt-4 text-2xl font-mono font-bold tabular-nums text-foreground">
               {countdown}
             </p>
-            <p className="mt-1 text-sm text-foreground/70">nog te gaan</p>
+            <p className="mt-1 text-sm text-foreground/70">tot 20:30 – dan de laatste spin (60 sec)</p>
           </div>
         )}
       </div>
@@ -166,13 +216,15 @@ export function WinnerScreen() {
   });
 
   return (
-    <div className="rounded-xl border-2 border-foreground/20 bg-foreground/5 p-8 text-center">
-      <p className="mb-2 text-sm font-medium uppercase tracking-wider text-foreground/70">
-        Winnaar
-      </p>
-      <p className="animate-pulse text-3xl font-bold text-foreground">
-        WINNAAR: {displayWinner}
-      </p>
+    <>
+      {ceremonyReveal && <ConfettiBurst />}
+      <div className="rounded-xl border-2 border-foreground/20 bg-foreground/5 p-8 text-center">
+        <p className="mb-2 text-sm font-medium uppercase tracking-wider text-foreground/70">
+          Winnaar
+        </p>
+        <p className="animate-pulse text-3xl font-bold text-foreground">
+          WINNAAR: {displayWinner}
+        </p>
       <p className="mt-4 text-sm text-foreground/70">
         Daar gaan we heen in oktober 2026!
       </p>
@@ -226,6 +278,7 @@ export function WinnerScreen() {
           )}
         </div>
       )}
-    </div>
+      </div>
+    </>
   );
 }
