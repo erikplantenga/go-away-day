@@ -69,7 +69,7 @@ export function SlotMachine({ currentUser }: Props) {
   const [showFireworks, setShowFireworks] = useState(false);
   const dateStr = getCurrentDateString();
   const timeoutsRef = useRef<ReturnType<typeof setTimeout>[]>([]);
-  const intervalsRef = useRef<ReturnType<typeof setInterval>[]>([]);
+  const intervalsRef = useRef<(ReturnType<typeof setInterval> | undefined)[]>([]);
 
   useSpinSound(spinning, CYCLE_MS);
 
@@ -99,7 +99,7 @@ export function SlotMachine({ currentUser }: Props) {
   useEffect(() => {
     return () => {
       timeoutsRef.current.forEach((t) => clearTimeout(t));
-      intervalsRef.current.forEach((i) => clearInterval(i));
+      intervalsRef.current.forEach((i) => i != null && clearInterval(i));
     };
   }, []);
 
@@ -123,7 +123,7 @@ export function SlotMachine({ currentUser }: Props) {
     const threeNames = three.map((c) => c.city);
     const cities = remainingCities.map((c) => c.city);
     timeoutsRef.current.forEach((t) => clearTimeout(t));
-    intervalsRef.current.forEach((i) => clearInterval(i));
+    intervalsRef.current.forEach((i) => i != null && clearInterval(i));
     const start = PAUSE_BEFORE_REVEAL_MS;
 
     function startRoll(slotIndex: number) {
