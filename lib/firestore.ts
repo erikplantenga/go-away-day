@@ -455,6 +455,22 @@ export async function setWinner(city: string): Promise<void> {
   await setConfig({ winnerLocked: true, winnerCity: city });
 }
 
+/** Steden met de hoogste punten (meerdere bij gelijkstand). */
+export function getTiedCities(spins: (SpinEntry & { id?: string })[]): string[] {
+  const pointsByCity = new Map<string, number>();
+  for (const s of spins) {
+    const city = s.city;
+    if (!city) continue;
+    pointsByCity.set(city, (pointsByCity.get(city) ?? 0) + (s.points ?? 1));
+  }
+  const entries = Array.from(pointsByCity.entries()).sort(
+    (a, b) => b[1]! - a[1]!
+  );
+  if (entries.length === 0) return [];
+  const maxPoints = entries[0]![1]!;
+  return entries.filter((e) => e[1] === maxPoints).map((e) => e[0]!);
+}
+
 /** Winnaar uit spins: meeste punten per stad; bij gelijkstand meeste spins op die stad; anders alfabetisch eerste. */
 export function computeWinner(
   spins: (SpinEntry & { id?: string })[]

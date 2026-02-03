@@ -24,6 +24,7 @@ export function DemoSpin() {
   const [showFireworks, setShowFireworks] = useState(false);
   const [fireworksKey, setFireworksKey] = useState(0);
   const [done, setDone] = useState(false);
+  const [stand, setStand] = useState<Map<string, number>>(new Map());
   const timeoutsRef = useRef<ReturnType<typeof setTimeout>[]>([]);
   const intervalsRef = useRef<(ReturnType<typeof setInterval> | undefined)[]>([]);
 
@@ -108,6 +109,13 @@ export function DemoSpin() {
       }, start + REVEAL_DELAY_MS * 3),
       setTimeout(() => {
         setSpinningDisplay([null, null, null]);
+        setStand((prev) => {
+          const next = new Map(prev);
+          for (const city of threeNames) {
+            next.set(city, (next.get(city) ?? 0) + 1);
+          }
+          return next;
+        });
         setSpinning(false);
         setDone(true);
       }, start + REVEAL_DELAY_MS * 3 + PAUSE_AFTER_LAST_MS),
@@ -119,6 +127,10 @@ export function DemoSpin() {
     setSpinningDisplay([null, null, null]);
     setDone(false);
   };
+
+  const standEntries = Array.from(stand.entries())
+    .map(([city, points]) => ({ city, points }))
+    .sort((a, b) => b.points - a.points);
 
   return (
     <>
@@ -181,6 +193,31 @@ export function DemoSpin() {
             </button>
           )}
         </div>
+        {standEntries.length > 0 && (
+          <div className="rounded-lg border border-foreground/10 bg-background/80 p-4">
+            <h3 className="mb-2 text-sm font-semibold uppercase tracking-wide text-foreground/70">
+              Tussentand (demo)
+            </h3>
+            <ul className="space-y-1.5">
+              {standEntries.map(({ city, points }, i) => (
+                <li
+                  key={city}
+                  className="flex items-center justify-between rounded border border-foreground/10 px-3 py-2 text-sm"
+                >
+                  <span className="font-medium">{i + 1}. {city}</span>
+                  <span className="text-foreground/80">{points} pt</span>
+                </li>
+              ))}
+            </ul>
+            <button
+              type="button"
+              onClick={() => setStand(new Map())}
+              className="mt-2 w-full rounded border border-foreground/20 py-1.5 text-xs text-foreground/70 hover:bg-foreground/5"
+            >
+              Stand leegmaken
+            </button>
+          </div>
+        )}
       </div>
     </>
   );

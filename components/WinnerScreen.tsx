@@ -7,10 +7,12 @@ import {
   getRemoved,
   getSpins,
   computeWinner,
+  getTiedCities,
   setWinner,
+  addSpin,
 } from "@/lib/firestore";
 import type { SpinEntry, CityEntry, RemovedEntry } from "@/lib/firestore";
-import { isAfterRevealTime, getRevealTime, getCeremonyStartTime } from "@/lib/dates";
+import { isAfterRevealTime, getRevealTime, getCeremonyStartTime, getCurrentDateString } from "@/lib/dates";
 import { formatDateDisplay } from "@/lib/dates";
 import { ConfettiBurst } from "@/components/ConfettiBurst";
 
@@ -37,6 +39,9 @@ export function WinnerScreen() {
   const [ceremonyReveal, setCeremonyReveal] = useState(false);
   const [spinSecLeft, setSpinSecLeft] = useState<number | null>(null);
   const spinStartRef = useRef<number | null>(null);
+  const [tieBreakNeeded, setTieBreakNeeded] = useState(false);
+  const [tiedCities, setTiedCities] = useState<string[]>([]);
+  const [tieBreakSpinning, setTieBreakSpinning] = useState(false);
 
   const showReveal = isAfterRevealTime();
   const isRealGameReveal = showReveal;
@@ -121,6 +126,15 @@ export function WinnerScreen() {
           setLoading(false);
           return;
         }
+        const tied = getTiedCities(spinList);
+        if (tied.length > 1) {
+          if (!cancelled) {
+            setTieBreakNeeded(true);
+            setTiedCities(tied);
+          }
+          setLoading(false);
+          return;
+        }
         const city = computeWinner(spinList);
         if (!city) {
           setWinnerState(null);
@@ -179,6 +193,56 @@ export function WinnerScreen() {
             </p>
             <p className="mt-1 text-sm text-foreground/70">tot 20:30 – dan de laatste spin (60 sec)</p>
           </div>
+        )}
+      </div>
+    );
+  }
+
+  const runTieBreakSpin = async () => {
+    if (tiedCities.length === 0 || tieBreakSpinning) return;
+    setTieBreakSpinning(true);
+    setError(null);
+    try {
+      const dateStr = getCurrentDateString();
+      const three = [
+        tiedCities[Math.floor(Math.random() * tiedCities.length)]!,
+        tiedCities[Math.floor(Math.random() * tiedCities.length)]!,
+        tiedCities[Math.floor(Math.random() * tiedCities.length)]!,
+      ];
+      await Promise.all(three.map((city) => addSpin("erik", city, dateStr, 1)));
+      const newSpins = await getSpins();
+      const city = computeWinner(newSpins);
+      if (city) {
+        await setWinner(city);
+        setWinnerState(city);
+        setSpinsState(newSpins as (SpinEntry & { id: string; date?: string })[]);
+      }
+      setTieBreakNeeded(false);
+      setTiedCities([]);
+    } catch (e) {
+      setError(e instanceof Error ? e.message : "Beslissende spin mislukt");
+    } finally {
+      setTieBreakSpinning(false);
+    }
+  };
+
+  if (tieBreakNeeded && tiedCities.length > 0) {
+    return (
+      <div className="rounded-xl border-2 border-amber-500/50 bg-amber-500/10 p-8 text-center">
+        <p className="text-lg font-bold text-foreground">Gelijkstand!</p>
+        <p className="mt-2 text-sm text-foreground/80">
+          {tiedCities.join(" en ")} hebben evenveel punten. Eén beslissende spin.
+        </p>
+        <button
+          type="button"
+          disabled={tieBreakSpinning}
+          onClick={runTieBreakSpin}
+          className="mt-6 rounded-xl border-4 border-amber-600 bg-amber-500 py-4 px-8 text-xl font-bold text-white shadow-lg transition hover:bg-amber-600 disabled:opacity-50"
+        >
+          {tieBreakSpinning ? "Bezig…" : "Draai beslissende spin"}
+        </button>
+        {error && (
+          <p className="mt-4 text-sm text-red-600 dark:text-red-400">{error}</p>
         )}
       </div>
     );
