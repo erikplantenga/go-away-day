@@ -111,6 +111,8 @@ export interface SpinEntry {
 export interface GameConfig {
   winnerLocked?: boolean;
   winnerCity?: string;
+  /** Bij de finale: 2 willekeurige steden voor de beslissende spin (niemand weet vooraf welke). */
+  finaleFinalists?: string[];
   phaseOverride?: string;
 }
 

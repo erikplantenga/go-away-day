@@ -6,8 +6,8 @@ import {
   getCities,
   getRemoved,
   getSpins,
-  computeWinner,
-  getTiedCities,
+  getRemainingCities,
+  setConfig,
   setWinner,
   addSpin,
 } from "@/lib/firestore";
@@ -126,23 +126,28 @@ export function WinnerScreen() {
           setLoading(false);
           return;
         }
-        const tied = getTiedCities(spinList);
-        if (tied.length > 1) {
-          if (!cancelled) {
-            setTieBreakNeeded(true);
-            setTiedCities(tied);
-          }
+        const remaining = await getRemainingCities();
+        if (cancelled) return;
+        const cityNames = remaining.map((c) => c.city);
+        const configAgain2 = await getConfig();
+        if (cancelled) return;
+        let finalists = (configAgain2.finaleFinalists ?? []).filter((c) =>
+          cityNames.includes(c)
+        );
+        if (finalists.length !== 2 && cityNames.length >= 2) {
+          const shuffled = [...cityNames].sort(() => Math.random() - 0.5);
+          finalists = [shuffled[0]!, shuffled[1]!];
+          await setConfig({ finaleFinalists: finalists });
+          if (cancelled) return;
+        }
+        if (finalists.length === 2 && !cancelled) {
+          setTieBreakNeeded(true);
+          setTiedCities(finalists);
           setLoading(false);
           return;
         }
-        const city = computeWinner(spinList);
-        if (!city) {
-          setWinnerState(null);
-          setLoading(false);
-          return;
-        }
-        await setWinner(city);
-        if (!cancelled) setWinnerState(city);
+        setWinnerState(null);
+        setLoading(false);
       } catch (e) {
         if (!cancelled)
           setError(e instanceof Error ? e.message : "Laden mislukt");
@@ -210,13 +215,13 @@ export function WinnerScreen() {
         tiedCities[Math.floor(Math.random() * tiedCities.length)]!,
       ];
       await Promise.all(three.map((city) => addSpin("erik", city, dateStr, 1)));
+      const countA = three.filter((c) => c === tiedCities[0]).length;
+      const countB = three.filter((c) => c === tiedCities[1]).length;
+      const winnerCity = countA >= countB ? tiedCities[0]! : tiedCities[1]!;
+      await setWinner(winnerCity);
+      setWinnerState(winnerCity);
       const newSpins = await getSpins();
-      const city = computeWinner(newSpins);
-      if (city) {
-        await setWinner(city);
-        setWinnerState(city);
-        setSpinsState(newSpins as (SpinEntry & { id: string; date?: string })[]);
-      }
+      setSpinsState(newSpins as (SpinEntry & { id: string; date?: string })[]);
       setTieBreakNeeded(false);
       setTiedCities([]);
     } catch (e) {
