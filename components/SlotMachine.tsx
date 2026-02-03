@@ -8,13 +8,16 @@ import {
   hasUserSpunToday,
 } from "@/lib/firestore";
 import { getCurrentDateString, getRevealTime, getSpinOpenTime, isSpinOpenToday } from "@/lib/dates";
+import { useSpinSound } from "@/lib/useSpinSound";
 import { WinnerScreen } from "@/components/WinnerScreen";
 import { ConfettiBurst } from "@/components/ConfettiBurst";
 import { Fireworks } from "@/components/Fireworks";
 
-const REVEAL_DELAY_MS = 1400;
-const PAUSE_AFTER_LAST_MS = 1800;
+// Elk slot draait 10 seconden (cycled door steden), dan stopt het op de eindstad
+const REVEAL_DELAY_MS = 10000;
+const PAUSE_AFTER_LAST_MS = 2500;
 const PAUSE_BEFORE_REVEAL_MS = 500;
+const CYCLE_MS = 200; // hoe vaak de naam wisselt tijdens het draaien
 
 type Props = { currentUser: UserId };
 
@@ -57,6 +60,7 @@ export function SlotMachine({ currentUser }: Props) {
   const [alreadySpun, setAlreadySpun] = useState(false);
   const [spinning, setSpinning] = useState(false);
   const [results, setResults] = useState<(string | null)[]>([null, null, null]);
+  const [spinningDisplay, setSpinningDisplay] = useState<(string | null)[]>([null, null, null]);
   const [loading, setLoading] = useState(true);
   const [error, setError] = useState<string | null>(null);
   const [revealRequested, setRevealRequested] = useState(false);
@@ -65,6 +69,9 @@ export function SlotMachine({ currentUser }: Props) {
   const [showFireworks, setShowFireworks] = useState(false);
   const dateStr = getCurrentDateString();
   const timeoutsRef = useRef<ReturnType<typeof setTimeout>[]>([]);
+  const intervalsRef = useRef<ReturnType<typeof setInterval>[]>([]);
+
+  useSpinSound(spinning, CYCLE_MS);
 
   const canSpin = !alreadySpun && !spinning;
   const itemsCount = remainingCities.length;
@@ -92,6 +99,7 @@ export function SlotMachine({ currentUser }: Props) {
   useEffect(() => {
     return () => {
       timeoutsRef.current.forEach((t) => clearTimeout(t));
+      intervalsRef.current.forEach((i) => clearInterval(i));
     };
   }, []);
 
@@ -106,25 +114,71 @@ export function SlotMachine({ currentUser }: Props) {
     setSpinning(true);
     setError(null);
     setResults([null, null, null]);
+    setSpinningDisplay([null, null, null]);
     const three: CityEntry[] = [
       pickRandom(remainingCities),
       pickRandom(remainingCities),
       pickRandom(remainingCities),
     ];
     const threeNames = three.map((c) => c.city);
-    const chosenCity = three[1]!.city;
+    const cities = remainingCities.map((c) => c.city);
     timeoutsRef.current.forEach((t) => clearTimeout(t));
+    intervalsRef.current.forEach((i) => clearInterval(i));
     const start = PAUSE_BEFORE_REVEAL_MS;
+
+    function startRoll(slotIndex: number) {
+      setSpinningDisplay((prev) => {
+        const next = [...prev];
+        next[slotIndex] = cities[Math.floor(Math.random() * cities.length)] ?? null;
+        return next;
+      });
+      const id = setInterval(() => {
+        setSpinningDisplay((prev) => {
+          const next = [...prev];
+          next[slotIndex] = cities[Math.floor(Math.random() * cities.length)] ?? next[slotIndex];
+          return next;
+        });
+      }, CYCLE_MS);
+      intervalsRef.current[slotIndex] = id;
+    }
+
+    function stopRoll(slotIndex: number, finalCity: string) {
+      if (intervalsRef.current[slotIndex]) {
+        clearInterval(intervalsRef.current[slotIndex]!);
+        intervalsRef.current[slotIndex] = undefined;
+      }
+      setSpinningDisplay((prev) => {
+        const next = [...prev];
+        next[slotIndex] = null;
+        return next;
+      });
+      setResults((r) => {
+        const next = [...r];
+        next[slotIndex] = finalCity;
+        return next;
+      });
+    }
+
     timeoutsRef.current = [
-      setTimeout(() => setResults((r) => [threeNames[0]!, r[1], r[2]]), start + REVEAL_DELAY_MS),
-      setTimeout(() => setResults((r) => [r[0], threeNames[1]!, r[2]]), start + REVEAL_DELAY_MS * 2),
+      setTimeout(() => startRoll(0), start),
       setTimeout(() => {
-        setResults([threeNames[0]!, threeNames[1]!, threeNames[2]!]);
+        stopRoll(0, threeNames[0]!);
+        startRoll(1);
+      }, start + REVEAL_DELAY_MS),
+      setTimeout(() => {
+        stopRoll(1, threeNames[1]!);
+        startRoll(2);
+      }, start + REVEAL_DELAY_MS * 2),
+      setTimeout(() => {
+        stopRoll(2, threeNames[2]!);
         setFireworksKey((k) => k + 1);
         setShowFireworks(true);
       }, start + REVEAL_DELAY_MS * 3),
       setTimeout(() => {
-        addSpin(currentUser, chosenCity, dateStr, 1)
+        setSpinningDisplay([null, null, null]);
+        Promise.all(
+          threeNames.map((city) => addSpin(currentUser, city, dateStr, 1))
+        )
           .then(() => setAlreadySpun(true))
           .catch((e) => setError(e instanceof Error ? e.message : "Spin mislukt"))
           .finally(() => setSpinning(false));
@@ -222,6 +276,8 @@ export function SlotMachine({ currentUser }: Props) {
           >
             {results[i] ? (
               <span className="text-lg font-bold sm:text-xl text-foreground">{results[i]}</span>
+            ) : spinning && spinningDisplay[i] ? (
+              <span className="text-lg font-bold sm:text-xl animate-pulse text-amber-700 dark:text-amber-400">{spinningDisplay[i]}</span>
             ) : spinning ? (
               <span className="animate-spin text-2xl font-bold text-amber-600">◆</span>
             ) : (

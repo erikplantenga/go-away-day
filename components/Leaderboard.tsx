@@ -3,7 +3,7 @@
 import { useState, useEffect } from "react";
 import { subscribeSpins } from "@/lib/firestore";
 import type { SpinEntry } from "@/lib/firestore";
-import { isAfterRevealTime } from "@/lib/dates";
+import { isAfterRevealTime, isSpinOpenToday } from "@/lib/dates";
 
 function aggregateByCity(
   spins: (SpinEntry & { id: string })[]
@@ -27,7 +27,8 @@ export function Leaderboard() {
   }, []);
 
   const standings = aggregateByCity(spins);
-  const showStand = isAfterRevealTime();
+  const afterReveal = isAfterRevealTime();
+  const showStand = isSpinOpenToday() || afterReveal;
 
   return (
     <div className="rounded-lg border border-foreground/10 bg-background p-4">
@@ -39,7 +40,14 @@ export function Leaderboard() {
       ) : standings.length === 0 ? (
         <p className="text-sm text-foreground/70">Nog geen spins.</p>
       ) : (
-        <ul className="space-y-2">
+        <>
+          {!afterReveal && (
+            <p className="mb-2 text-xs text-foreground/60">
+              <span className="font-medium uppercase tracking-wide">Tussentand</span>
+              {" — "}Na elke spin van jou of de ander wordt de stand live bijgewerkt.
+            </p>
+          )}
+          <ul className="space-y-2">
           {standings.map(({ city, points }, i) => (
             <li
               key={city}
@@ -51,7 +59,8 @@ export function Leaderboard() {
               <span className="text-foreground/80">{points} pt</span>
             </li>
           ))}
-        </ul>
+          </ul>
+        </>
       )}
     </div>
   );
