@@ -18,7 +18,7 @@ import { Fireworks } from "@/components/Fireworks";
 
 // Elk slot draait 5 seconden (cycled door steden), dan stopt het op de eindstad
 const REVEAL_DELAY_MS = 5000;
-const PAUSE_AFTER_LAST_MS = 2500;
+const PAUSE_AFTER_LAST_MS = 5000; // 5 sec resultaat + "Tussenstand bijwerken" in beeld
 const PAUSE_BEFORE_REVEAL_MS = 500;
 const CYCLE_MS = 200; // hoe vaak de naam wisselt tijdens het draaien
 
@@ -70,6 +70,7 @@ export function SlotMachine({ currentUser }: Props) {
   const [countdownSec, setCountdownSec] = useState<number | null>(null);
   const [fireworksKey, setFireworksKey] = useState(0);
   const [showFireworks, setShowFireworks] = useState(false);
+  const [updatingStand, setUpdatingStand] = useState(false);
   const [spinPhraseIndex, setSpinPhraseIndex] = useState(0);
   const dateStr = getCurrentDateString();
   const timeoutsRef = useRef<ReturnType<typeof setTimeout>[]>([]);
@@ -189,8 +190,10 @@ export function SlotMachine({ currentUser }: Props) {
         stopRoll(2, threeNames[2]!);
         setFireworksKey((k) => k + 1);
         setShowFireworks(true);
+        setUpdatingStand(true);
       }, start + REVEAL_DELAY_MS * 3),
       setTimeout(() => {
+        setUpdatingStand(false);
         setSpinningDisplay([null, null, null]);
         Promise.all(
           threeNames.map((city) => addSpin(currentUser, city, dateStr, 1))
@@ -289,6 +292,11 @@ export function SlotMachine({ currentUser }: Props) {
         {showFireworks && (
           <p className="text-center text-lg font-bold text-amber-700 dark:text-amber-300">
             🎉 Mooie spin! 🎉
+          </p>
+        )}
+        {updatingStand && (
+          <p className="text-center text-sm font-medium text-foreground/80">
+            Tussenstand bijwerken…
           </p>
         )}
       <div className="flex justify-center gap-3 sm:gap-4">

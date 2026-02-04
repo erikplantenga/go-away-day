@@ -39,7 +39,7 @@ export function PhaseBanner() {
           Je mag vandaag 1 spin doen.
         </p>
         <p className="mt-2 text-center text-sm text-foreground/70">
-          Op 7 februari om 20:00 kun je de uitslag bekijken; om 20:30 de laatste spin (60 sec), dan weten we het.
+          Op 7 februari om 20:00 is de finale – dan weten we het.
         </p>
       </>
     );

@@ -237,7 +237,7 @@ export function WinnerScreen() {
             <p className="mt-4 text-2xl font-mono font-bold tabular-nums text-foreground">
               {countdown}
             </p>
-            <p className="mt-1 text-sm text-foreground/70">tot 20:30 – dan de laatste spin (60 sec)</p>
+            <p className="mt-1 text-sm text-foreground/70">tot de finale om 20:00 – dan weten we het</p>
           </div>
         )}
       </div>
