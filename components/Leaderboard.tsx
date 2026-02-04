@@ -28,7 +28,7 @@ export function Leaderboard() {
 
   const standings = aggregateByCity(spins);
   const afterReveal = isAfterRevealTime();
-  // Tussentand altijd tonen (ook bij "Bekijk de tussenstand") – stand kan altijd veranderen
+  // Stand altijd tonen en live updaten
   const showStand = true;
 
   return (

@@ -29,7 +29,7 @@ export function ZoWerktHet() {
               <strong>4 t/m 7 februari</strong> – Fruitautomaat: elke dag 1 spin (vanaf 10:00). De 3 steden in de spin krijgen elk <strong>1 punt</strong> (3 punten per spinronde; na jou en de ander 6 punten verdeeld). De <strong>tussentand</strong> zie je live – na elke spin van jou of de ander wordt de stand bijgewerkt; op 7 februari om 20:00 volgt de finale.
             </li>
             <li>
-              <strong>7 februari 20:00</strong> – Druk op “Bekijk de tussenstand”. Nog even wachten tot 20:30, dan de laatste spin (60 sec) – en dan weten we het. Daar gaan we heen!
+              <strong>7 februari 20:00</strong> – Druk op “Bekijk de uitslag”. Nog even wachten tot 20:30, dan de laatste spin (60 sec) – en dan weten we het. Daar gaan we heen!
             </li>
           </ol>
           <p className="mt-3 rounded border border-foreground/15 bg-foreground/5 px-3 py-2 text-xs italic text-foreground/80">

@@ -227,7 +227,7 @@ export function WinnerScreen() {
             }}
             className="rounded-lg bg-foreground px-6 py-3 font-medium text-background"
           >
-            Bekijk de tussenstand
+            Bekijk de uitslag
           </button>
         ) : (
           <div>

@@ -265,7 +265,7 @@ export function SlotMachine({ currentUser }: Props) {
           onClick={() => setRevealRequested(true)}
           className="relative w-full rounded-xl border-2 border-amber-600 bg-amber-500 py-4 text-lg font-bold text-white shadow-lg transition hover:bg-amber-600"
         >
-          Bekijk de tussenstand
+          Bekijk de uitslag
         </button>
       </div>
     );
