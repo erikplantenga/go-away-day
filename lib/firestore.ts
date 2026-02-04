@@ -106,6 +106,8 @@ export interface SpinEntry {
   city: string;
   timestamp: Timestamp;
   points: number;
+  /** Alleen voor weergave: balancing-spins niet in samenvatting tonen. */
+  isBalancing?: boolean;
 }
 
 export interface GameConfig {
@@ -344,6 +346,31 @@ export async function addSpin(
     timestamp: serverTimestamp(),
     points,
   });
+}
+
+/**
+ * Voegt "balancing"-spins toe zodat de nummer 2 evenveel punten krijgt als nummer 1.
+ * Deze spins tellen mee voor de stand maar worden niet in de samenvatting getoond.
+ */
+export async function addBalancingSpins(
+  city: string,
+  pointsToAdd: number,
+  dateStr: string
+): Promise<void> {
+  if (isPreviewMode()) return;
+  if (useBackend() === "supabase") return;
+  if (useBackend() === "local") return;
+  const db = getDb();
+  for (let i = 0; i < pointsToAdd; i++) {
+    await addDoc(collection(db, "spins"), {
+      user: "erik",
+      city,
+      date: dateStr,
+      timestamp: serverTimestamp(),
+      points: 1,
+      isBalancing: true,
+    });
+  }
 }
 
 export async function hasUserSpunToday(

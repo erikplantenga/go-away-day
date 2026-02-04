@@ -14,7 +14,14 @@ import {
 import type { SpinEntry, CityEntry, RemovedEntry } from "@/lib/firestore";
 import { isAfterRevealTime, getRevealTime, getCeremonyStartTime, getCurrentDateString } from "@/lib/dates";
 import { formatDateDisplay } from "@/lib/dates";
+import { SPIN_PHRASES } from "@/lib/spinPhrases";
 import { ConfettiBurst } from "@/components/ConfettiBurst";
+import { FlyingCelebration } from "@/components/FlyingCelebration";
+import { Fireworks } from "@/components/Fireworks";
+import { SlotRoll } from "@/components/SlotRoll";
+import { WinningCityDisplay } from "@/components/WinningCityDisplay";
+import { useWinSound } from "@/lib/useWinSound";
+import { unlockAudio } from "@/lib/audioContext";
 
 const CEREMONY_SPIN_DURATION_MS = 60_000;
 
@@ -42,9 +49,13 @@ export function WinnerScreen() {
   const [tieBreakNeeded, setTieBreakNeeded] = useState(false);
   const [tiedCities, setTiedCities] = useState<string[]>([]);
   const [tieBreakSpinning, setTieBreakSpinning] = useState(false);
+  const [finaleSpinRunning, setFinaleSpinRunning] = useState(false);
+  const [finalePhraseIndex, setFinalePhraseIndex] = useState(0);
 
   const showReveal = isAfterRevealTime();
   const isRealGameReveal = showReveal;
+
+  useWinSound(winner);
   const ceremonyStart = getCeremonyStartTime().getTime();
   const now = Date.now();
   const isAfterCeremonyStart = now >= ceremonyStart;
@@ -85,6 +96,16 @@ export function WinnerScreen() {
     }, 1000);
     return () => clearInterval(iv);
   }, [spinSecLeft]);
+
+  useEffect(() => {
+    if (!finaleSpinRunning) return;
+    setFinalePhraseIndex(0);
+    const iv = setInterval(
+      () => setFinalePhraseIndex((i) => (i + 1) % SPIN_PHRASES.length),
+      3000
+    );
+    return () => clearInterval(iv);
+  }, [finaleSpinRunning]);
 
   useEffect(() => {
     if (!showReveal && !(clicked && isAfterCeremonyStart)) return;
@@ -129,18 +150,35 @@ export function WinnerScreen() {
         const remaining = await getRemainingCities();
         if (cancelled) return;
         const cityNames = remaining.map((c) => c.city);
-        const configAgain2 = await getConfig();
-        if (cancelled) return;
-        let finalists = (configAgain2.finaleFinalists ?? []).filter((c) =>
-          cityNames.includes(c)
-        );
-        if (finalists.length !== 2 && cityNames.length >= 2) {
-          const shuffled = [...cityNames].sort(() => Math.random() - 0.5);
-          finalists = [shuffled[0]!, shuffled[1]!];
-          await setConfig({ finaleFinalists: finalists });
-          if (cancelled) return;
+        if (cityNames.length < 2) {
+          setWinnerState(null);
+          setLoading(false);
+          return;
         }
-        if (finalists.length === 2 && !cancelled) {
+        // Echte stand: alleen spins zonder balancing
+        const realSpins = (spinList as (SpinEntry & { id?: string; isBalancing?: boolean })[]).filter(
+          (s) => !s.isBalancing
+        );
+        const pointsByCity = new Map<string, number>();
+        for (const s of realSpins) {
+          if (!cityNames.includes(s.city)) continue;
+          pointsByCity.set(s.city, (pointsByCity.get(s.city) ?? 0) + (s.points ?? 1));
+        }
+        const standings = cityNames
+          .map((city) => ({ city, points: pointsByCity.get(city) ?? 0 }))
+          .sort((a, b) => b.points - a.points);
+        const top1 = standings[0];
+        const top2 = standings[1];
+        if (!top1 || !top2) {
+          setWinnerState(null);
+          setLoading(false);
+          return;
+        }
+        // Nummer 1 en 2 gaan altijd als gelijkstand naar de beslissende spin (geen balancing spins)
+        const finalists = [top1.city, top2.city];
+        await setConfig({ finaleFinalists: finalists });
+        if (cancelled) return;
+        if (!cancelled) {
           setTieBreakNeeded(true);
           setTiedCities(finalists);
           setLoading(false);
@@ -183,7 +221,10 @@ export function WinnerScreen() {
         {!clicked ? (
           <button
             type="button"
-            onClick={() => setClicked(true)}
+            onClick={() => {
+              unlockAudio();
+              setClicked(true);
+            }}
             className="rounded-lg bg-foreground px-6 py-3 font-medium text-background"
           >
             Bekijk de uitslag
@@ -203,48 +244,73 @@ export function WinnerScreen() {
     );
   }
 
-  const runTieBreakSpin = async () => {
-    if (tiedCities.length === 0 || tieBreakSpinning) return;
-    setTieBreakSpinning(true);
+  const handleFinaleSpinComplete = (threeNames: string[]) => {
+    const winnerCity =
+      threeNames.filter((c) => c === tiedCities[0]).length >=
+      threeNames.filter((c) => c === tiedCities[1]).length
+        ? tiedCities[0]!
+        : tiedCities[1]!;
     setError(null);
-    try {
-      const dateStr = getCurrentDateString();
-      const three = [
-        tiedCities[Math.floor(Math.random() * tiedCities.length)]!,
-        tiedCities[Math.floor(Math.random() * tiedCities.length)]!,
-        tiedCities[Math.floor(Math.random() * tiedCities.length)]!,
-      ];
-      await Promise.all(three.map((city) => addSpin("erik", city, dateStr, 1)));
-      const countA = three.filter((c) => c === tiedCities[0]).length;
-      const countB = three.filter((c) => c === tiedCities[1]).length;
-      const winnerCity = countA >= countB ? tiedCities[0]! : tiedCities[1]!;
-      await setWinner(winnerCity);
-      setWinnerState(winnerCity);
-      const newSpins = await getSpins();
-      setSpinsState(newSpins as (SpinEntry & { id: string; date?: string })[]);
-      setTieBreakNeeded(false);
-      setTiedCities([]);
-    } catch (e) {
-      setError(e instanceof Error ? e.message : "Beslissende spin mislukt");
-    } finally {
-      setTieBreakSpinning(false);
-    }
+    (async () => {
+      try {
+        const dateStr = getCurrentDateString();
+        await Promise.all(threeNames.map((city) => addSpin("erik", city, dateStr, 1)));
+        await setWinner(winnerCity);
+        setWinnerState(winnerCity);
+        const newSpins = await getSpins();
+        setSpinsState(newSpins as (SpinEntry & { id: string; date?: string })[]);
+        setTieBreakNeeded(false);
+        setTiedCities([]);
+        setFinaleSpinRunning(false);
+      } catch (e) {
+        setError(e instanceof Error ? e.message : "Beslissende spin mislukt");
+        setFinaleSpinRunning(false);
+      }
+    })();
   };
 
   if (tieBreakNeeded && tiedCities.length > 0) {
+    if (finaleSpinRunning) {
+      return (
+        <div className="flex flex-col gap-4 rounded-xl border-2 border-amber-500/50 bg-amber-500/10 p-8 text-center">
+          <p className="text-lg font-bold text-foreground">Gelijkstand!</p>
+          <p className="text-sm text-foreground/80">
+            {tiedCities.join(" en ")} – beslissende spin (15 s per stad)
+          </p>
+          <p className="text-sm font-medium italic text-amber-700 dark:text-amber-300">
+            {SPIN_PHRASES[finalePhraseIndex]}
+          </p>
+          <div className="flex justify-center">
+            <SlotRoll
+              run={true}
+              cities={tiedCities}
+              revealDelayMs={15000}
+              pauseAfterLastMs={2500}
+              pauseBeforeRevealMs={500}
+              onComplete={handleFinaleSpinComplete}
+              playSound={true}
+            />
+          </div>
+        </div>
+      );
+    }
     return (
-      <div className="rounded-xl border-2 border-amber-500/50 bg-amber-500/10 p-8 text-center">
+      <div className="flex flex-col gap-4 rounded-xl border-2 border-amber-500/50 bg-amber-500/10 p-8 text-center">
         <p className="text-lg font-bold text-foreground">Gelijkstand!</p>
-        <p className="mt-2 text-sm text-foreground/80">
+        <p className="text-sm text-foreground/80">
           {tiedCities.join(" en ")} hebben evenveel punten. Eén beslissende spin.
         </p>
         <button
           type="button"
           disabled={tieBreakSpinning}
-          onClick={runTieBreakSpin}
+          onClick={() => {
+            unlockAudio();
+            setTieBreakSpinning(true);
+            setFinaleSpinRunning(true);
+          }}
           className="mt-6 rounded-xl border-4 border-amber-600 bg-amber-500 py-4 px-8 text-xl font-bold text-white shadow-lg transition hover:bg-amber-600 disabled:opacity-50"
         >
-          {tieBreakSpinning ? "Bezig…" : "Draai beslissende spin"}
+          Draai beslissende spin
         </button>
         {error && (
           <p className="mt-4 text-sm text-red-600 dark:text-red-400">{error}</p>
@@ -283,22 +349,35 @@ export function WinnerScreen() {
     };
     return getTime(a) - getTime(b);
   });
+  const displaySpins = sortedSpins.filter(
+    (s) => !(s as SpinEntry & { isBalancing?: boolean }).isBalancing
+  );
 
   return (
     <>
       {ceremonyReveal && <ConfettiBurst />}
-      <div className="rounded-xl border-2 border-foreground/20 bg-foreground/5 p-8 text-center">
-        <p className="mb-2 text-sm font-medium uppercase tracking-wider text-foreground/70">
-          Winnaar
+      <FlyingCelebration />
+      <div className="pointer-events-none fixed inset-0 z-30 opacity-50" aria-hidden>
+        <Fireworks fullScreen />
+      </div>
+      <div className="relative z-50 overflow-hidden rounded-3xl border-4 border-amber-400/80 bg-gradient-to-br from-amber-400/30 via-yellow-500/20 to-orange-500/20 p-8 text-center shadow-2xl shadow-amber-500/30 ring-4 ring-amber-400/20 dark:border-amber-400/70 dark:from-amber-500/30 dark:via-yellow-500/20 dark:to-orange-500/20 dark:shadow-amber-500/25 dark:ring-amber-400/10">
+        <div className="absolute inset-0 bg-[radial-gradient(ellipse_at_center,_var(--tw-gradient-stops))] from-transparent via-amber-200/5 to-transparent dark:via-amber-400/5" aria-hidden />
+        <p className="relative mb-3 text-xl font-black uppercase tracking-widest text-amber-700 dark:text-amber-300">
+          🎉 Winnaar! 🎉
         </p>
-        <p className="animate-pulse text-3xl font-bold text-foreground">
-          WINNAAR: {displayWinner}
+        <p className="relative animate-pulse text-2xl font-bold text-foreground sm:text-3xl">
+          Benno en Erik gaan naar <WinningCityDisplay city={displayWinner} />. Wat leuk!
         </p>
-      <p className="mt-4 text-sm text-foreground/70">
-        Daar gaan we heen in oktober 2026!
-      </p>
-      {isRealGameReveal && (summaryCities.length > 0 || summaryRemoved.length > 0 || sortedSpins.length > 0) && (
-        <div className="mt-8 rounded-lg border border-foreground/10 bg-background/50 p-4 text-left">
+        <p className="relative mt-5 text-sm text-foreground/80">
+          Heel veel plezier, vergeet je zonnebrand, zwembroek en slippers niet!!
+        </p>
+        <br />
+        <br />
+        <p className="relative text-sm italic text-foreground/70">
+          En nu maar hopen dat er wifi aan boord is.
+        </p>
+      {isRealGameReveal && (summaryCities.length > 0 || summaryRemoved.length > 0 || displaySpins.length > 0) && (
+        <div className="relative mt-8 rounded-lg border border-foreground/10 bg-background/50 p-4 text-left">
           <p className="mb-4 text-sm font-semibold uppercase tracking-wider text-foreground/80">
             Samenvatting
           </p>
@@ -326,11 +405,11 @@ export function WinnerScreen() {
               </ul>
             </div>
           )}
-          {sortedSpins.length > 0 && (
+          {displaySpins.length > 0 && (
             <div>
               <p className="mb-1.5 text-xs font-medium uppercase text-foreground/70">Dit is er gespind</p>
               <ul className="space-y-2 text-sm text-foreground/90">
-                {sortedSpins.map((s, i) => {
+                {displaySpins.map((s, i) => {
                   const dateStr = (s as { date?: string }).date;
                   const dateLabel = dateStr ? formatDateDisplay(dateStr) : "";
                   const name = s.user === "erik" ? "Erik" : "Benno";

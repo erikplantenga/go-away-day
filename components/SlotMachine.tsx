@@ -8,13 +8,16 @@ import {
   hasUserSpunToday,
 } from "@/lib/firestore";
 import { getCurrentDateString, getRevealTime, getSpinOpenTime, isSpinOpenToday } from "@/lib/dates";
+import { SPIN_PHRASES } from "@/lib/spinPhrases";
 import { useSpinSound } from "@/lib/useSpinSound";
+import { unlockAudio } from "@/lib/audioContext";
 import { WinnerScreen } from "@/components/WinnerScreen";
 import { ConfettiBurst } from "@/components/ConfettiBurst";
+import { FlyingCelebration } from "@/components/FlyingCelebration";
 import { Fireworks } from "@/components/Fireworks";
 
-// Elk slot draait 10 seconden (cycled door steden), dan stopt het op de eindstad
-const REVEAL_DELAY_MS = 10000;
+// Elk slot draait 5 seconden (cycled door steden), dan stopt het op de eindstad
+const REVEAL_DELAY_MS = 5000;
 const PAUSE_AFTER_LAST_MS = 2500;
 const PAUSE_BEFORE_REVEAL_MS = 500;
 const CYCLE_MS = 200; // hoe vaak de naam wisselt tijdens het draaien
@@ -67,11 +70,13 @@ export function SlotMachine({ currentUser }: Props) {
   const [countdownSec, setCountdownSec] = useState<number | null>(null);
   const [fireworksKey, setFireworksKey] = useState(0);
   const [showFireworks, setShowFireworks] = useState(false);
+  const [spinPhraseIndex, setSpinPhraseIndex] = useState(0);
   const dateStr = getCurrentDateString();
   const timeoutsRef = useRef<ReturnType<typeof setTimeout>[]>([]);
   const intervalsRef = useRef<(ReturnType<typeof setInterval> | undefined)[]>([]);
 
-  useSpinSound(spinning, CYCLE_MS);
+  const spinSoundDurationMs = PAUSE_BEFORE_REVEAL_MS + REVEAL_DELAY_MS * 3;
+  useSpinSound(spinning, CYCLE_MS, spinSoundDurationMs);
 
   const canSpin = !alreadySpun && !spinning;
   const itemsCount = remainingCities.length;
@@ -109,8 +114,19 @@ export function SlotMachine({ currentUser }: Props) {
     return () => clearTimeout(t);
   }, [showFireworks]);
 
+  useEffect(() => {
+    if (!spinning) return;
+    setSpinPhraseIndex(0);
+    const iv = setInterval(
+      () => setSpinPhraseIndex((i) => (i + 1) % SPIN_PHRASES.length),
+      3000
+    );
+    return () => clearInterval(iv);
+  }, [spinning]);
+
   const handleSpin = () => {
     if (itemsCount === 0 || !canSpin) return;
+    unlockAudio();
     setSpinning(true);
     setError(null);
     setResults([null, null, null]);
@@ -238,15 +254,16 @@ export function SlotMachine({ currentUser }: Props) {
 
   if (alreadySpun) {
     return (
-      <div className="space-y-5 rounded-2xl border-4 border-amber-500/60 bg-gradient-to-b from-amber-500/20 to-amber-600/10 p-6 shadow-xl shadow-amber-500/20">
-        <p className="text-center text-lg font-bold text-foreground">Je hebt gespind.</p>
-        <p className="text-center text-sm text-foreground/80">
+      <div className="relative overflow-hidden space-y-5 rounded-2xl border-4 border-amber-400/80 bg-gradient-to-br from-amber-400/25 via-yellow-500/15 to-orange-500/20 p-6 shadow-xl shadow-amber-500/25 ring-2 ring-amber-400/30 dark:border-amber-500/60 dark:from-amber-500/20 dark:via-yellow-500/15 dark:to-orange-500/20">
+        <div className="absolute inset-0 bg-[radial-gradient(ellipse_at_center,_var(--tw-gradient-stops))] from-transparent via-amber-200/5 to-transparent dark:via-amber-400/5" aria-hidden />
+        <p className="relative text-center text-lg font-bold text-foreground">🎉 Je hebt gespind!</p>
+        <p className="relative text-center text-sm text-foreground/80">
           Morgen om 10:00 mag je nog een keer.
         </p>
         <button
           type="button"
           onClick={() => setRevealRequested(true)}
-          className="w-full rounded-xl border-2 border-amber-600 bg-amber-500 py-4 text-lg font-bold text-white shadow-lg transition hover:bg-amber-600"
+          className="relative w-full rounded-xl border-2 border-amber-600 bg-amber-500 py-4 text-lg font-bold text-white shadow-lg transition hover:bg-amber-600"
         >
           Bekijk de uitslag
         </button>
@@ -258,34 +275,59 @@ export function SlotMachine({ currentUser }: Props) {
     <>
       {fireworksKey > 0 && <ConfettiBurst key={fireworksKey} />}
       {showFireworks && (
-        <div className="pointer-events-none fixed inset-0 z-40 h-full w-full opacity-70">
-          <Fireworks fullScreen />
-        </div>
+        <>
+          <FlyingCelebration />
+          <div className="pointer-events-none fixed inset-0 z-40 h-full w-full opacity-70">
+            <Fireworks fullScreen />
+          </div>
+        </>
       )}
-      <div className="space-y-6 rounded-2xl border-4 border-amber-500/60 bg-gradient-to-b from-amber-500/20 to-amber-600/10 p-6 shadow-xl shadow-amber-500/20">
+      <div className="relative z-50 space-y-6 rounded-2xl border-4 border-amber-500/60 bg-gradient-to-b from-amber-500/20 to-amber-600/10 p-6 shadow-xl shadow-amber-500/20">
         <p className="text-center text-xl font-bold uppercase tracking-wide text-foreground">
           🎰 Fruitautomaat
         </p>
+        {showFireworks && (
+          <p className="text-center text-lg font-bold text-amber-700 dark:text-amber-300">
+            🎉 Mooie spin! 🎉
+          </p>
+        )}
       <div className="flex justify-center gap-3 sm:gap-4">
-        {[0, 1, 2].map((i) => (
-          <div
-            key={i}
-            className={`flex min-h-[100px] min-w-[100px] sm:min-h-[120px] sm:min-w-[110px] flex-1 max-w-[140px] items-center justify-center rounded-xl border-4 border-amber-600/80 bg-amber-50/90 px-3 py-4 text-center shadow-inner dark:bg-amber-950/30 ${
-              spinning ? "animate-pulse" : ""
-            }`}
-          >
-            {results[i] ? (
-              <span className="text-lg font-bold sm:text-xl text-foreground">{results[i]}</span>
-            ) : spinning && spinningDisplay[i] ? (
-              <span className="text-lg font-bold sm:text-xl animate-pulse text-amber-700 dark:text-amber-400">{spinningDisplay[i]}</span>
-            ) : spinning ? (
-              <span className="animate-spin text-2xl font-bold text-amber-600">◆</span>
-            ) : (
-              <span className="text-2xl font-bold text-foreground/40">—</span>
-            )}
-          </div>
-        ))}
+        {[0, 1, 2].map((i) => {
+          const slotBg = [
+            "border-amber-600/80 bg-amber-50/90 dark:bg-amber-950/30",
+            "border-orange-500/80 bg-orange-50/90 dark:bg-orange-950/30",
+            "border-yellow-500/80 bg-yellow-50/90 dark:bg-yellow-950/30",
+          ][i]!;
+          const slotText = [
+            "text-amber-700 dark:text-amber-400",
+            "text-orange-700 dark:text-orange-400",
+            "text-yellow-700 dark:text-yellow-600",
+          ][i]!;
+          return (
+            <div
+              key={i}
+              className={`flex min-h-[100px] min-w-[100px] sm:min-h-[120px] sm:min-w-[110px] flex-1 max-w-[140px] items-center justify-center rounded-xl border-4 px-3 py-4 text-center shadow-inner ${slotBg} ${
+                spinning ? "animate-pulse" : ""
+              }`}
+            >
+              {results[i] ? (
+                <span className="text-lg font-bold sm:text-xl text-foreground">{results[i]}</span>
+              ) : spinning && spinningDisplay[i] ? (
+                <span className={`text-lg font-bold sm:text-xl animate-pulse ${slotText}`}>{spinningDisplay[i]}</span>
+              ) : spinning ? (
+                <span className="animate-spin text-2xl font-bold text-foreground/70">◆</span>
+              ) : (
+                <span className="text-2xl font-bold text-foreground/40">—</span>
+              )}
+            </div>
+          );
+        })}
       </div>
+      {spinning && (
+        <p className="text-center text-sm font-medium italic text-amber-700 dark:text-amber-300">
+          {SPIN_PHRASES[spinPhraseIndex]}
+        </p>
+      )}
       <p className="text-center text-sm font-medium text-foreground/80">
         De 4 overgebleven steden.
       </p>

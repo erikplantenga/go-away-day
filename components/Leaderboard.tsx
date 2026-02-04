@@ -3,7 +3,7 @@
 import { useState, useEffect } from "react";
 import { subscribeSpins } from "@/lib/firestore";
 import type { SpinEntry } from "@/lib/firestore";
-import { isAfterRevealTime, isSpinOpenToday } from "@/lib/dates";
+import { isAfterRevealTime } from "@/lib/dates";
 
 function aggregateByCity(
   spins: (SpinEntry & { id: string })[]
@@ -28,7 +28,8 @@ export function Leaderboard() {
 
   const standings = aggregateByCity(spins);
   const afterReveal = isAfterRevealTime();
-  const showStand = isSpinOpenToday() || afterReveal;
+  // Stand pas na de ceremonie (20:31) zichtbaar – tot die tijd spannend houden
+  const showStand = afterReveal;
 
   return (
     <div className="rounded-lg border border-foreground/10 bg-background p-4">
