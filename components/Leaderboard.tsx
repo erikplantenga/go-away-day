@@ -28,8 +28,8 @@ export function Leaderboard() {
 
   const standings = aggregateByCity(spins);
   const afterReveal = isAfterRevealTime();
-  // Stand pas na de ceremonie (20:31) zichtbaar – tot die tijd spannend houden
-  const showStand = afterReveal;
+  // Tussentand altijd tonen (ook bij "Bekijk de tussenstand") – stand kan altijd veranderen
+  const showStand = true;
 
   return (
     <div className="rounded-lg border border-foreground/10 bg-background p-4">
