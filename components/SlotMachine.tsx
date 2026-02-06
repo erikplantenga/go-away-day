@@ -195,8 +195,9 @@ export function SlotMachine({ currentUser }: Props) {
       setTimeout(() => {
         setUpdatingStand(false);
         setSpinningDisplay([null, null, null]);
+        const pointsPerCity = dateStr.slice(5) >= "02-07" ? 3 : 1;
         Promise.all(
-          threeNames.map((city) => addSpin(currentUser, city, dateStr, 1))
+          threeNames.map((city) => addSpin(currentUser, city, dateStr, pointsPerCity))
         )
           .then(() => setAlreadySpun(true))
           .catch((e) => setError(e instanceof Error ? e.message : "Spin mislukt"))

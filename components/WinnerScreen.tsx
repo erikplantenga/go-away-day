@@ -254,7 +254,7 @@ export function WinnerScreen() {
     (async () => {
       try {
         const dateStr = getCurrentDateString();
-        await Promise.all(threeNames.map((city) => addSpin("erik", city, dateStr, 1)));
+        await Promise.all(threeNames.map((city) => addSpin("erik", city, dateStr, 3)));
         await setWinner(winnerCity);
         setWinnerState(winnerCity);
         const newSpins = await getSpins();
