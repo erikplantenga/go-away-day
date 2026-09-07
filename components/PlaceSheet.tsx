@@ -2,6 +2,7 @@
 
 import { useEffect, useLayoutEffect, useRef } from "react";
 import { ExternalLink } from "@/components/ExternalLink";
+import { MaltaLineup } from "@/components/MaltaLineup";
 import type { PlaceInfo } from "@/lib/maltaPlaces";
 
 function PlaceVideo({ src, poster, title }: { src: string; poster?: string; title: string }) {
@@ -120,6 +121,7 @@ export function PlaceSheet({
             </ExternalLink>
           ))}
         </div>
+        {place.id === "voetbal" && <MaltaLineup />}
       </div>
     </div>
   );

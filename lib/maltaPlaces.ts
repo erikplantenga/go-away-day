@@ -122,6 +122,7 @@ export const PLACE_INFO: Record<string, PlaceInfo> = {
     subtitle: "18:00 · National Stadium, Ta’ Qali",
     body: [
       "Interland in het National Stadium in Ta’ Qali, tussen Mdina/Rabat en Attard. Check kick-off en tickets dichter bij de datum.",
+      "Tik op een speler op het veld voor naam en positie.",
     ],
     links: [
       { label: "Tickets Malta FA", href: "https://tickets.mfa.com.mt/" },
