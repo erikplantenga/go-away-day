@@ -74,7 +74,7 @@ export const PLACE_INFO: Record<string, PlaceInfo> = {
   },
   "notte-bianca": {
     id: "notte-bianca",
-    image: "/images/places/notte-bianca.jpg",
+    image: "/images/places/notte.jpg",
     title: "Notte Bianca",
     subtitle: "Valletta · zaterdagavond 3 oktober",
     body: [

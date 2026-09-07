@@ -173,7 +173,7 @@ function PlanningBody() {
       >
         <div className="relative aspect-[4/3] w-full">
           <Image
-            src="/images/malta-planning.jpg"
+            src="/images/malta-week.jpg"
             alt="Malta reisprogramma 3–7 oktober 2026"
             fill
             className="object-cover object-top"
@@ -202,7 +202,7 @@ function PlanningBody() {
           <div className="min-h-0 flex-1 overflow-auto overscroll-contain px-1 pb-[env(safe-area-inset-bottom)]">
             {/* eslint-disable-next-line @next/next/no-img-element */}
             <img
-              src="/images/malta-planning.jpg"
+              src="/images/malta-week.jpg"
               alt="Malta reisprogramma 3–7 oktober 2026"
               className="mx-auto block h-auto w-full"
             />
