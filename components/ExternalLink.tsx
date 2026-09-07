@@ -6,7 +6,19 @@ function isHttp(href: string) {
   return href.startsWith("http://") || href.startsWith("https://");
 }
 
+function isWhatsApp(href: string) {
+  return (
+    href.startsWith("whatsapp:") ||
+    href.includes("wa.me") ||
+    href.includes("api.whatsapp.com") ||
+    href.includes("whatsapp.com")
+  );
+}
+
 function kindOf(href: string) {
+  if (isWhatsApp(href)) {
+    return "whatsapp" as const;
+  }
   if (href.startsWith("uber:") || href.includes("m.uber.com") || href.includes("uber.com")) {
     return "uber" as const;
   }
@@ -34,7 +46,7 @@ export function ExternalLink({
   children: ReactNode;
 }) {
   const [open, setOpen] = useState(false);
-  const needsWarn = isHttp(href);
+  const needsWarn = isHttp(href) && !isWhatsApp(href);
   const left = className?.includes("text-left");
   const box = `flex w-full items-center ${left ? "justify-start text-left" : "min-h-11 justify-center text-center"} ${className ?? ""}`;
 

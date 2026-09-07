@@ -20,8 +20,15 @@ const PACK_ITEMS = [
   "Medicijnen",
 ] as const;
 
-const LINKS = [
-  { label: "112 Nood", href: "tel:112", primary: true },
+const LOST_TEXT = encodeURIComponent("Ik ben je kwijt. Waar ben jij?");
+
+const LINKS: { label: string; href: string; tone?: "emergency" | "whatsapp" }[] = [
+  { label: "112 Nood", href: "tel:112", tone: "emergency" },
+  {
+    label: "Voor als we elkaar kwijt zijn",
+    href: `whatsapp://send?text=${LOST_TEXT}`,
+    tone: "whatsapp",
+  },
   { label: "Hotel receptie", href: HOTEL.phoneHref },
   { label: "Reserveringen", href: HOTEL.reservationsPhoneHref },
   { label: "Mail hotel", href: `mailto:${HOTEL.email}` },
@@ -96,7 +103,11 @@ export function Handig() {
             key={link.href}
             href={link.href}
             className={`rounded-xl px-4 text-sm font-semibold ${
-              link.primary ? "bg-red-600 text-white" : "bg-white/10 text-white"
+              link.tone === "emergency"
+                ? "bg-red-600 text-white"
+                : link.tone === "whatsapp"
+                  ? "bg-[#25D366] text-[#0b1f3a]"
+                  : "bg-white/10 text-white"
             }`}
           >
             {link.label}
