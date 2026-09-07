@@ -1,6 +1,7 @@
 "use client";
 
 import { useEffect, useState } from "react";
+import { ExternalLink } from "@/components/ExternalLink";
 import { HOTEL } from "@/lib/maltaTrip";
 
 const PACK_KEY = "goaway_packlist";
@@ -23,6 +24,10 @@ const LINKS = [
   { label: `Hotel receptie ${HOTEL.phone}`, href: HOTEL.phoneHref },
   { label: `Reserveringen ${HOTEL.reservationsPhone}`, href: HOTEL.reservationsPhoneHref },
   { label: "Mail hotel", href: `mailto:${HOTEL.email}` },
+  {
+    label: "Uber",
+    href: "https://m.uber.com/ul/?action=setPickup&pickup[formatted_address]=Carlton%20Hotel%2C%20261%20Tower%20Road%2C%20Sliema%2C%20Malta",
+  },
   { label: "Sliema–Valletta ferry", href: "https://www.vallettaferryservices.com" },
   { label: "Bussen Tallinja", href: "https://www.publictransport.com.mt" },
   { label: "eCabs taxi", href: "https://www.ecabs.com.mt" },
@@ -86,17 +91,15 @@ export function Handig() {
       <div className="space-y-2">
         <p className="px-1 text-xs font-semibold uppercase tracking-wider text-[#c9a227]">Bellen & openen</p>
         {LINKS.map((link) => (
-          <a
+          <ExternalLink
             key={link.href}
             href={link.href}
-            target={link.href.startsWith("http") ? "_blank" : undefined}
-            rel={link.href.startsWith("http") ? "noreferrer" : undefined}
             className={`flex min-h-11 items-center justify-center rounded-xl px-4 text-sm font-semibold ${
               link.primary ? "bg-red-600 text-white" : "bg-white/10 text-white"
             }`}
           >
             {link.label}
-          </a>
+          </ExternalLink>
         ))}
       </div>
     </div>

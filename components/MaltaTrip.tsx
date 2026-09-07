@@ -2,6 +2,7 @@
 
 import Image from "next/image";
 import { useEffect, useState, type ReactNode } from "react";
+import { ExternalLink } from "@/components/ExternalLink";
 import { Handig } from "@/components/Handig";
 import { LiveCams } from "@/components/LiveCams";
 import { WeerStrip } from "@/components/WeerStrip";
@@ -223,30 +224,24 @@ function VluchtenBody() {
       <FlightCard flight={FLIGHTS.inbound} onOpenTicket={setTicket} onOpenPlane={() => setPlane(true)} />
       <p className="px-1 text-sm text-white/60">Passagiers: {PASSENGERS.join(" · ")}</p>
       <div className="space-y-2 px-1">
-        <a
+        <ExternalLink
           href="https://www.kmmaltaairlines.com"
-          target="_blank"
-          rel="noreferrer"
           className="flex min-h-11 items-center justify-center rounded-xl bg-white px-4 text-sm font-semibold text-[#0b1f3a]"
         >
           KM Malta Airlines
-        </a>
-        <a
+        </ExternalLink>
+        <ExternalLink
           href="https://www.schiphol.nl"
-          target="_blank"
-          rel="noreferrer"
           className="flex min-h-11 items-center justify-center rounded-xl bg-white/10 px-4 text-sm font-semibold text-white"
         >
           Schiphol
-        </a>
-        <a
+        </ExternalLink>
+        <ExternalLink
           href="https://www.maltairport.com"
-          target="_blank"
-          rel="noreferrer"
           className="flex min-h-11 items-center justify-center rounded-xl bg-white/10 px-4 text-sm font-semibold text-white"
         >
           Malta Airport
-        </a>
+        </ExternalLink>
       </div>
       {ticket && (
         <div className="fixed inset-0 z-[90] flex flex-col bg-black" role="dialog" aria-modal="true">
@@ -341,9 +336,9 @@ function HotelBody() {
       <p className="mt-3 text-sm text-white/85">
         {HOTEL.rooms} · {HOTEL.total} totaal · {HOTEL.rest}
       </p>
-      <a href={HOTEL.maps} className="mt-4 block text-sm font-medium text-white underline">
+      <ExternalLink href={HOTEL.maps} className="mt-4 block text-left text-sm font-medium text-white underline">
         {HOTEL.address}
-      </a>
+      </ExternalLink>
       <a href={HOTEL.phoneHref} className="mt-2 block text-sm font-medium text-white underline">
         Receptie {HOTEL.phone}
       </a>
@@ -362,14 +357,12 @@ function HotelBody() {
       >
         Bevestiging bekijken
       </button>
-      <a
+      <ExternalLink
         href={HOTEL.website}
-        target="_blank"
-        rel="noreferrer"
         className="mt-2 mb-1 flex min-h-11 items-center justify-center rounded-xl bg-white/10 px-4 text-sm font-semibold text-white"
       >
         Website openen
-      </a>
+      </ExternalLink>
       {confirm && (
         <div className="fixed inset-0 z-[90] flex flex-col bg-black" role="dialog" aria-modal="true">
           <div
