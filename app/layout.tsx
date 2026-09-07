@@ -22,7 +22,7 @@ export const viewport: Viewport = {
 
 export const metadata: Metadata = {
   title: "Go Away Day",
-  description: "Waar gaan Erik & Benno in oktober 2026 naartoe?",
+  description: "Malta — 3–7 oktober 2026",
   appleWebApp: {
     capable: true,
     statusBarStyle: "default",

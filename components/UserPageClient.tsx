@@ -8,7 +8,6 @@ import { getBackendLabel } from "@/lib/firestore";
 import { ensurePreviewSeeded } from "@/lib/previewStorage";
 import { PhaseBanner } from "@/components/PhaseBanner";
 import { PhaseContent } from "@/components/PhaseContent";
-import { ZoWerktHet } from "@/components/ZoWerktHet";
 import { FeestDag } from "@/components/FeestDag";
 
 type Props = { user: string };
@@ -57,7 +56,6 @@ export function UserPageClient({ user }: Props) {
         </p>
       )}
       <FeestDag />
-      <ZoWerktHet />
       <div className="mb-6 rounded-lg border border-foreground/10 bg-background p-4">
         <PhaseBanner />
       </div>

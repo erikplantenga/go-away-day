@@ -1,7 +1,5 @@
-"use client";
-
-import { DemoSpin } from "@/components/DemoSpin";
+import { RedirectHome } from "@/components/RedirectHome";
 
 export default function DemoSpinPage() {
-  return <DemoSpin />;
+  return <RedirectHome />;
 }
