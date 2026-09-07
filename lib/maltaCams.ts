@@ -7,6 +7,8 @@ export type MaltaCam = {
   page: string;
 };
 
+export const MALTA_CAMS_INDEX = "https://www.skylinewebcams.com/nl/webcam/malta/malta.html";
+
 export const MALTA_CAMS: MaltaCam[] = [
   {
     id: "4455",

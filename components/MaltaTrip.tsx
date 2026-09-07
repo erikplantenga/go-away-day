@@ -7,6 +7,7 @@ import { WeerStrip } from "@/components/WeerStrip";
 import { PlaceSheet } from "@/components/PlaceSheet";
 import { ESTIMATED_WEATHER, fetchTripWeather, weatherForDate, type DayWeather } from "@/lib/maltaWeather";
 import { placeForItem, type PlaceInfo } from "@/lib/maltaPlaces";
+import { MALTA_CAMS_INDEX } from "@/lib/maltaCams";
 import { FLIGHTS, HOTEL, MALTA_DAYS, PASSENGERS, type Flight } from "@/lib/maltaTrip";
 
 type SectionId = "planning" | "vluchten" | "hotel" | "weer" | "cams" | "dagen";
@@ -32,6 +33,19 @@ export function MaltaTrip() {
 
   return (
     <div className="space-y-2">
+      <a
+        href={MALTA_CAMS_INDEX}
+        target="_blank"
+        rel="noreferrer"
+        className="flex min-h-12 items-center justify-between rounded-2xl bg-red-600 px-4 py-3 text-white"
+      >
+        <span>
+          <span className="block text-base font-semibold">Live cam</span>
+          <span className="block text-sm text-white/80">Direct naar Malta livestreams</span>
+        </span>
+        <span className="text-sm font-semibold">Open →</span>
+      </a>
+
       <Accordion
         open={open === "planning"}
         onToggle={() => toggle("planning")}
