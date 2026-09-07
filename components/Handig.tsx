@@ -114,10 +114,9 @@ export function Handig() {
         </ExternalLink>
         <a
           href={`https://wa.me/?text=${LOST_TEXT}`}
-          className="flex min-h-11 w-full flex-col items-center justify-center rounded-xl bg-[#25D366] px-4 py-2 text-center text-[#0b1f3a]"
+          className="flex min-h-11 w-full items-center justify-center rounded-xl bg-[#25D366] px-4 text-sm font-semibold text-[#0b1f3a]"
         >
-          <span className="text-sm font-semibold">Voor als we elkaar kwijt zijn</span>
-          <span className="text-xs font-medium opacity-80">Open WhatsApp</span>
+          Voor als we elkaar kwijt zijn
         </a>
         {LINKS.map((link) => (
           <ExternalLink
