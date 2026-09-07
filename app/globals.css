@@ -1,8 +1,8 @@
 @import "tailwindcss";
 
 :root {
-  --background: #ffffff;
-  --foreground: #171717;
+  --background: #061018;
+  --foreground: #f4efe4;
   --safe-top: env(safe-area-inset-top, 0px);
   --safe-bottom: env(safe-area-inset-bottom, 0px);
 }
@@ -14,23 +14,24 @@
   --font-mono: var(--font-geist-mono);
 }
 
-@media (prefers-color-scheme: dark) {
-  :root {
-    --background: #0a0a0a;
-    --foreground: #ededed;
-  }
-}
-
 html {
   -webkit-text-size-adjust: 100%;
   -webkit-tap-highlight-color: transparent;
+  background: #061018;
 }
 
 body {
-  background: var(--background);
+  min-height: 100dvh;
   color: var(--foreground);
   font-family: var(--font-sans), system-ui, -apple-system, sans-serif;
   font-size: 16px; /* voorkomt iOS zoom bij focus op input */
+  background-color: #061018;
+  background-image:
+    radial-gradient(120% 70% at 50% -15%, #2a4d86 0%, transparent 52%),
+    radial-gradient(90% 50% at 110% 95%, rgba(201, 162, 39, 0.28) 0%, transparent 48%),
+    radial-gradient(70% 40% at -10% 80%, rgba(12, 70, 92, 0.55) 0%, transparent 50%),
+    linear-gradient(180deg, #0a1c36 0%, #061018 42%, #040c14 100%);
+  background-attachment: fixed;
 }
 
 /* Touch targets min 44px (iPhone HIG) */

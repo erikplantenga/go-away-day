@@ -40,8 +40,8 @@ export function HeroCarousel() {
           fill
           priority={i === 0}
           className={`object-cover ${slide.position} transition-opacity duration-700 ${
-            i === index ? "opacity-100" : "opacity-0"
-          }`}
+            i === 0 ? "grayscale contrast-110" : ""
+          } ${i === index ? "opacity-100" : "opacity-0"}`}
           sizes="100vw"
         />
       ))}
