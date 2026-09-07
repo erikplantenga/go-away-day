@@ -4,7 +4,9 @@ import Image from "next/image";
 import { useEffect, useState, type ReactNode } from "react";
 import { LiveCams } from "@/components/LiveCams";
 import { WeerStrip } from "@/components/WeerStrip";
+import { PlaceSheet } from "@/components/PlaceSheet";
 import { ESTIMATED_WEATHER, fetchTripWeather, weatherForDate, type DayWeather } from "@/lib/maltaWeather";
+import { placeForItem, type PlaceInfo } from "@/lib/maltaPlaces";
 import { FLIGHTS, HOTEL, MALTA_DAYS, PASSENGERS, type Flight } from "@/lib/maltaTrip";
 
 type SectionId = "planning" | "vluchten" | "hotel" | "weer" | "cams" | "dagen";
@@ -320,9 +322,11 @@ function HotelBody() {
 
 function Dagplanning({ weather }: { weather: DayWeather[] }) {
   const [openId, setOpenId] = useState<string | null>(null);
+  const [place, setPlace] = useState<PlaceInfo | null>(null);
 
   return (
     <div className="space-y-2 pb-2">
+      {place && <PlaceSheet place={place} onBack={() => setPlace(null)} />}
       {MALTA_DAYS.map((day) => {
         const open = openId === day.id;
         const w = weatherForDate(weather, day.date);
@@ -359,19 +363,40 @@ function Dagplanning({ weather }: { weather: DayWeather[] }) {
                       {w.source === "schatting" ? " (schatting)" : ""}
                     </li>
                   )}
-                  {day.items.map((item, i) => (
-                    <li key={i} className="flex gap-3">
-                      <span className="w-20 shrink-0 pt-0.5 text-xs font-semibold uppercase tracking-wide text-[#c9a227]">
-                        {item.time}
-                      </span>
-                      <span>
-                        <span className="block text-sm font-medium">{item.text}</span>
-                        {item.note && (
-                          <span className="mt-0.5 block text-sm text-white/65">{item.note}</span>
+                  {day.items.map((item, i) => {
+                    const info = placeForItem(item.text);
+                    const inner = (
+                      <>
+                        <span className="w-20 shrink-0 pt-0.5 text-xs font-semibold uppercase tracking-wide text-[#c9a227]">
+                          {item.time}
+                        </span>
+                        <span className="min-w-0 flex-1">
+                          <span className="block text-sm font-medium">{item.text}</span>
+                          {item.note && (
+                            <span className="mt-0.5 block text-sm text-white/65">{item.note}</span>
+                          )}
+                          {info && (
+                            <span className="mt-1 block text-xs font-medium text-[#c9a227]">Tik voor info →</span>
+                          )}
+                        </span>
+                      </>
+                    );
+                    return (
+                      <li key={i}>
+                        {info ? (
+                          <button
+                            type="button"
+                            onClick={() => setPlace(info)}
+                            className="flex w-full gap-3 rounded-lg py-1 text-left active:bg-white/5"
+                          >
+                            {inner}
+                          </button>
+                        ) : (
+                          <div className="flex gap-3">{inner}</div>
                         )}
-                      </span>
-                    </li>
-                  ))}
+                      </li>
+                    );
+                  })}
                 </ul>
               </div>
             </div>
