@@ -11,7 +11,7 @@ import { ESTIMATED_WEATHER, fetchTripWeather, weatherForDate, type DayWeather } 
 import { PLACE_INFO, placeForItem, type PlaceInfo } from "@/lib/maltaPlaces";
 import { FLIGHTS, HOTEL, MALTA_DAYS, PASSENGERS, type Flight } from "@/lib/maltaTrip";
 
-type SectionId = "planning" | "vluchten" | "hotel" | "weer" | "dagen" | "handig";
+type SectionId = "planning" | "vluchten" | "hotel" | "weer" | "handig";
 
 export function MaltaTrip() {
   const [open, setOpen] = useState<SectionId | null>(null);
@@ -39,10 +39,13 @@ export function MaltaTrip() {
       <Accordion
         open={open === "planning"}
         onToggle={() => toggle("planning")}
-        title="Planning"
-        hint="Poster 3–7 okt"
+        title="Weekoverzicht"
+        hint="5 dagen · tik een plek"
       >
         <PlanningBody />
+        <div className="px-1 pb-2">
+          <Dagplanning weather={weather} />
+        </div>
       </Accordion>
 
       <Accordion
@@ -71,17 +74,6 @@ export function MaltaTrip() {
       >
         <div className="px-1 pb-3">
           <WeerStrip days={weather} compact />
-        </div>
-      </Accordion>
-
-      <Accordion
-        open={open === "dagen"}
-        onToggle={() => toggle("dagen")}
-        title="Dagplanning"
-        hint="5 dagen · tik een plek"
-      >
-        <div className="px-1 pb-2">
-          <Dagplanning weather={weather} />
         </div>
       </Accordion>
 
@@ -169,7 +161,7 @@ function PlanningBody() {
         type="button"
         onClick={() => setFull(true)}
         className="relative mb-3 block w-full overflow-hidden rounded-xl bg-black/30 text-left"
-        aria-label="Planning beeldvullend"
+        aria-label="Weekoverzicht beeldvullend"
       >
         <div className="relative aspect-[4/3] w-full">
           <Image
@@ -340,10 +332,10 @@ function HotelBody() {
         {HOTEL.address}
       </ExternalLink>
       <a href={HOTEL.phoneHref} className="mt-2 block text-sm font-medium text-white underline">
-        Receptie {HOTEL.phone}
+        Receptie
       </a>
       <a href={HOTEL.reservationsPhoneHref} className="mt-1 block text-sm font-medium text-white underline">
-        Reserveringen {HOTEL.reservationsPhone}
+        Reserveringen
       </a>
       <ul className="mt-4 space-y-1.5 text-sm text-white/80">
         {HOTEL.extras.map((item) => (

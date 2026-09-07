@@ -9,7 +9,8 @@ const PACK_KEY = "goaway_packlist";
 const PACK_ITEMS = [
   "Paspoort of ID",
   "Tickets / boardingpass",
-  "UK-stekker (type G) (reeds door Erik besteld, ook voor Benno — Bachmann 921.010 Reisstekker)",
+  "iPad of e-reader, met gedownload materiaal (geen wifi aan boord)",
+  "UK-stekker (type G) (reeds 4 stuks besteld door Erik, ook 2 voor Benno — Bachmann 921.010 Reisstekker)",
   "Zwembroek + rashguard",
   "Zonnebrand",
   "Comfortabele schoenen",
@@ -21,8 +22,8 @@ const PACK_ITEMS = [
 
 const LINKS = [
   { label: "112 Nood", href: "tel:112", primary: true },
-  { label: `Hotel receptie ${HOTEL.phone}`, href: HOTEL.phoneHref },
-  { label: `Reserveringen ${HOTEL.reservationsPhone}`, href: HOTEL.reservationsPhoneHref },
+  { label: "Hotel receptie", href: HOTEL.phoneHref },
+  { label: "Reserveringen", href: HOTEL.reservationsPhoneHref },
   { label: "Mail hotel", href: `mailto:${HOTEL.email}` },
   {
     label: "Uber",

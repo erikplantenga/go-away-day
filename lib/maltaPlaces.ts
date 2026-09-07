@@ -5,6 +5,7 @@ export type PlaceInfo = {
   title: string;
   subtitle?: string;
   image?: string;
+  video?: string;
   body: string[];
   tips?: string[];
   links: PlaceLink[];
@@ -131,6 +132,8 @@ export const PLACE_INFO: Record<string, PlaceInfo> = {
   defected: {
     id: "defected",
     image: "/images/places/st-elmo.jpg",
+    video:
+      "https://www.dropbox.com/scl/fi/l9ma7oiajdz9w0yla1nvx/Defected-Malta-Recap-4x5.mp4?rlkey=hkaq7pn08oo7u6vnodsges2km&dl=0&raw=1",
     title: "Defected Malta",
     subtitle: "1–5 oktober 2026 · housefestival",
     body: [

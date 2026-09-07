@@ -3,6 +3,46 @@
 import { useEffect, useState } from "react";
 import { MALTA_CAMS, camEmbedSrc, camThumb, type MaltaCam } from "@/lib/maltaCams";
 
+function CamFrame({
+  cam,
+  large = false,
+}: {
+  cam: MaltaCam;
+  large?: boolean;
+}) {
+  const [live, setLive] = useState(false);
+
+  return (
+    <div className={`relative overflow-hidden bg-black ${large ? "aspect-video w-full rounded-xl" : "aspect-video"}`}>
+      {/* eslint-disable-next-line @next/next/no-img-element */}
+      <img
+        src={camThumb(cam)}
+        alt=""
+        className={`absolute inset-0 z-[1] h-full w-full object-cover transition-opacity duration-500 ${
+          live ? "opacity-0" : "opacity-100"
+        }`}
+      />
+      <iframe
+        src={camEmbedSrc(cam, large)}
+        title={cam.title}
+        allow="accelerometer; autoplay; clipboard-write; encrypted-media; gyroscope; picture-in-picture; web-share"
+        referrerPolicy="strict-origin-when-cross-origin"
+        allowFullScreen={large}
+        tabIndex={large ? 0 : -1}
+        onLoad={() => {
+          window.setTimeout(() => setLive(true), 2200);
+        }}
+        className={`border-0 transition-opacity duration-500 ${
+          large
+            ? "absolute inset-0 h-full w-full"
+            : "pointer-events-none absolute left-1/2 top-1/2 max-w-none -translate-x-1/2 -translate-y-1/2 brightness-125 contrast-[1.05] [color-scheme:light]"
+        } ${live ? "opacity-100" : "opacity-0"}`}
+        style={large ? undefined : { width: "170%", height: "170%" }}
+      />
+    </div>
+  );
+}
+
 export function LiveCams() {
   const [full, setFull] = useState<MaltaCam | null>(null);
 
@@ -28,32 +68,21 @@ export function LiveCams() {
           Live
         </span>
       </div>
-      <div className="grid grid-cols-3 gap-1.5">
+      <div className="-mx-0.5 flex snap-x snap-mandatory gap-2 overflow-x-auto px-0.5 pb-1 [scrollbar-width:none] [&::-webkit-scrollbar]:hidden">
         {MALTA_CAMS.map((cam) => (
-          <div key={cam.id} className="min-w-0">
-            <div className="relative overflow-hidden rounded-lg bg-black">
-              <div className="relative aspect-video">
-                {/* eslint-disable-next-line @next/next/no-img-element */}
-                <img
-                  src={camThumb(cam)}
-                  alt=""
-                  className="absolute inset-0 h-full w-full object-cover"
-                />
-                <iframe
-                  src={camEmbedSrc(cam)}
-                  title={cam.title}
-                  allow="accelerometer; autoplay; clipboard-write; encrypted-media; gyroscope; picture-in-picture; web-share"
-                  referrerPolicy="strict-origin-when-cross-origin"
-                  allowFullScreen
-                  className="absolute inset-0 h-full w-full"
-                />
-                <button
-                  type="button"
-                  onClick={() => setFull(cam)}
-                  className="absolute inset-0"
-                  aria-label={`${cam.title} groter`}
-                />
-              </div>
+          <div key={cam.id} className="w-[82%] shrink-0 snap-center">
+            <div className="relative overflow-hidden rounded-lg">
+              {!full && <CamFrame cam={cam} />}
+              {full && (
+                // eslint-disable-next-line @next/next/no-img-element
+                <img src={camThumb(cam)} alt="" className="aspect-video w-full object-cover" />
+              )}
+              <button
+                type="button"
+                onClick={() => setFull(cam)}
+                className="absolute inset-0 z-10"
+                aria-label={`${cam.title} groter`}
+              />
             </div>
             <p className="mt-1 truncate text-[11px] font-semibold leading-tight">{cam.title}</p>
             <p className="truncate text-[10px] text-white/60">{cam.place}</p>
@@ -79,15 +108,7 @@ export function LiveCams() {
             </button>
           </div>
           <div className="flex min-h-0 flex-1 items-center px-2 pb-[env(safe-area-inset-bottom)]">
-            <div className="relative aspect-video w-full overflow-hidden rounded-xl bg-black">
-              <iframe
-                src={camEmbedSrc(full, true)}
-                title={full.title}
-                allow="accelerometer; autoplay; clipboard-write; encrypted-media; gyroscope; picture-in-picture; web-share"
-                allowFullScreen
-                className="absolute inset-0 h-full w-full"
-              />
-            </div>
+            <CamFrame cam={full} large />
           </div>
         </div>
       )}

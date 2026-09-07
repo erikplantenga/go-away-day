@@ -31,7 +31,7 @@ export const MALTA_CAMS: MaltaCam[] = [
 ];
 
 export function camThumb(cam: MaltaCam) {
-  return `https://i.ytimg.com/vi/${cam.videoId}/hqdefault.jpg`;
+  return `https://i.ytimg.com/vi/${cam.videoId}/hq720.jpg`;
 }
 
 export function camEmbedSrc(cam: MaltaCam, large = false) {
@@ -42,6 +42,8 @@ export function camEmbedSrc(cam: MaltaCam, large = false) {
     rel: "0",
     modestbranding: "1",
     controls: large ? "1" : "0",
+    iv_load_policy: "3",
+    fs: large ? "1" : "0",
   });
   return `https://www.youtube.com/embed/${cam.videoId}?${params}`;
 }

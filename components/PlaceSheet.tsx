@@ -1,8 +1,47 @@
 "use client";
 
-import { useEffect } from "react";
+import { useEffect, useLayoutEffect, useRef } from "react";
 import { ExternalLink } from "@/components/ExternalLink";
 import type { PlaceInfo } from "@/lib/maltaPlaces";
+
+function PlaceVideo({ src, poster, title }: { src: string; poster?: string; title: string }) {
+  const ref = useRef<HTMLVideoElement>(null);
+
+  useLayoutEffect(() => {
+    const el = ref.current;
+    if (!el) return;
+    el.muted = false;
+    el.volume = 1;
+    const tryPlay = () => {
+      el.muted = false;
+      void el.play().catch(() => {});
+    };
+    tryPlay();
+    el.addEventListener("canplay", tryPlay);
+    el.addEventListener("loadeddata", tryPlay);
+    return () => {
+      el.removeEventListener("canplay", tryPlay);
+      el.removeEventListener("loadeddata", tryPlay);
+    };
+  }, [src]);
+
+  return (
+    <div className="relative mt-4 overflow-hidden rounded-2xl bg-black">
+      <video
+        ref={ref}
+        src={src}
+        poster={poster}
+        autoPlay
+        playsInline
+        controls
+        loop
+        preload="auto"
+        className="w-full"
+        aria-label={title}
+      />
+    </div>
+  );
+}
 
 export function PlaceSheet({
   place,
@@ -43,11 +82,15 @@ export function PlaceSheet({
           <p className="text-xs font-semibold uppercase tracking-wider text-[#c9a227]">{place.subtitle}</p>
         )}
         <h2 className="mt-1 text-2xl font-bold">{place.title}</h2>
-        {place.image && (
-          <div className="relative mt-4 aspect-[16/10] overflow-hidden rounded-2xl bg-black/30">
-            {/* eslint-disable-next-line @next/next/no-img-element */}
-            <img src={place.image} alt={place.title} className="h-full w-full object-cover" />
-          </div>
+        {place.video ? (
+          <PlaceVideo src={place.video} poster={place.image} title={place.title} />
+        ) : (
+          place.image && (
+            <div className="relative mt-4 aspect-[16/10] overflow-hidden rounded-2xl bg-black/30">
+              {/* eslint-disable-next-line @next/next/no-img-element */}
+              <img src={place.image} alt={place.title} className="h-full w-full object-cover" />
+            </div>
+          )
         )}
         <div className="mt-4 space-y-3 text-[15px] leading-relaxed text-white/85">
           {place.body.map((p) => (
