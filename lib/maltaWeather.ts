@@ -30,6 +30,10 @@ export const ESTIMATED_WEATHER: DayWeather[] = [
 
 export const SEA_TEMP_ESTIMATE = 24;
 
+/** Sliema / Carlton Hotel — opent de iPhone Weer-app via Apple universal link. */
+export const WEATHER_APP_URL =
+  "https://weather.apple.com/?lat=35.9126&long=14.5020";
+
 export function daysUntilDeparture(now = new Date()): number {
   const depart = new Date(`${DEPARTURE_DATE}T00:00:00+02:00`);
   const today = new Date(now);

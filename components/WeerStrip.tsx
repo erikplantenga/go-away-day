@@ -1,7 +1,9 @@
 "use client";
 
+import { ExternalLink } from "@/components/ExternalLink";
 import {
   SEA_TEMP_ESTIMATE,
+  WEATHER_APP_URL,
   daysUntilDeparture,
   type DayWeather,
 } from "@/lib/maltaWeather";
@@ -58,6 +60,14 @@ export function WeerStrip({ days, compact = false }: { days: DayWeather[]; compa
           </div>
         ))}
       </div>
+      <ExternalLink
+        href={WEATHER_APP_URL}
+        className={`mt-3 rounded-xl px-4 text-sm font-semibold ${
+          compact ? "bg-white/10 text-white" : "bg-foreground/10 text-foreground"
+        }`}
+      >
+        Open Weer-app
+      </ExternalLink>
       <p className={`mt-2 text-xs ${compact ? "text-white/50" : "text-foreground/50"}`}>
         Zeewater ±{SEA_TEMP_ESTIMATE}° · regen {Math.min(...days.map((d) => d.rainChance))}–
         {Math.max(...days.map((d) => d.rainChance))}%
