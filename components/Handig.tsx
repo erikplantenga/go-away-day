@@ -9,7 +9,7 @@ const PACK_KEY = "goaway_packlist";
 const PACK_ITEMS = [
   "Paspoort of ID",
   "Tickets / boardingpass",
-  "UK-stekker (type G)",
+  "UK-stekker (type G) (reeds door Erik besteld, ook voor Benno — Bachmann 921.010 Reisstekker)",
   "Zwembroek + rashguard",
   "Zonnebrand",
   "Comfortabele schoenen",
