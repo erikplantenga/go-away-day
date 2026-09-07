@@ -2,15 +2,15 @@
 
 import Image from "next/image";
 import { useEffect, useState, type ReactNode } from "react";
+import { Handig } from "@/components/Handig";
 import { LiveCams } from "@/components/LiveCams";
 import { WeerStrip } from "@/components/WeerStrip";
 import { PlaceSheet } from "@/components/PlaceSheet";
 import { ESTIMATED_WEATHER, fetchTripWeather, weatherForDate, type DayWeather } from "@/lib/maltaWeather";
-import { placeForItem, type PlaceInfo } from "@/lib/maltaPlaces";
-import { MALTA_CAMS_INDEX } from "@/lib/maltaCams";
+import { PLACE_INFO, placeForItem, type PlaceInfo } from "@/lib/maltaPlaces";
 import { FLIGHTS, HOTEL, MALTA_DAYS, PASSENGERS, type Flight } from "@/lib/maltaTrip";
 
-type SectionId = "planning" | "vluchten" | "hotel" | "weer" | "cams" | "dagen";
+type SectionId = "planning" | "vluchten" | "hotel" | "weer" | "dagen" | "handig";
 
 export function MaltaTrip() {
   const [open, setOpen] = useState<SectionId | null>(null);
@@ -33,18 +33,7 @@ export function MaltaTrip() {
 
   return (
     <div className="space-y-2">
-      <a
-        href={MALTA_CAMS_INDEX}
-        target="_blank"
-        rel="noreferrer"
-        className="flex min-h-12 items-center justify-between rounded-2xl bg-red-600 px-4 py-3 text-white"
-      >
-        <span>
-          <span className="block text-base font-semibold">Live cam</span>
-          <span className="block text-sm text-white/80">Direct naar Malta livestreams</span>
-        </span>
-        <span className="text-sm font-semibold">Open →</span>
-      </a>
+      <LiveCams />
 
       <Accordion
         open={open === "planning"}
@@ -85,25 +74,23 @@ export function MaltaTrip() {
       </Accordion>
 
       <Accordion
-        open={open === "cams"}
-        onToggle={() => toggle("cams")}
-        title="Live cams"
-        hint="Sliema · Valletta · zee"
-      >
-        <div className="pb-3">
-          <LiveCams compact />
-        </div>
-      </Accordion>
-
-      <Accordion
         open={open === "dagen"}
         onToggle={() => toggle("dagen")}
         title="Dagplanning"
-        hint="5 dagen"
+        hint="5 dagen · tik een plek"
       >
         <div className="px-1 pb-2">
           <Dagplanning weather={weather} />
         </div>
+      </Accordion>
+
+      <Accordion
+        open={open === "handig"}
+        onToggle={() => toggle("handig")}
+        title="Handig"
+        hint="Paklijst · 112 · ferry"
+      >
+        <Handig />
       </Accordion>
     </div>
   );
@@ -227,12 +214,40 @@ function PlanningBody() {
 
 function VluchtenBody() {
   const [ticket, setTicket] = useState<string | null>(null);
+  const [plane, setPlane] = useState(false);
 
   return (
     <div className="space-y-3 pb-3">
-      <FlightCard flight={FLIGHTS.outbound} onOpenTicket={setTicket} />
-      <FlightCard flight={FLIGHTS.inbound} onOpenTicket={setTicket} />
+      {plane && <PlaceSheet place={PLACE_INFO.vliegtuig} onBack={() => setPlane(false)} />}
+      <FlightCard flight={FLIGHTS.outbound} onOpenTicket={setTicket} onOpenPlane={() => setPlane(true)} />
+      <FlightCard flight={FLIGHTS.inbound} onOpenTicket={setTicket} onOpenPlane={() => setPlane(true)} />
       <p className="px-1 text-sm text-white/60">Passagiers: {PASSENGERS.join(" · ")}</p>
+      <div className="space-y-2 px-1">
+        <a
+          href="https://www.kmmaltaairlines.com"
+          target="_blank"
+          rel="noreferrer"
+          className="flex min-h-11 items-center justify-center rounded-xl bg-white px-4 text-sm font-semibold text-[#0b1f3a]"
+        >
+          KM Malta Airlines
+        </a>
+        <a
+          href="https://www.schiphol.nl"
+          target="_blank"
+          rel="noreferrer"
+          className="flex min-h-11 items-center justify-center rounded-xl bg-white/10 px-4 text-sm font-semibold text-white"
+        >
+          Schiphol
+        </a>
+        <a
+          href="https://www.maltairport.com"
+          target="_blank"
+          rel="noreferrer"
+          className="flex min-h-11 items-center justify-center rounded-xl bg-white/10 px-4 text-sm font-semibold text-white"
+        >
+          Malta Airport
+        </a>
+      </div>
       {ticket && (
         <div className="fixed inset-0 z-[90] flex flex-col bg-black" role="dialog" aria-modal="true">
           <div
@@ -261,9 +276,11 @@ function VluchtenBody() {
 function FlightCard({
   flight,
   onOpenTicket,
+  onOpenPlane,
 }: {
   flight: Flight;
   onOpenTicket: (src: string) => void;
+  onOpenPlane: () => void;
 }) {
   return (
     <div className="rounded-xl bg-white/5 p-4">
@@ -275,6 +292,13 @@ function FlightCard({
       <p className="text-xs text-white/50">
         {flight.airline} · {flight.duration}
       </p>
+      <button
+        type="button"
+        onClick={onOpenPlane}
+        className="mt-2 text-left text-sm font-semibold text-[#c9a227] underline underline-offset-2"
+      >
+        {flight.aircraft} →
+      </button>
       {flight.transfer && <p className="mt-2 text-sm text-white/80">{flight.transfer}</p>}
       <div className="mt-3 flex items-end justify-between gap-3">
         <div>
@@ -304,6 +328,9 @@ function FlightCard({
 }
 
 function HotelBody() {
+  const [confirm, setConfirm] = useState(false);
+  useLockBody(confirm);
+
   return (
     <div className="rounded-xl bg-white/5 p-4 pb-4">
       <p className="text-xs font-semibold uppercase tracking-wider text-[#c9a227]">Check-in zaterdag</p>
@@ -311,25 +338,59 @@ function HotelBody() {
         {HOTEL.name}, {HOTEL.place}
       </h3>
       <p className="mt-3 text-sm leading-relaxed text-white/80">{HOTEL.about}</p>
+      <p className="mt-3 text-sm text-white/85">
+        {HOTEL.rooms} · {HOTEL.total} totaal · {HOTEL.rest}
+      </p>
       <a href={HOTEL.maps} className="mt-4 block text-sm font-medium text-white underline">
         {HOTEL.address}
       </a>
       <a href={HOTEL.phoneHref} className="mt-2 block text-sm font-medium text-white underline">
-        {HOTEL.phone}
+        Receptie {HOTEL.phone}
+      </a>
+      <a href={HOTEL.reservationsPhoneHref} className="mt-1 block text-sm font-medium text-white underline">
+        Reserveringen {HOTEL.reservationsPhone}
       </a>
       <ul className="mt-4 space-y-1.5 text-sm text-white/80">
         {HOTEL.extras.map((item) => (
           <li key={item}>{item}</li>
         ))}
       </ul>
+      <button
+        type="button"
+        onClick={() => setConfirm(true)}
+        className="mt-5 flex min-h-11 w-full items-center justify-center rounded-xl bg-white px-4 text-sm font-semibold text-[#0b1f3a]"
+      >
+        Bevestiging bekijken
+      </button>
       <a
         href={HOTEL.website}
         target="_blank"
         rel="noreferrer"
-        className="mt-5 mb-1 flex min-h-11 items-center justify-center rounded-xl bg-white px-4 text-sm font-semibold text-[#0b1f3a]"
+        className="mt-2 mb-1 flex min-h-11 items-center justify-center rounded-xl bg-white/10 px-4 text-sm font-semibold text-white"
       >
         Website openen
       </a>
+      {confirm && (
+        <div className="fixed inset-0 z-[90] flex flex-col bg-black" role="dialog" aria-modal="true">
+          <div
+            className="flex shrink-0 items-center justify-end px-3"
+            style={{ paddingTop: "max(0.75rem, env(safe-area-inset-top))" }}
+          >
+            <button
+              type="button"
+              onClick={() => setConfirm(false)}
+              className="inline-tap flex h-11 w-11 items-center justify-center rounded-full bg-white/15 text-2xl leading-none text-white"
+              aria-label="Sluiten"
+            >
+              ×
+            </button>
+          </div>
+          <div className="flex flex-1 items-center justify-center px-2 pb-[env(safe-area-inset-bottom)]">
+            {/* eslint-disable-next-line @next/next/no-img-element */}
+            <img src={HOTEL.confirmation} alt="Hotelbevestiging Carlton" className="max-h-full w-full object-contain" />
+          </div>
+        </div>
+      )}
     </div>
   );
 }
@@ -337,6 +398,13 @@ function HotelBody() {
 function Dagplanning({ weather }: { weather: DayWeather[] }) {
   const [openId, setOpenId] = useState<string | null>(null);
   const [place, setPlace] = useState<PlaceInfo | null>(null);
+  const [todayId, setTodayId] = useState<string | null>(null);
+
+  useEffect(() => {
+    const now = new Date();
+    const iso = `${now.getFullYear()}-${String(now.getMonth() + 1).padStart(2, "0")}-${String(now.getDate()).padStart(2, "0")}`;
+    setTodayId(MALTA_DAYS.find((d) => d.date === iso)?.id ?? null);
+  }, []);
 
   return (
     <div className="space-y-2 pb-2">
@@ -344,6 +412,7 @@ function Dagplanning({ weather }: { weather: DayWeather[] }) {
       {MALTA_DAYS.map((day) => {
         const open = openId === day.id;
         const w = weatherForDate(weather, day.date);
+        const isToday = todayId === day.id;
         return (
           <div key={day.id} className="overflow-hidden rounded-xl bg-white/5">
             <button
@@ -358,7 +427,14 @@ function Dagplanning({ weather }: { weather: DayWeather[] }) {
                 <span className="text-base font-bold leading-none">{day.dateLabel.split(" ")[0]}</span>
               </span>
               <span className="min-w-0 flex-1">
-                <span className="block text-sm font-semibold">{day.weekday}</span>
+                <span className="flex items-center gap-2">
+                  <span className="text-sm font-semibold">{day.weekday}</span>
+                  {isToday && (
+                    <span className="rounded-full bg-[#c9a227] px-2 py-0.5 text-[10px] font-bold uppercase text-[#0b1f3a]">
+                      Vandaag
+                    </span>
+                  )}
+                </span>
                 <span className="block truncate text-sm text-white/65">{day.title}</span>
                 {w && (
                   <span className="mt-0.5 block text-xs text-white/50">
@@ -393,6 +469,12 @@ function Dagplanning({ weather }: { weather: DayWeather[] }) {
                             <span className="mt-1 block text-xs font-medium text-[#c9a227]">Tik voor info →</span>
                           )}
                         </span>
+                        {info?.image && (
+                          <span className="relative h-12 w-16 shrink-0 overflow-hidden rounded-lg bg-black/30">
+                            {/* eslint-disable-next-line @next/next/no-img-element */}
+                            <img src={info.image} alt="" className="h-full w-full object-cover" />
+                          </span>
+                        )}
                       </>
                     );
                     return (

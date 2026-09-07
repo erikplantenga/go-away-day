@@ -27,6 +27,8 @@ export type Flight = {
   arrivePlace: string;
   checkInOpens: string;
   image: string;
+  aircraft: string;
+  aircraftHref: string;
   transfer?: string;
 };
 
@@ -39,8 +41,16 @@ export const HOTEL = {
   address: "261, Tower Road, Sliema, Malta",
   phone: "+356 2131 5765",
   phoneHref: "tel:+35621315765",
+  reservationsPhone: "+356 2298 9000",
+  reservationsPhoneHref: "tel:+35622989000",
+  email: "rooms@carltonhotelmalta.com",
   website: "https://www.carltonhotelmalta.com",
   maps: "https://maps.google.com/?q=Carlton+Hotel+261+Tower+Road+Sliema+Malta",
+  confirmation: "/images/hotel-bevestiging.png",
+  rooms: "2 eenpersoonskamers inclusief ontbijt",
+  total: "€760",
+  deposit: "€380",
+  rest: "€380 bij check-in",
   about:
     "Zeefront 3-sterrenhotel op de Tower Road-promenade. Links St. Julian’s, rechts Sliema, tegenover een zandstrand.",
   extras: [
@@ -66,6 +76,8 @@ export const FLIGHTS: { outbound: Flight; inbound: Flight } = {
     arrivePlace: "Malta",
     checkInOpens: "Check-in opent vr 2 okt, 11:50",
     image: "/images/heen-vlucht.png",
+    aircraft: "Airbus A320neo",
+    aircraftHref: "https://nl.wikipedia.org/wiki/Airbus_A320neo",
   },
   inbound: {
     label: "Terug",
@@ -81,6 +93,8 @@ export const FLIGHTS: { outbound: Flight; inbound: Flight } = {
     arrivePlace: "Schiphol",
     checkInOpens: "Check-in opent di 6 okt, 07:25",
     image: "/images/retour-vlucht.png",
+    aircraft: "Airbus A320neo",
+    aircraftHref: "https://nl.wikipedia.org/wiki/Airbus_A320neo",
     transfer: "05:00 transfer naar het vliegveld",
   },
 };

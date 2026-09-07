@@ -2,52 +2,50 @@ export type MaltaCam = {
   id: string;
   title: string;
   place: string;
-  dayHint: string;
-  snapshot: string;
-  page: string;
+  channelId: string;
+  videoId: string;
 };
-
-export const MALTA_CAMS_INDEX = "https://www.skylinewebcams.com/nl/webcam/malta/malta.html";
 
 export const MALTA_CAMS: MaltaCam[] = [
   {
-    id: "4455",
-    title: "Sliema Harbour",
-    place: "Sliema · hotel",
-    dayHint: "Za / di avond",
-    snapshot: "https://cdn.skylinewebcams.com/live4455.jpg",
-    page: "https://www.skylinewebcams.com/nl/webcam/malta/malta/valletta/sliema-harbour.html",
+    id: "harbour",
+    title: "Grand Harbour",
+    place: "Valletta · Birgu",
+    channelId: "UCOaftBNU_PWVFLkR2LY3LPg",
+    videoId: "3cVonNYbU14",
   },
   {
-    id: "142",
-    title: "Spinola Bay",
-    place: "St. Julian’s",
-    dayHint: "Di avond",
-    snapshot: "https://cdn.skylinewebcams.com/live142.jpg",
-    page: "https://www.skylinewebcams.com/nl/webcam/malta/malta/st-julians/spinola-bay.html",
+    id: "skyline",
+    title: "Malta skyline",
+    place: "Birds Eye View",
+    channelId: "UC_JDyw-vsFmwJ35tojTiFeA",
+    videoId: "lb3WryTZthg",
   },
   {
-    id: "4479",
-    title: "Valletta",
-    place: "Hoofdstad",
-    dayHint: "Ma",
-    snapshot: "https://cdn.skylinewebcams.com/live4479.jpg",
-    page: "https://www.skylinewebcams.com/nl/webcam/malta/malta/valletta/valletta.html",
-  },
-  {
-    id: "1007",
-    title: "Mellieħa",
-    place: "Noordkust",
-    dayHint: "Di ochtend",
-    snapshot: "https://cdn.skylinewebcams.com/live1007.jpg",
-    page: "https://www.skylinewebcams.com/nl/webcam/malta/malta/mellieha/mellieha-church.html",
-  },
-  {
-    id: "754",
-    title: "Paradise Bay",
-    place: "Ċirkewwa",
-    dayHint: "Di boot",
-    snapshot: "https://cdn.skylinewebcams.com/live754.jpg",
-    page: "https://www.skylinewebcams.com/nl/webcam/malta/malta/cirkewwa/paradise-bay.html",
+    id: "golden",
+    title: "Golden Bay",
+    place: "Mellieħa",
+    channelId: "UCswyCUg2EN1MIz0vDTzLqug",
+    videoId: "nUiLly2Lr3E",
   },
 ];
+
+export function camThumb(cam: MaltaCam) {
+  return `https://i.ytimg.com/vi/${cam.videoId}/hqdefault.jpg`;
+}
+
+export function camEmbedSrc(cam: MaltaCam, large = false) {
+  const params = new URLSearchParams({
+    autoplay: "1",
+    mute: "1",
+    playsinline: "1",
+    rel: "0",
+    modestbranding: "1",
+    controls: large ? "1" : "0",
+  });
+  return `https://www.youtube.com/embed/${cam.videoId}?${params}`;
+}
+
+export function camWatchUrl(cam: MaltaCam) {
+  return `https://www.youtube.com/watch?v=${cam.videoId}`;
+}

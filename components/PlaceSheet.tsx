@@ -42,6 +42,12 @@ export function PlaceSheet({
           <p className="text-xs font-semibold uppercase tracking-wider text-[#c9a227]">{place.subtitle}</p>
         )}
         <h2 className="mt-1 text-2xl font-bold">{place.title}</h2>
+        {place.image && (
+          <div className="relative mt-4 aspect-[16/10] overflow-hidden rounded-2xl bg-black/30">
+            {/* eslint-disable-next-line @next/next/no-img-element */}
+            <img src={place.image} alt={place.title} className="h-full w-full object-cover" />
+          </div>
+        )}
         <div className="mt-4 space-y-3 text-[15px] leading-relaxed text-white/85">
           {place.body.map((p) => (
             <p key={p}>{p}</p>
@@ -57,16 +63,21 @@ export function PlaceSheet({
             </ul>
           </div>
         )}
-        {place.link && (
-          <a
-            href={place.link.href}
-            target="_blank"
-            rel="noreferrer"
-            className="mt-5 flex min-h-11 items-center justify-center rounded-xl bg-white px-4 text-sm font-semibold text-[#0b1f3a]"
-          >
-            {place.link.label}
-          </a>
-        )}
+        <div className="mt-5 space-y-2">
+          {place.links.map((link, i) => (
+            <a
+              key={link.href}
+              href={link.href}
+              target="_blank"
+              rel="noreferrer"
+              className={`flex min-h-11 items-center justify-center rounded-xl px-4 text-sm font-semibold ${
+                i === 0 ? "bg-white text-[#0b1f3a]" : "bg-white/10 text-white"
+              }`}
+            >
+              {link.label}
+            </a>
+          ))}
+        </div>
       </div>
     </div>
   );
