@@ -83,7 +83,7 @@ export const PLACE_INFO: Record<string, PlaceInfo> = {
     ],
     tips: ["Comfortabele schoenen", "Lichte jas voor de haven"],
     links: [
-      { label: "Notte Bianca", href: "https://www.nottebianca.org.mt" },
+      { label: "Notte Bianca", href: "https://www.festivalfinder.eu/festivals/notte-bianca-5" },
       { label: "Valletta op Maps", href: "https://maps.google.com/?q=Valletta+Malta" },
       { label: "Ferry Sliema–Valletta", href: "https://www.vallettaferryservices.com" },
     ],
