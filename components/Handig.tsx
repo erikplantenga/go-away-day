@@ -96,6 +96,20 @@ export function Handig() {
           })}
         </ul>
       </div>
+      <div className="space-y-2">
+        <p className="px-1 text-xs font-semibold uppercase tracking-wider text-[#c9a227]">Kaarten</p>
+        <p className="px-1 text-sm leading-relaxed text-white/75">
+          Heritage Malta Multisite Pass: één kaart van zo’n €50, 30 dagen geldig. Daarmee hoef je St. Elmo, St.
+          Paul’s Catacombs en Domus Romana niet los te kopen. Lascaris, Fort Rinella, Malta at War Museum,
+          Defected en het stadion blijven apart.
+        </p>
+        <ExternalLink
+          href="https://heritagemalta.mt/store/c95/"
+          className="rounded-xl bg-white px-4 text-sm font-semibold text-[#0b1f3a]"
+        >
+          Heritage Malta-pas kopen
+        </ExternalLink>
+      </div>
       <div className="flex flex-col items-stretch space-y-2">
         <p className="px-1 text-xs font-semibold uppercase tracking-wider text-[#c9a227]">Bellen & openen</p>
         {LINKS.map((link) => (

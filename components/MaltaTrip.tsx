@@ -89,7 +89,7 @@ export function MaltaTrip() {
         open={open === "handig"}
         onToggle={() => toggle("handig")}
         title="Handig"
-        hint="Paklijst · 112 · ferry"
+        hint="Paklijst · kaarten · 112"
       >
         <Handig />
       </Accordion>
