@@ -88,13 +88,13 @@ export function Handig() {
           })}
         </ul>
       </div>
-      <div className="space-y-2">
+      <div className="flex flex-col items-stretch space-y-2">
         <p className="px-1 text-xs font-semibold uppercase tracking-wider text-[#c9a227]">Bellen & openen</p>
         {LINKS.map((link) => (
           <ExternalLink
             key={link.href}
             href={link.href}
-            className={`flex min-h-11 items-center justify-center rounded-xl px-4 text-sm font-semibold ${
+            className={`rounded-xl px-4 text-sm font-semibold ${
               link.primary ? "bg-red-600 text-white" : "bg-white/10 text-white"
             }`}
           >

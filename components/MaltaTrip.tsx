@@ -223,22 +223,22 @@ function VluchtenBody() {
       <FlightCard flight={FLIGHTS.outbound} onOpenTicket={setTicket} onOpenPlane={() => setPlane(true)} />
       <FlightCard flight={FLIGHTS.inbound} onOpenTicket={setTicket} onOpenPlane={() => setPlane(true)} />
       <p className="px-1 text-sm text-white/60">Passagiers: {PASSENGERS.join(" · ")}</p>
-      <div className="space-y-2 px-1">
+      <div className="flex flex-col items-stretch space-y-2 px-1">
         <ExternalLink
           href="https://www.kmmaltaairlines.com"
-          className="flex min-h-11 items-center justify-center rounded-xl bg-white px-4 text-sm font-semibold text-[#0b1f3a]"
+          className="rounded-xl bg-white px-4 text-sm font-semibold text-[#0b1f3a]"
         >
           KM Malta Airlines
         </ExternalLink>
         <ExternalLink
           href="https://www.schiphol.nl"
-          className="flex min-h-11 items-center justify-center rounded-xl bg-white/10 px-4 text-sm font-semibold text-white"
+          className="rounded-xl bg-white/10 px-4 text-sm font-semibold text-white"
         >
           Schiphol
         </ExternalLink>
         <ExternalLink
           href="https://www.maltairport.com"
-          className="flex min-h-11 items-center justify-center rounded-xl bg-white/10 px-4 text-sm font-semibold text-white"
+          className="rounded-xl bg-white/10 px-4 text-sm font-semibold text-white"
         >
           Malta Airport
         </ExternalLink>
@@ -359,7 +359,7 @@ function HotelBody() {
       </button>
       <ExternalLink
         href={HOTEL.website}
-        className="mt-2 mb-1 flex min-h-11 items-center justify-center rounded-xl bg-white/10 px-4 text-sm font-semibold text-white"
+        className="mt-2 mb-1 rounded-xl bg-white/10 px-4 text-sm font-semibold text-white"
       >
         Website openen
       </ExternalLink>

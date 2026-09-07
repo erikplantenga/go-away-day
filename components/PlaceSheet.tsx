@@ -69,7 +69,7 @@ export function PlaceSheet({
             <ExternalLink
               key={link.href}
               href={link.href}
-              className={`flex min-h-11 items-center justify-center rounded-xl px-4 text-sm font-semibold ${
+              className={`rounded-xl px-4 text-sm font-semibold ${
                 i === 0 ? "bg-white text-[#0b1f3a]" : "bg-white/10 text-white"
               }`}
             >

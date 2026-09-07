@@ -29,10 +29,12 @@ export function ExternalLink({
 }) {
   const [open, setOpen] = useState(false);
   const needsWarn = isHttp(href);
+  const left = className?.includes("text-left");
+  const box = `flex w-full items-center ${left ? "justify-start text-left" : "min-h-11 justify-center text-center"} ${className ?? ""}`;
 
   if (!needsWarn) {
     return (
-      <a href={href} className={className}>
+      <a href={href} className={box}>
         {children}
       </a>
     );
@@ -42,7 +44,7 @@ export function ExternalLink({
 
   return (
     <>
-      <button type="button" onClick={() => setOpen(true)} className={className}>
+      <button type="button" onClick={() => setOpen(true)} className={box}>
         {children}
       </button>
       {open && (
