@@ -11,7 +11,7 @@ import { ESTIMATED_WEATHER, fetchTripWeather, weatherForDate, type DayWeather } 
 import { PLACE_INFO, placeForItem, type PlaceInfo } from "@/lib/maltaPlaces";
 import { FLIGHTS, HOTEL, MALTA_DAYS, PASSENGERS, type Flight } from "@/lib/maltaTrip";
 
-type SectionId = "planning" | "vluchten" | "hotel" | "weer" | "handig";
+type SectionId = "planning" | "dagen" | "vluchten" | "hotel" | "weer" | "handig";
 
 export function MaltaTrip() {
   const [open, setOpen] = useState<SectionId | null>(null);
@@ -40,9 +40,17 @@ export function MaltaTrip() {
         open={open === "planning"}
         onToggle={() => toggle("planning")}
         title="Weekoverzicht"
-        hint="5 dagen · tik een plek"
+        hint="3–7 oktober"
       >
         <PlanningBody />
+      </Accordion>
+
+      <Accordion
+        open={open === "dagen"}
+        onToggle={() => toggle("dagen")}
+        title="Dagplanning"
+        hint="5 dagen"
+      >
         <div className="px-1 pb-2">
           <Dagplanning weather={weather} />
         </div>
