@@ -22,13 +22,7 @@ const PACK_ITEMS = [
 
 const LOST_TEXT = encodeURIComponent("Ik ben je kwijt. Waar ben jij?");
 
-const LINKS: { label: string; href: string; tone?: "emergency" | "whatsapp" }[] = [
-  { label: "112 Nood", href: "tel:112", tone: "emergency" },
-  {
-    label: "Voor als we elkaar kwijt zijn",
-    href: `whatsapp://send?text=${LOST_TEXT}`,
-    tone: "whatsapp",
-  },
+const LINKS = [
   { label: "Hotel receptie", href: HOTEL.phoneHref },
   { label: "Reserveringen", href: HOTEL.reservationsPhoneHref },
   { label: "Mail hotel", href: `mailto:${HOTEL.email}` },
@@ -112,17 +106,24 @@ export function Handig() {
       </div>
       <div className="flex flex-col items-stretch space-y-2">
         <p className="px-1 text-xs font-semibold uppercase tracking-wider text-[#c9a227]">Bellen & openen</p>
+        <ExternalLink
+          href="tel:112"
+          className="rounded-xl bg-red-600 px-4 text-sm font-semibold text-white"
+        >
+          112 Nood
+        </ExternalLink>
+        <a
+          href={`https://wa.me/?text=${LOST_TEXT}`}
+          className="flex min-h-11 w-full flex-col items-center justify-center rounded-xl bg-[#25D366] px-4 py-2 text-center text-[#0b1f3a]"
+        >
+          <span className="text-sm font-semibold">Voor als we elkaar kwijt zijn</span>
+          <span className="text-xs font-medium opacity-80">Open WhatsApp</span>
+        </a>
         {LINKS.map((link) => (
           <ExternalLink
             key={link.href}
             href={link.href}
-            className={`rounded-xl px-4 text-sm font-semibold ${
-              link.tone === "emergency"
-                ? "bg-red-600 text-white"
-                : link.tone === "whatsapp"
-                  ? "bg-[#25D366] text-[#0b1f3a]"
-                  : "bg-white/10 text-white"
-            }`}
+            className="rounded-xl bg-white/10 px-4 text-sm font-semibold text-white"
           >
             {link.label}
           </ExternalLink>
