@@ -68,9 +68,9 @@ export function LiveCams() {
           Live
         </span>
       </div>
-      <div className="-mx-0.5 flex snap-x snap-mandatory gap-2 overflow-x-auto px-0.5 pb-1 [scrollbar-width:none] [&::-webkit-scrollbar]:hidden">
+      <div className="grid grid-cols-3 gap-1.5">
         {MALTA_CAMS.map((cam) => (
-          <div key={cam.id} className="w-[82%] shrink-0 snap-center">
+          <div key={cam.id} className="min-w-0">
             <div className="relative overflow-hidden rounded-lg">
               {!full && <CamFrame cam={cam} />}
               {full && (
