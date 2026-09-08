@@ -12,7 +12,7 @@ export const MALTA_CAMS: MaltaCam[] = [
     title: "Grand Harbour",
     place: "Valletta · Birgu",
     channelId: "UCOaftBNU_PWVFLkR2LY3LPg",
-    videoId: "3cVonNYbU14",
+    videoId: "fo4AwBLoCgo",
   },
   {
     id: "skyline",
@@ -30,12 +30,14 @@ export const MALTA_CAMS: MaltaCam[] = [
   },
 ];
 
-export function camThumb(cam: MaltaCam) {
-  return `https://i.ytimg.com/vi/${cam.videoId}/hq720.jpg`;
+export function camThumb(cam: MaltaCam, bust = 0) {
+  const base = `https://i.ytimg.com/vi/${cam.videoId}/hq720.jpg`;
+  return bust ? `${base}?v=${bust}` : base;
 }
 
 export function camEmbedSrc(cam: MaltaCam, large = false) {
   const params = new URLSearchParams({
+    channel: cam.channelId,
     autoplay: "1",
     mute: "1",
     playsinline: "1",
@@ -44,8 +46,10 @@ export function camEmbedSrc(cam: MaltaCam, large = false) {
     controls: large ? "1" : "0",
     iv_load_policy: "3",
     fs: large ? "1" : "0",
+    enablejsapi: "1",
   });
-  return `https://www.youtube.com/embed/${cam.videoId}?${params}`;
+  // Channel live_stream stays current when YouTube rotates the video id.
+  return `https://www.youtube.com/embed/live_stream?${params}`;
 }
 
 export function camWatchUrl(cam: MaltaCam) {

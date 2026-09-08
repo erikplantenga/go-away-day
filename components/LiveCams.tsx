@@ -1,7 +1,17 @@
 "use client";
 
-import { useEffect, useState } from "react";
+import { useEffect, useRef, useState } from "react";
 import { MALTA_CAMS, camEmbedSrc, camThumb, type MaltaCam } from "@/lib/maltaCams";
+
+function isYouTubePlaying(data: unknown) {
+  if (!data || typeof data !== "object") return false;
+  const msg = data as { event?: string; info?: unknown };
+  if (msg.event === "onStateChange" && msg.info === 1) return true;
+  if (msg.info && typeof msg.info === "object" && "playerState" in msg.info) {
+    return (msg.info as { playerState?: number }).playerState === 1;
+  }
+  return false;
+}
 
 function CamFrame({
   cam,
@@ -10,19 +20,46 @@ function CamFrame({
   cam: MaltaCam;
   large?: boolean;
 }) {
+  const iframeRef = useRef<HTMLIFrameElement>(null);
   const [live, setLive] = useState(false);
+  const [tick, setTick] = useState(0);
+
+  useEffect(() => {
+    if (large) return;
+    const id = window.setInterval(() => setTick((n) => n + 1), 25_000);
+    return () => window.clearInterval(id);
+  }, [large]);
+
+  useEffect(() => {
+    const onMsg = (e: MessageEvent) => {
+      if (e.origin !== "https://www.youtube.com") return;
+      if (e.source !== iframeRef.current?.contentWindow) return;
+      let payload: unknown = e.data;
+      if (typeof payload === "string") {
+        try {
+          payload = JSON.parse(payload);
+        } catch {
+          return;
+        }
+      }
+      if (isYouTubePlaying(payload)) setLive(true);
+    };
+    window.addEventListener("message", onMsg);
+    return () => window.removeEventListener("message", onMsg);
+  }, []);
 
   return (
     <div className={`relative overflow-hidden bg-black ${large ? "aspect-video w-full rounded-xl" : "aspect-video"}`}>
       {/* eslint-disable-next-line @next/next/no-img-element */}
       <img
-        src={camThumb(cam)}
+        src={camThumb(cam, tick)}
         alt=""
         className={`absolute inset-0 z-[1] h-full w-full object-cover transition-opacity duration-500 ${
-          live ? "opacity-0" : "opacity-100"
+          live ? "opacity-0 pointer-events-none" : "opacity-100"
         }`}
       />
       <iframe
+        ref={iframeRef}
         src={camEmbedSrc(cam, large)}
         title={cam.title}
         allow="accelerometer; autoplay; clipboard-write; encrypted-media; gyroscope; picture-in-picture; web-share"
@@ -30,14 +67,17 @@ function CamFrame({
         allowFullScreen={large}
         tabIndex={large ? 0 : -1}
         onLoad={() => {
-          window.setTimeout(() => setLive(true), 2200);
+          iframeRef.current?.contentWindow?.postMessage(
+            JSON.stringify({ event: "listening", id: cam.id }),
+            "https://www.youtube.com",
+          );
         }}
-        className={`border-0 transition-opacity duration-500 ${
+        className={`border-0 ${
           large
             ? "absolute inset-0 h-full w-full"
-            : "pointer-events-none absolute left-1/2 top-1/2 max-w-none -translate-x-1/2 -translate-y-1/2 brightness-125 contrast-[1.05] [color-scheme:light]"
+            : "pointer-events-none absolute left-1/2 top-1/2 max-w-none -translate-x-1/2 -translate-y-1/2"
         } ${live ? "opacity-100" : "opacity-0"}`}
-        style={large ? undefined : { width: "170%", height: "170%" }}
+        style={large ? undefined : { width: 400, height: 225 }}
       />
     </div>
   );
