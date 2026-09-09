@@ -447,10 +447,10 @@ function Dagplanning({ weather }: { weather: DayWeather[] }) {
                     </li>
                   )}
                   {day.items.map((item, i) => {
-                    const info = placeForItem(item.text);
+                    const info = placeForItem(item);
                     const inner = (
                       <>
-                        <span className="w-20 shrink-0 pt-0.5 text-xs font-semibold uppercase tracking-wide text-[#c9a227]">
+                        <span className="w-[4.5rem] shrink-0 pt-0.5 text-xs font-semibold uppercase tracking-wide text-[#c9a227]">
                           {item.time}
                         </span>
                         <span className="min-w-0 flex-1">
@@ -470,18 +470,17 @@ function Dagplanning({ weather }: { weather: DayWeather[] }) {
                         )}
                       </>
                     );
+                    const rowClass = `flex w-full gap-3 rounded-lg py-1.5 text-left ${
+                      item.choice ? "bg-[#c9a227]/20 px-2 active:bg-[#c9a227]/30" : "active:bg-white/5"
+                    }`;
                     return (
                       <li key={i}>
                         {info ? (
-                          <button
-                            type="button"
-                            onClick={() => setPlace(info)}
-                            className="flex w-full gap-3 rounded-lg py-1 text-left active:bg-white/5"
-                          >
+                          <button type="button" onClick={() => setPlace(info)} className={rowClass}>
                             {inner}
                           </button>
                         ) : (
-                          <div className="flex gap-3">{inner}</div>
+                          <div className={rowClass}>{inner}</div>
                         )}
                       </li>
                     );

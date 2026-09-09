@@ -94,8 +94,8 @@ export function Handig() {
         <p className="px-1 text-xs font-semibold uppercase tracking-wider text-[#c9a227]">Kaarten</p>
         <p className="px-1 text-sm leading-relaxed text-white/75">
           Heritage Malta Multisite Pass: één kaart van zo’n €50, 30 dagen geldig. Daarmee hoef je St. Elmo, St.
-          Paul’s Catacombs en Domus Romana niet los te kopen. Lascaris, Fort Rinella, Malta at War Museum,
-          Defected en het stadion blijven apart.
+          Paul’s Catacombs en Domus Romana niet los te kopen. Lascaris, Malta at War Museum, Defected en het
+          stadion blijven apart.
         </p>
         <ExternalLink
           href="https://heritagemalta.mt/store/c95/"
