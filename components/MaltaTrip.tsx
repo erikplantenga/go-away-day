@@ -171,7 +171,7 @@ function PlanningBody() {
         className="relative mb-3 block w-full overflow-hidden rounded-xl bg-black/30 text-left"
         aria-label="Weekoverzicht beeldvullend"
       >
-        <div className="relative aspect-[4/3] w-full">
+        <div className="relative aspect-[3/4] w-full">
           <Image
             src="/images/malta-week.jpg"
             alt="Malta reisprogramma 3–7 oktober 2026"
@@ -391,7 +391,18 @@ function HotelBody() {
 function Dagplanning({ weather }: { weather: DayWeather[] }) {
   const [openId, setOpenId] = useState<string | null>(null);
   const [place, setPlace] = useState<PlaceInfo | null>(null);
+  const [extrasDay, setExtrasDay] = useState<(typeof MALTA_DAYS)[number] | null>(null);
   const [todayId, setTodayId] = useState<string | null>(null);
+  useLockBody(!!extrasDay);
+
+  useEffect(() => {
+    if (!extrasDay || place) return;
+    const onKey = (e: KeyboardEvent) => {
+      if (e.key === "Escape") setExtrasDay(null);
+    };
+    window.addEventListener("keydown", onKey);
+    return () => window.removeEventListener("keydown", onKey);
+  }, [extrasDay, place]);
 
   useEffect(() => {
     const now = new Date();
@@ -402,6 +413,59 @@ function Dagplanning({ weather }: { weather: DayWeather[] }) {
   return (
     <div className="space-y-2 pb-2">
       {place && <PlaceSheet place={place} onBack={() => setPlace(null)} />}
+      {extrasDay && !place && (
+        <div className="fixed inset-0 z-[90] flex flex-col bg-[#0b1f3a] text-white" role="dialog" aria-modal="true">
+          <div
+            className="flex shrink-0 items-center gap-2 px-3 pb-2"
+            style={{ paddingTop: "max(0.75rem, env(safe-area-inset-top))" }}
+          >
+            <button
+              type="button"
+              onClick={() => setExtrasDay(null)}
+              className="inline-tap flex min-h-11 items-center rounded-full bg-white/10 px-4 text-sm font-semibold"
+            >
+              ← Terug
+            </button>
+          </div>
+          <div className="min-h-0 flex-1 overflow-auto px-5 pb-[max(1.25rem,env(safe-area-inset-bottom))]">
+            <p className="text-xs font-semibold uppercase tracking-wider text-[#c9a227]">
+              {extrasDay.weekday} · {extrasDay.dateLabel}
+            </p>
+            <h2 className="mt-1 text-2xl font-bold">5 dingen die we missen</h2>
+            <p className="mt-2 text-sm text-white/70">
+              Niet in het uur-tot-uur. Tik een extra voor info, tickets en Maps.
+            </p>
+            <ul className="mt-4 space-y-2">
+              {extrasDay.extras?.map((item, i) => {
+                const info = placeForItem(item);
+                return (
+                  <li key={i}>
+                    <button
+                      type="button"
+                      onClick={() => info && setPlace(info)}
+                      className="flex w-full gap-3 rounded-xl bg-white/5 p-3 text-left active:bg-white/10"
+                    >
+                      <span className="min-w-0 flex-1">
+                        <span className="block text-sm font-medium">{item.text}</span>
+                        {item.note && <span className="mt-0.5 block text-sm text-white/65">{item.note}</span>}
+                        {info && (
+                          <span className="mt-1 block text-xs font-medium text-[#c9a227]">Tik voor info →</span>
+                        )}
+                      </span>
+                      {info?.image && (
+                        <span className="relative h-14 w-[4.5rem] shrink-0 overflow-hidden rounded-lg bg-black/30">
+                          {/* eslint-disable-next-line @next/next/no-img-element */}
+                          <img src={info.image} alt="" className="h-full w-full object-cover" />
+                        </span>
+                      )}
+                    </button>
+                  </li>
+                );
+              })}
+            </ul>
+          </div>
+        </div>
+      )}
       {MALTA_DAYS.map((day) => {
         const open = openId === day.id;
         const w = weatherForDate(weather, day.date);
@@ -485,6 +549,17 @@ function Dagplanning({ weather }: { weather: DayWeather[] }) {
                       </li>
                     );
                   })}
+                  {day.extras && day.extras.length > 0 && (
+                    <li>
+                      <button
+                        type="button"
+                        onClick={() => setExtrasDay(day)}
+                        className="flex min-h-11 w-full items-center justify-center rounded-xl bg-[#c9a227] px-3 text-sm font-semibold text-[#0b1f3a]"
+                      >
+                        5 dingen die we missen
+                      </button>
+                    </li>
+                  )}
                 </ul>
               </div>
             </div>
