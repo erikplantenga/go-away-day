@@ -45,16 +45,6 @@ export function HeroCarousel() {
           sizes="100vw"
         />
       ))}
-      <div
-        className={`pointer-events-none absolute inset-0 transition-opacity duration-700 ${
-          index === 0 ? "opacity-100" : "opacity-0"
-        }`}
-        style={{
-          boxShadow: "inset 0 0 80px 18px rgba(180, 8, 22, 0.55)",
-          background:
-            "radial-gradient(ellipse at center, transparent 42%, rgba(160, 8, 22, 0.35) 100%)",
-        }}
-      />
       <div className="absolute inset-x-0 bottom-0 bg-gradient-to-t from-black/80 via-black/40 to-transparent px-3 pb-3 pt-10">
         <p className="text-center text-[11px] font-semibold uppercase tracking-[0.18em] text-white/70">
           Tot we vliegen
