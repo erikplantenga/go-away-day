@@ -5,7 +5,7 @@ import { useEffect, useState } from "react";
 import { formatFlightCountdown, msUntilFlight } from "@/lib/countdown";
 
 const SLIDES = [
-  { src: "/images/go-away-day-hero.jpeg", alt: "Erik & Benno", position: "object-[center_15%]" },
+  { src: "/images/go-away-day-hero.jpeg", alt: "Erik & Benno, Malta–Andorra", position: "object-[center_40%]" },
   { src: "/images/malta-ww2-harbour.jpg", alt: "Grand Harbour, Malta in WO2", position: "object-center" },
   { src: "/images/malta-ww2-stelmo.jpg", alt: "Fort St. Elmo in WO2", position: "object-center" },
   { src: "/images/malta-ww2-warrooms.jpg", alt: "War Rooms Malta in WO2", position: "object-center" },
@@ -40,11 +40,21 @@ export function HeroCarousel() {
           fill
           priority={i === 0}
           className={`object-cover ${slide.position} transition-opacity duration-700 ${
-            i === 0 ? "grayscale contrast-110" : ""
-          } ${i === index ? "opacity-100" : "opacity-0"}`}
+            i === index ? "opacity-100" : "opacity-0"
+          }`}
           sizes="100vw"
         />
       ))}
+      <div
+        className={`pointer-events-none absolute inset-0 transition-opacity duration-700 ${
+          index === 0 ? "opacity-100" : "opacity-0"
+        }`}
+        style={{
+          boxShadow: "inset 0 0 80px 18px rgba(180, 8, 22, 0.55)",
+          background:
+            "radial-gradient(ellipse at center, transparent 42%, rgba(160, 8, 22, 0.35) 100%)",
+        }}
+      />
       <div className="absolute inset-x-0 bottom-0 bg-gradient-to-t from-black/80 via-black/40 to-transparent px-3 pb-3 pt-10">
         <p className="text-center text-[11px] font-semibold uppercase tracking-[0.18em] text-white/70">
           Tot we vliegen
