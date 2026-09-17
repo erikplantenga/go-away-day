@@ -4,7 +4,6 @@ import { useEffect, useRef, useState } from "react";
 import { SPIN_PHRASES } from "@/lib/spinPhrases";
 import { useSpinSound } from "@/lib/useSpinSound";
 import { unlockAudio } from "@/lib/audioContext";
-import { ConfettiBurst } from "@/components/ConfettiBurst";
 import { QUIZ_REEL_VALUES } from "@/lib/mpQuiz";
 
 const REVEAL_DELAY_MS = 900;
@@ -35,7 +34,6 @@ export function MpQuizSpin({
   const [display, setDisplay] = useState<(number | null)[]>([null, null, null]);
   const [stopped, setStopped] = useState<(number | null)[]>([null, null, null]);
   const [phrase, setPhrase] = useState(0);
-  const [party, setParty] = useState(false);
   const intervalsRef = useRef<(ReturnType<typeof setInterval> | undefined)[]>([]);
   const timeoutsRef = useRef<ReturnType<typeof setTimeout>[]>([]);
   const onDoneRef = useRef(onDone);
@@ -64,7 +62,6 @@ export function MpQuizSpin({
     intervalsRef.current.forEach((i) => i != null && clearInterval(i));
     setStopped([null, null, null]);
     setDisplay([null, null, null]);
-    setParty(false);
 
     const pick = () => QUIZ_REEL_VALUES[Math.floor(Math.random() * QUIZ_REEL_VALUES.length)]!;
     const start = PAUSE_BEFORE_REVEAL_MS;
@@ -113,7 +110,6 @@ export function MpQuizSpin({
       }, start + REVEAL_DELAY_MS * 2),
       setTimeout(() => {
         stopRoll(2, reels[2]);
-        setParty(true);
         timeoutsRef.current.push(setTimeout(() => onDoneRef.current(), 650));
       }, start + REVEAL_DELAY_MS * 3),
     ];
@@ -125,7 +121,6 @@ export function MpQuizSpin({
 
   return (
     <div className="mx-auto mt-5 max-w-md space-y-4">
-      {party && <ConfettiBurst />}
       <p className="text-center text-xs font-semibold uppercase tracking-wider text-[#c9a227]">
         {done ? "Klaar" : `Spin ${Math.max(1, current)} van ${spinsTotal}`}
       </p>
