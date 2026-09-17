@@ -8,6 +8,7 @@ import { LiveCams } from "@/components/LiveCams";
 import { WeerStrip } from "@/components/WeerStrip";
 import { PlaceSheet } from "@/components/PlaceSheet";
 import { Updates } from "@/components/Updates";
+import { MpQuiz } from "@/components/MpQuiz";
 import { ESTIMATED_WEATHER, fetchTripWeather, weatherForDate, type DayWeather } from "@/lib/maltaWeather";
 import { PLACE_INFO, placeForItem, type PlaceInfo } from "@/lib/maltaPlaces";
 import { FLIGHTS, HOTEL, MALTA_DAYS, PASSENGERS, type Flight } from "@/lib/maltaTrip";
@@ -110,6 +111,8 @@ export function MaltaTrip() {
       >
         <Updates briefing={briefing} />
       </Accordion>
+
+      <MpQuiz />
     </div>
   );
 }

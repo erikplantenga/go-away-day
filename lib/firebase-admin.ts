@@ -198,3 +198,66 @@ export async function combineAndDedupeCities(): Promise<CityEntry[]> {
   await setCities(deduped);
   return deduped;
 }
+
+export type MpQuizTotals = { erik: number; benno: number };
+
+function quizMem(): { totals: MpQuizTotals; plays: Set<string> } {
+  const g = globalThis as unknown as { __mpQuiz?: { totals: MpQuizTotals; plays: Set<string> } };
+  if (!g.__mpQuiz) g.__mpQuiz = { totals: { erik: 0, benno: 0 }, plays: new Set() };
+  return g.__mpQuiz;
+}
+
+export async function getMpQuizTotals(): Promise<MpQuizTotals> {
+  const d = db();
+  if (!d) return quizMem().totals;
+  const snap = await d.collection("mpQuiz").doc("totals").get();
+  const data = snap.data() ?? {};
+  return {
+    erik: Number(data.erik ?? 0),
+    benno: Number(data.benno ?? 0),
+  };
+}
+
+export async function hasMpQuizPlayed(user: "erik" | "benno", date: string): Promise<boolean> {
+  const d = db();
+  const key = `${user}_${date}`;
+  if (!d) return quizMem().plays.has(key);
+  const snap = await d.collection("mpQuiz").doc(`play_${key}`).get();
+  return snap.exists;
+}
+
+export async function submitMpQuiz(
+  user: "erik" | "benno",
+  date: string,
+  points: number,
+): Promise<MpQuizTotals> {
+  const d = db();
+  const key = `${user}_${date}`;
+  const pts = Math.max(0, Math.min(5, Math.round(points)));
+
+  if (!d) {
+    const mem = quizMem();
+    if (mem.plays.has(key)) return mem.totals;
+    mem.plays.add(key);
+    mem.totals[user] += pts;
+    return mem.totals;
+  }
+
+  const playRef = d.collection("mpQuiz").doc(`play_${key}`);
+  const totRef = d.collection("mpQuiz").doc("totals");
+  await d.runTransaction(async (tx) => {
+    const play = await tx.get(playRef);
+    if (play.exists) return;
+    const tot = await tx.get(totRef);
+    const data = tot.data() ?? {};
+    const next = {
+      erik: Number(data.erik ?? 0),
+      benno: Number(data.benno ?? 0),
+      [user]: Number(data[user] ?? 0) + pts,
+      updatedAt: new Date().toISOString(),
+    };
+    tx.set(playRef, { user, date, points: pts, at: new Date().toISOString() });
+    tx.set(totRef, next, { merge: true });
+  });
+  return getMpQuizTotals();
+}
