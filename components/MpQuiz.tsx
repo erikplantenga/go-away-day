@@ -177,15 +177,24 @@ export function MpQuiz({ onOpenNews }: { onOpenNews?: () => void }) {
   const maybeRemind = (played = board.played, open = board.open) => {
     try {
       if (!open || !quizReminderDue()) return;
-      if (played.erik && played.benno) return;
       if (typeof window === "undefined") return;
       if (typeof Notification === "undefined") return;
+      let me: QuizPlayer | null = null;
+      try {
+        const raw = localStorage.getItem(ME_KEY);
+        if (raw === "erik" || raw === "benno") me = raw;
+      } catch {
+        me = null;
+      }
+      if (me ? played[me] : played.erik && played.benno) return;
       const date = quizDate();
       if (Notification.permission !== "granted") return;
       if (localStorage.getItem(notifyKey(date))) return;
       localStorage.setItem(notifyKey(date), "1");
-      new Notification("Nieuwe MP-Quiz", {
-        body: "Nieuws van de dag en de quiz staan klaar.",
+      const hallo = me ? `Goedemorgen ${NAME[me]}` : "Goedemorgen";
+      new Notification("Je kunt spelen!", {
+        body: `${hallo}, de MP-Quiz van vandaag staat klaar. 5 vragen, 1 ronde — succes!`,
+        tag: "mp-quiz-ready",
       });
     } catch {
       /* iOS Safari / privémodus */
