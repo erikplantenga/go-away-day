@@ -28,9 +28,53 @@ type Board = {
 type Screen = "login" | "welcome" | "wait" | "quiz" | "spinGrant" | "spin" | "result" | "already" | "ended";
 
 const NAME: Record<QuizPlayer, string> = { erik: "Erik", benno: "Benno" };
+const ME_KEY = "mpQuizMe";
+const SEEN_KEY = "mpQuizSeen";
 
 function notifyKey(date: string) {
   return `mpQuizNotify:${date}`;
+}
+
+function rememberMe(who: QuizPlayer) {
+  try {
+    localStorage.setItem(ME_KEY, who);
+  } catch {
+    /* privémodus */
+  }
+}
+
+type SeenBoard = {
+  date: string;
+  erik: number;
+  benno: number;
+  finished: { erik: boolean; benno: boolean };
+};
+
+function readSeen(): SeenBoard | null {
+  try {
+    const raw = localStorage.getItem(SEEN_KEY);
+    return raw ? (JSON.parse(raw) as SeenBoard) : null;
+  } catch {
+    return null;
+  }
+}
+
+function writeSeen(seen: SeenBoard) {
+  try {
+    localStorage.setItem(SEEN_KEY, JSON.stringify(seen));
+  } catch {
+    /* privémodus */
+  }
+}
+
+function phonePing(title: string, body: string) {
+  try {
+    if (typeof Notification === "undefined") return;
+    if (Notification.permission !== "granted") return;
+    new Notification(title, { body, tag: "mp-quiz-played" });
+  } catch {
+    /* iOS Safari zonder PWA */
+  }
 }
 
 export function MpQuiz({ onOpenNews }: { onOpenNews?: () => void }) {
@@ -64,6 +108,7 @@ export function MpQuiz({ onOpenNews }: { onOpenNews?: () => void }) {
   const [party, setParty] = useState(false);
   const [boot, setBoot] = useState(true);
   const [stand, setStand] = useState(false);
+  const [rivalNote, setRivalNote] = useState<string | null>(null);
   const [now, setNow] = useState(() => new Date());
 
   const applyBoard = (data: Partial<Board> & { erik?: number; benno?: number }) => {
@@ -82,6 +127,38 @@ export function MpQuiz({ onOpenNews }: { onOpenNews?: () => void }) {
       .then((r) => r.json())
       .then((data) => {
         if (data?.error) return;
+        const date = typeof data.date === "string" ? data.date : quizDate();
+        const finished = {
+          erik: !!data.finished?.erik,
+          benno: !!data.finished?.benno,
+        };
+        const nextSeen: SeenBoard = {
+          date,
+          erik: data.erik ?? 0,
+          benno: data.benno ?? 0,
+          finished,
+        };
+        const seen = readSeen();
+        let me: QuizPlayer | null = null;
+        try {
+          const raw = localStorage.getItem(ME_KEY);
+          if (raw === "erik" || raw === "benno") me = raw;
+        } catch {
+          me = null;
+        }
+        if (seen && seen.date === date) {
+          for (const player of ["benno", "erik"] as const) {
+            if (player === me) continue;
+            const justFinished = finished[player] && !seen.finished[player];
+            const scoreUp = nextSeen[player] > seen[player];
+            if (justFinished || scoreUp) {
+              const text = `${NAME[player]} heeft gespeeld, check de nieuwe tussenstand!`;
+              phonePing("MP-Quiz", text);
+              setRivalNote(text);
+            }
+          }
+        }
+        writeSeen(nextSeen);
         applyBoard({
           erik: data.erik ?? 0,
           benno: data.benno ?? 0,
@@ -117,7 +194,7 @@ export function MpQuiz({ onOpenNews }: { onOpenNews?: () => void }) {
 
   useEffect(() => {
     loadBoard();
-    const id = window.setInterval(loadBoard, 20000);
+    const id = window.setInterval(loadBoard, 8000);
     return () => window.clearInterval(id);
   }, []);
 
@@ -133,13 +210,13 @@ export function MpQuiz({ onOpenNews }: { onOpenNews?: () => void }) {
   }, [board.open, board.played.erik, board.played.benno]);
 
   useEffect(() => {
-    if (!sheet && !boot && !stand) return;
+    if (!sheet && !boot && !stand && !rivalNote) return;
     const prev = document.body.style.overflow;
     document.body.style.overflow = "hidden";
     return () => {
       document.body.style.overflow = prev;
     };
-  }, [sheet, boot, stand]);
+  }, [sheet, boot, stand, rivalNote]);
 
   useEffect(() => {
     if (sheet && screen === "wait" && board.open && quizUnlockedToday(now)) {
@@ -205,6 +282,7 @@ export function MpQuiz({ onOpenNews }: { onOpenNews?: () => void }) {
         setError(data.error ?? "Lukt niet");
         return;
       }
+      rememberMe(player);
       if (data.ended) {
         applyBoard({ erik: data.erik, benno: data.benno, open: false });
         setScreen("ended");
@@ -315,6 +393,7 @@ export function MpQuiz({ onOpenNews }: { onOpenNews?: () => void }) {
         return;
       }
       setWho(player);
+      rememberMe(player);
       setPoints(data.points ?? correct);
       setSpinToken(data.spinToken);
       setSpinsTotal(data.spinsTotal ?? correct);
@@ -421,6 +500,42 @@ export function MpQuiz({ onOpenNews }: { onOpenNews?: () => void }) {
               <button
                 type="button"
                 onClick={() => setBoot(false)}
+                className="flex min-h-11 w-full items-center justify-center rounded-xl bg-white/10 text-sm font-semibold"
+              >
+                Sluiten
+              </button>
+            </div>
+          </div>
+        </div>
+      )}
+
+      {rivalNote && (
+        <div
+          className="fixed inset-0 z-[99] flex items-center justify-center bg-black/55 p-5"
+          role="dialog"
+          aria-modal="true"
+          aria-label="Nieuwe tussenstand"
+        >
+          <div
+            className="w-full max-w-sm rounded-2xl bg-[#0b1f3a] px-5 py-6 text-center text-white"
+            style={{ paddingBottom: "max(1.5rem, env(safe-area-inset-bottom))" }}
+          >
+            <p className="text-xs font-semibold uppercase tracking-wider text-[#c9a227]">MP-Quiz</p>
+            <p className="mt-3 text-lg font-bold leading-snug">{rivalNote}</p>
+            <div className="mt-5 space-y-2">
+              <button
+                type="button"
+                onClick={() => {
+                  setRivalNote(null);
+                  setStand(true);
+                }}
+                className="flex min-h-11 w-full items-center justify-center rounded-xl bg-[#c9a227] text-sm font-bold text-[#0b1f3a]"
+              >
+                Tussenstand
+              </button>
+              <button
+                type="button"
+                onClick={() => setRivalNote(null)}
                 className="flex min-h-11 w-full items-center justify-center rounded-xl bg-white/10 text-sm font-semibold"
               >
                 Sluiten
@@ -556,7 +671,7 @@ export function MpQuiz({ onOpenNews }: { onOpenNews?: () => void }) {
                     onClick={() => void enableNotify()}
                     className="flex min-h-11 w-full items-center justify-center rounded-xl bg-white/10 text-sm font-semibold"
                   >
-                    Zet de 10:00-melding aan
+                    Zet iPhone-meldingen aan
                   </button>
                 )}
                 {isLocalQuizHost() && (

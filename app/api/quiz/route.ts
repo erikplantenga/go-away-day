@@ -82,6 +82,10 @@ export async function GET() {
     erik: totals.erik,
     benno: totals.benno,
     played: { erik: erikPlay != null, benno: bennoPlay != null },
+    finished: {
+      erik: erikPlay?.spinScore != null,
+      benno: bennoPlay?.spinScore != null,
+    },
     daysLeft: quizDaysLeft(),
     open: quizStillOpen(),
     unlocked: quizUnlockedToday(),
