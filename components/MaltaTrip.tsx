@@ -45,15 +45,6 @@ export function MaltaTrip() {
       <LiveCams />
 
       <Accordion
-        open={open === "updates"}
-        onToggle={() => toggle("updates")}
-        title="Updates"
-        hint={briefing.headline}
-      >
-        <Updates briefing={briefing} />
-      </Accordion>
-
-      <Accordion
         open={open === "planning"}
         onToggle={() => toggle("planning")}
         title="Weekoverzicht"
@@ -109,6 +100,15 @@ export function MaltaTrip() {
         hint="Paklijst · kaarten · 112"
       >
         <Handig />
+      </Accordion>
+
+      <Accordion
+        open={open === "updates"}
+        onToggle={() => toggle("updates")}
+        title="Nieuws van de dag"
+        hint={briefing.headline}
+      >
+        <Updates briefing={briefing} />
       </Accordion>
     </div>
   );

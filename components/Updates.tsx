@@ -17,7 +17,7 @@ export function Updates({ briefing }: { briefing: DailyBriefing }) {
   return (
     <div className="space-y-3 pb-3">
       <p className="px-1 text-sm text-white/65">
-        Dagelijks rond 10:00 een ronde langs planning, weer en Malta-nieuws. Alle info is welkom.
+        Elke dag rond 10:00 kijken we of er nieuws is over de planning, het weer of Malta. Alle info is welkom.
       </p>
       <ul className="space-y-2">
         {briefing.items.map((item) => (
