@@ -114,6 +114,30 @@ export function dailyUnlockCopy(now = new Date()): { ready: boolean; text: strin
   return { ready: false, text: `Nieuws van de dag en start quiz over ${wait}.` };
 }
 
+export function quizFinale(benno: number, erik: number): {
+  winner: "benno" | "erik" | "tie";
+  title: string;
+  beer: string;
+  toast: string;
+} {
+  if (benno === erik) {
+    return {
+      winner: "tie",
+      title: "Gelijkspel!",
+      beer: "Dan geven jullie elkaar een rondje. Dubbel proost.",
+      toast: "Felicitaties — jullie landen als kampioenen in Malta.",
+    };
+  }
+  const name = benno > erik ? "Benno" : "Erik";
+  const other = benno > erik ? "Erik" : "Benno";
+  return {
+    winner: benno > erik ? "benno" : "erik",
+    title: `${name} wint de MP-Quiz!`,
+    beer: `Proost ${name} — ${other} geeft het eerste rondje bier.`,
+    toast: "Felicitaties, goede vlucht, en tot in Sliema.",
+  };
+}
+
 export const QUIZ_REEL_VALUES = [1, 2, 3, 4, 5] as const;
 
 export function rollQuizSpin(): { reels: [number, number, number]; points: number } {

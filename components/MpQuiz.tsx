@@ -8,6 +8,7 @@ import {
   dailyUnlockCopy,
   isLocalQuizHost,
   quizDate,
+  quizFinale,
   quizPlayedWaitCopy,
   quizReminderDue,
   quizRoundsLeft,
@@ -109,6 +110,7 @@ export function MpQuiz({ onOpenNews }: { onOpenNews?: () => void }) {
   const [boot, setBoot] = useState(true);
   const [stand, setStand] = useState(false);
   const [rivalNote, setRivalNote] = useState<string | null>(null);
+  const [live, setLive] = useState(false);
   const [now, setNow] = useState(() => new Date());
 
   const applyBoard = (data: Partial<Board> & { erik?: number; benno?: number }) => {
@@ -170,6 +172,7 @@ export function MpQuiz({ onOpenNews }: { onOpenNews?: () => void }) {
           open: data.open !== false,
           firebaseReady: data.firebaseReady !== false,
         });
+        setLive(true);
       })
       .catch(() => {});
   };
@@ -232,6 +235,19 @@ export function MpQuiz({ onOpenNews }: { onOpenNews?: () => void }) {
       setScreen("login");
     }
   }, [now, sheet, screen, board.open]);
+
+  useEffect(() => {
+    if (!live || board.daysLeft > 0) return;
+    try {
+      const key = `mpQuizProost:${quizDate()}`;
+      if (localStorage.getItem(key)) return;
+      localStorage.setItem(key, "1");
+      const finale = quizFinale(board.benno, board.erik);
+      phonePing("Proost!", `${finale.title} ${finale.beer}`);
+    } catch {
+      /* privémodus */
+    }
+  }, [live, board.daysLeft, board.benno, board.erik]);
 
   const close = () => {
     setSheet(false);
@@ -462,6 +478,8 @@ export function MpQuiz({ onOpenNews }: { onOpenNews?: () => void }) {
   const leftBenno = quizRoundsLeft(board.daysLeft, board.open, board.played.benno);
   const leftErik = quizRoundsLeft(board.daysLeft, board.open, board.played.erik);
   const unlock = dailyUnlockCopy(now);
+  const finaleDay = live && board.daysLeft <= 0;
+  const finale = quizFinale(board.benno, board.erik);
   const daysLabel =
     board.daysLeft > 1
       ? `nog ${board.daysLeft} dagen`
@@ -475,45 +493,106 @@ export function MpQuiz({ onOpenNews }: { onOpenNews?: () => void }) {
     <>
       {boot && (
         <div className="fixed inset-0 z-[96] flex items-center justify-center bg-black/55 p-5" role="dialog" aria-modal="true">
+          {finaleDay ? <ConfettiBurst zIndex={97} /> : null}
           <div
-            className="w-full max-w-sm rounded-2xl bg-[#0b1f3a] px-5 py-6 text-center text-white"
+            className={`relative w-full max-w-sm overflow-hidden rounded-2xl bg-[#0b1f3a] px-5 py-6 text-center text-white ${
+              finaleDay ? "shadow-[0_0_80px_rgba(201,162,39,0.35)]" : ""
+            }`}
             style={{ paddingBottom: "max(1.5rem, env(safe-area-inset-bottom))" }}
           >
-            <p className="text-xs font-semibold uppercase tracking-wider text-[#c9a227]">Go Away Day</p>
-            <p className="mt-3 text-lg font-bold leading-snug">{unlock.text}</p>
-            <div className="mt-5 space-y-2">
-              {unlock.ready && (
-                <button
-                  type="button"
-                  onClick={() => {
-                    setBoot(false);
-                    openQuiz();
-                  }}
-                  className="flex min-h-11 w-full items-center justify-center rounded-xl bg-[#c9a227] text-sm font-bold text-[#0b1f3a]"
-                >
-                  Start quiz
-                </button>
-              )}
-              {onOpenNews && (
-                <button
-                  type="button"
-                  onClick={() => {
-                    setBoot(false);
-                    onOpenNews();
-                  }}
-                  className="flex min-h-11 w-full items-center justify-center rounded-xl bg-white/10 text-sm font-semibold"
-                >
-                  Nieuws van de dag
-                </button>
-              )}
-              <button
-                type="button"
-                onClick={() => setBoot(false)}
-                className="flex min-h-11 w-full items-center justify-center rounded-xl bg-white/10 text-sm font-semibold"
-              >
-                Sluiten
-              </button>
-            </div>
+            {finaleDay ? (
+              <>
+                <p className="text-xs font-semibold uppercase tracking-[0.22em] text-[#c9a227]">3 oktober · vertrekdag</p>
+                <p className="mt-3 text-2xl font-bold tracking-wide text-[#c9a227]">Proost! 🍻</p>
+                <p className="mt-2 text-2xl font-bold leading-snug">{finale.title}</p>
+                <p className="mt-3 text-base font-semibold">
+                  Benno {board.benno} · Erik {board.erik}
+                </p>
+                <p className="mt-3 text-sm font-semibold leading-snug text-[#c9a227]">{finale.beer}</p>
+                <p className="mt-2 text-sm leading-snug text-white/70">{finale.toast}</p>
+                <div className="mt-5 space-y-2">
+                  <button
+                    type="button"
+                    onClick={() => {
+                      setBoot(false);
+                      setStand(true);
+                    }}
+                    className="flex min-h-11 w-full items-center justify-center rounded-xl bg-[#c9a227] text-sm font-bold text-[#0b1f3a]"
+                  >
+                    Tussenstand
+                  </button>
+                  {board.open && unlock.ready && (
+                    <button
+                      type="button"
+                      onClick={() => {
+                        setBoot(false);
+                        openQuiz();
+                      }}
+                      className="flex min-h-11 w-full items-center justify-center rounded-xl bg-white/10 text-sm font-semibold"
+                    >
+                      Laatste ronde spelen
+                    </button>
+                  )}
+                  {onOpenNews && (
+                    <button
+                      type="button"
+                      onClick={() => {
+                        setBoot(false);
+                        onOpenNews();
+                      }}
+                      className="flex min-h-11 w-full items-center justify-center rounded-xl bg-white/10 text-sm font-semibold"
+                    >
+                      Nieuws van de dag
+                    </button>
+                  )}
+                  <button
+                    type="button"
+                    onClick={() => setBoot(false)}
+                    className="flex min-h-11 w-full items-center justify-center rounded-xl bg-white/10 text-sm font-semibold"
+                  >
+                    Sluiten
+                  </button>
+                </div>
+              </>
+            ) : (
+              <>
+                <p className="text-xs font-semibold uppercase tracking-wider text-[#c9a227]">Go Away Day</p>
+                <p className="mt-3 text-lg font-bold leading-snug">{unlock.text}</p>
+                <div className="mt-5 space-y-2">
+                  {unlock.ready && (
+                    <button
+                      type="button"
+                      onClick={() => {
+                        setBoot(false);
+                        openQuiz();
+                      }}
+                      className="flex min-h-11 w-full items-center justify-center rounded-xl bg-[#c9a227] text-sm font-bold text-[#0b1f3a]"
+                    >
+                      Start quiz
+                    </button>
+                  )}
+                  {onOpenNews && (
+                    <button
+                      type="button"
+                      onClick={() => {
+                        setBoot(false);
+                        onOpenNews();
+                      }}
+                      className="flex min-h-11 w-full items-center justify-center rounded-xl bg-white/10 text-sm font-semibold"
+                    >
+                      Nieuws van de dag
+                    </button>
+                  )}
+                  <button
+                    type="button"
+                    onClick={() => setBoot(false)}
+                    className="flex min-h-11 w-full items-center justify-center rounded-xl bg-white/10 text-sm font-semibold"
+                  >
+                    Sluiten
+                  </button>
+                </div>
+              </>
+            )}
           </div>
         </div>
       )}
@@ -846,21 +925,17 @@ export function MpQuiz({ onOpenNews }: { onOpenNews?: () => void }) {
 
             {screen === "ended" && (
               <div className="mx-auto mt-8 max-w-md space-y-3 text-center">
-                <p className="text-lg font-bold">De quiz is afgelopen</p>
-                <p className="text-3xl font-bold">
-                  {board.benno === board.erik
-                    ? "Gelijkspel"
-                    : board.benno > board.erik
-                      ? "Benno wint"
-                      : "Erik wint"}
-                </p>
-                <p className="text-sm text-white/70">
+                <p className="text-2xl font-bold tracking-wide text-[#c9a227]">Proost! 🍻</p>
+                <p className="text-2xl font-bold leading-snug">{finale.title}</p>
+                <p className="text-base font-semibold">
                   Benno {board.benno} · Erik {board.erik}
                 </p>
+                <p className="text-sm font-semibold text-[#c9a227]">{finale.beer}</p>
+                <p className="text-sm text-white/70">{finale.toast}</p>
                 <button
                   type="button"
                   onClick={close}
-                  className="flex min-h-11 w-full items-center justify-center rounded-xl bg-white/10 text-sm font-bold"
+                  className="flex min-h-11 w-full items-center justify-center rounded-xl bg-[#c9a227] text-sm font-bold text-[#0b1f3a]"
                 >
                   Terug
                 </button>

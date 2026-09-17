@@ -8,7 +8,7 @@ const EMOJIS = ["🎉", "🎊", "✈️", "🌍", "🌟", "🎈", "🏆", "✨"]
 /**
  * Confetti-explosie vanuit het midden – voor spin-moment en feestpagina.
  */
-export function ConfettiBurst() {
+export function ConfettiBurst({ zIndex = 50 }: { zIndex?: number }) {
   const [particles, setParticles] = useState<
     { id: number; x: number; y: number; vx: number; vy: number; color: string; size: number; emoji?: string }[]
   >([]);
@@ -57,7 +57,7 @@ export function ConfettiBurst() {
   if (done || particles.length === 0) return null;
 
   return (
-    <div className="pointer-events-none fixed inset-0 z-50 overflow-hidden">
+    <div className="pointer-events-none fixed inset-0 overflow-hidden" style={{ zIndex }}>
       {particles.map((p) => (
         <div
           key={p.id}
