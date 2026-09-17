@@ -97,19 +97,20 @@ export function MpQuiz({ onOpenNews }: { onOpenNews?: () => void }) {
   };
 
   const maybeRemind = (played = board.played, open = board.open) => {
-    if (!open || !quizReminderDue()) return;
-    if (played.erik && played.benno) return;
-    const date = quizDate();
-    if (typeof window === "undefined") return;
-    if (Notification.permission === "granted" && !localStorage.getItem(notifyKey(date))) {
+    try {
+      if (!open || !quizReminderDue()) return;
+      if (played.erik && played.benno) return;
+      if (typeof window === "undefined") return;
+      if (typeof Notification === "undefined") return;
+      const date = quizDate();
+      if (Notification.permission !== "granted") return;
+      if (localStorage.getItem(notifyKey(date))) return;
       localStorage.setItem(notifyKey(date), "1");
-      try {
-        new Notification("Nieuwe MP-Quiz", {
-          body: "Nieuws van de dag en de quiz staan klaar.",
-        });
-      } catch {
-        /* iOS Safari zonder PWA */
-      }
+      new Notification("Nieuwe MP-Quiz", {
+        body: "Nieuws van de dag en de quiz staan klaar.",
+      });
+    } catch {
+      /* iOS Safari / privémodus */
     }
   };
 

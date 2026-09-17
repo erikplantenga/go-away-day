@@ -1,4 +1,3 @@
-import { fromZonedTime } from "date-fns-tz";
 import { FLIGHTS, HOTEL, MALTA_DAYS, PASSENGERS, type DayItem, type TripDay } from "@/lib/maltaTrip";
 import { daysUntilDeparture } from "@/lib/maltaWeather";
 
@@ -52,7 +51,16 @@ export function quizReminderDue(now = new Date()): boolean {
 const TZ = "Europe/Amsterdam";
 
 function tenOn(date: string): Date {
-  return fromZonedTime(`${date}T10:00:00`, TZ);
+  const cest = new Date(`${date}T10:00:00+02:00`);
+  const hour = Number(
+    new Intl.DateTimeFormat("en-GB", {
+      timeZone: TZ,
+      hour: "2-digit",
+      hourCycle: "h23",
+    }).format(cest),
+  );
+  if (hour === 10) return cest;
+  return new Date(`${date}T10:00:00+01:00`);
 }
 
 export function todayTenAmsterdam(now = new Date()): Date {
