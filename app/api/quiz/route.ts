@@ -86,6 +86,10 @@ export async function GET() {
       erik: erikPlay?.spinScore != null,
       benno: bennoPlay?.spinScore != null,
     },
+    misses: {
+      erik: erikPlay?.misses ?? [],
+      benno: bennoPlay?.misses ?? [],
+    },
     daysLeft: quizDaysLeft(),
     open: quizStillOpen(),
     unlocked: quizUnlockedToday(),
@@ -190,10 +194,20 @@ export async function POST(req: NextRequest) {
       return NextResponse.json({ alreadyPlayed: true, who: token.u, ...totals, daysLeft: quizDaysLeft() });
     }
     let points = 0;
+    const misses: { date: string; question: string; answer: string; picked: string }[] = [];
     token.q.forEach((q, i) => {
-      if (answers[i] === q.correct) points += 1;
+      if (answers[i] === q.correct) {
+        points += 1;
+        return;
+      }
+      misses.push({
+        date: token.d,
+        question: q.question,
+        answer: q.choices[q.correct] ?? "",
+        picked: q.choices[answers[i] ?? -1] ?? "geen antwoord",
+      });
     });
-    if (!test) await admin.beginMpQuizPlay(token.u, token.d, points);
+    if (!test) await admin.beginMpQuizPlay(token.u, token.d, points, misses);
     const totals = await admin.getMpQuizTotals();
     return NextResponse.json({
       points,

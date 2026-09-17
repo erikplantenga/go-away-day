@@ -3,6 +3,13 @@ import { daysUntilDeparture } from "@/lib/maltaWeather";
 
 export type QuizPlayer = "erik" | "benno";
 
+export type QuizMiss = {
+  date: string;
+  question: string;
+  answer: string;
+  picked: string;
+};
+
 export type QuizQuestion = {
   question: string;
   choices: string[];

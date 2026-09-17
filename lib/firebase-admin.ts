@@ -6,6 +6,7 @@
 import { initializeApp, getApps, cert, App } from "firebase-admin/app";
 import { getFirestore } from "firebase-admin/firestore";
 import type { CityEntry, RemovedEntry, GameConfig } from "./firestore";
+import type { QuizMiss, QuizPlayer } from "./mpQuiz";
 
 let app: App | null = null;
 
@@ -202,11 +203,12 @@ export async function combineAndDedupeCities(): Promise<CityEntry[]> {
 export type MpQuizTotals = { erik: number; benno: number };
 
 export type MpQuizPlay = {
-  user: "erik" | "benno";
+  user: QuizPlayer;
   date: string;
   correct: number;
   spinResults: number[];
   spinScore: number | null;
+  misses: QuizMiss[];
 };
 
 type QuizMem = {
@@ -226,8 +228,25 @@ function quizMem(): QuizMem {
   return g.__mpQuiz;
 }
 
-function playKey(user: "erik" | "benno", date: string) {
+function playKey(user: QuizPlayer, date: string) {
   return `${user}_${date}`;
+}
+
+function readMisses(data: Record<string, unknown>, date: string): QuizMiss[] {
+  if (!Array.isArray(data.misses)) return [];
+  return data.misses
+    .map((item) => {
+      const row = item as Partial<QuizMiss>;
+      const question = String(row.question ?? "").trim();
+      if (!question) return null;
+      return {
+        date: String(row.date ?? date),
+        question,
+        answer: String(row.answer ?? ""),
+        picked: String(row.picked ?? ""),
+      };
+    })
+    .filter((row): row is QuizMiss => row != null);
 }
 
 export async function getMpQuizTotals(): Promise<MpQuizTotals> {
@@ -242,7 +261,7 @@ export async function getMpQuizTotals(): Promise<MpQuizTotals> {
 }
 
 export async function getMpQuizPlay(
-  user: "erik" | "benno",
+  user: QuizPlayer,
   date: string,
 ): Promise<MpQuizPlay | null> {
   const d = db();
@@ -250,13 +269,14 @@ export async function getMpQuizPlay(
   if (!d) return quizMem().plays.get(key) ?? null;
   const snap = await d.collection("mpQuiz").doc(`play_${key}`).get();
   if (!snap.exists) return null;
-  const data = snap.data() ?? {};
+  const data = (snap.data() ?? {}) as Record<string, unknown>;
   return {
     user,
     date,
     correct: Number(data.correct ?? data.points ?? 0),
     spinResults: Array.isArray(data.spinResults) ? data.spinResults.map((n: number) => Number(n)) : [],
     spinScore: data.spinScore == null ? null : Number(data.spinScore),
+    misses: readMisses(data, date),
   };
 }
 
@@ -270,9 +290,10 @@ export async function hasMpQuizStarted(user: "erik" | "benno", date: string): Pr
 }
 
 export async function beginMpQuizPlay(
-  user: "erik" | "benno",
+  user: QuizPlayer,
   date: string,
   correct: number,
+  misses: QuizMiss[] = [],
 ): Promise<MpQuizPlay> {
   const existing = await getMpQuizPlay(user, date);
   if (existing) return existing;
@@ -282,6 +303,7 @@ export async function beginMpQuizPlay(
     correct: Math.max(0, Math.min(5, Math.round(correct))),
     spinResults: [],
     spinScore: Math.max(0, Math.min(5, Math.round(correct))) === 0 ? 0 : null,
+    misses,
   };
   const d = db();
   if (!d) {

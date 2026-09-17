@@ -1,11 +1,14 @@
 "use client";
 
 import { useEffect, useState } from "react";
+import type { QuizMiss } from "@/lib/mpQuiz";
 
 type Props = {
   benno: number;
   erik: number;
   daysLeft: number;
+  played: { erik: boolean; benno: boolean };
+  misses: { erik: QuizMiss[]; benno: QuizMiss[] };
   onClose: () => void;
 };
 
@@ -98,7 +101,41 @@ function PersonRing({
   );
 }
 
-export function MpQuizStand({ benno, erik, daysLeft, onClose }: Props) {
+function MissColumn({
+  name,
+  played,
+  items,
+  accent,
+}: {
+  name: string;
+  played: boolean;
+  items: QuizMiss[];
+  accent: string;
+}) {
+  return (
+    <div className="min-w-0">
+      <p className="text-center text-sm font-bold" style={{ color: accent }}>
+        {name}
+      </p>
+      {!played ? (
+        <p className="mt-2 text-center text-xs text-white/45">Nog niet gespeeld</p>
+      ) : items.length === 0 ? (
+        <p className="mt-2 text-center text-xs text-white/45">Alles goed</p>
+      ) : (
+        <ul className="mt-2 space-y-2">
+          {items.map((miss, i) => (
+            <li key={`${miss.question}-${i}`} className="rounded-xl bg-white/5 px-2 py-2">
+              <p className="text-[11px] font-semibold leading-snug text-white/85">{miss.question}</p>
+              <p className="mt-1 text-[11px] leading-snug text-[#c9a227]">Goed: {miss.answer}</p>
+            </li>
+          ))}
+        </ul>
+      )}
+    </div>
+  );
+}
+
+export function MpQuizStand({ benno, erik, daysLeft, played, misses, onClose }: Props) {
   const max = Math.max(benno, erik, 1);
   const top = Math.max(benno, erik);
   const lead =
@@ -114,7 +151,7 @@ export function MpQuizStand({ benno, erik, daysLeft, onClose }: Props) {
       onClick={onClose}
     >
       <div
-        className="relative w-full max-w-md overflow-hidden rounded-[2rem] bg-[#0b1220] px-5 pb-6 pt-5 text-white shadow-[0_0_80px_rgba(201,162,39,0.18)]"
+        className="relative max-h-[min(90dvh,44rem)] w-full max-w-md overflow-y-auto rounded-[2rem] bg-[#0b1220] px-5 pb-6 pt-5 text-white shadow-[0_0_80px_rgba(201,162,39,0.18)]"
         style={{ paddingBottom: "max(1.5rem, env(safe-area-inset-bottom))" }}
         onClick={(e) => e.stopPropagation()}
       >
@@ -163,6 +200,15 @@ export function MpQuizStand({ benno, erik, daysLeft, onClose }: Props) {
         <p className="relative mt-4 text-center text-sm leading-snug text-[#c9a227]">
           Winnaar krijgt het eerste rondje bier van de verliezer.
         </p>
+        <div className="relative mt-5">
+          <p className="text-center text-[11px] font-semibold uppercase tracking-[0.18em] text-white/45">
+            Fouten van vandaag
+          </p>
+          <div className="mt-3 grid grid-cols-2 gap-3">
+            <MissColumn name="Benno" played={played.benno} items={misses.benno} accent="#c9a227" />
+            <MissColumn name="Erik" played={played.erik} items={misses.erik} accent="#7dd3fc" />
+          </div>
+        </div>
       </div>
     </div>
   );
