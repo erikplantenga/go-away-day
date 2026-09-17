@@ -1,7 +1,7 @@
 "use client";
 
 import { useEffect, useState, type ReactNode } from "react";
-import type { QuizMiss } from "@/lib/mpQuiz";
+import { formatQuizMs, type QuizMiss } from "@/lib/mpQuiz";
 
 type Props = {
   benno: number;
@@ -9,7 +9,9 @@ type Props = {
   daysLeft: number;
   played: { erik: boolean; benno: boolean };
   correct: { erik: number | null; benno: number | null };
+  quizMs: { erik: number | null; benno: number | null };
   misses: { erik: QuizMiss[]; benno: QuizMiss[] };
+  preview?: boolean;
   onClose: () => void;
 };
 
@@ -102,19 +104,23 @@ function PersonRing({
   );
 }
 
-function MissColumn({
+function InfoColumn({
   name,
   played,
   correct,
+  quizMs,
   items,
   accent,
 }: {
   name: string;
   played: boolean;
   correct: number | null;
+  quizMs: number | null;
   items: QuizMiss[];
   accent: string;
 }) {
+  const timeLabel = !played ? "—" : quizMs == null ? "tijd niet bewaard" : formatQuizMs(quizMs);
+
   let body: ReactNode;
   if (!played) {
     body = <p className="mt-2 text-center text-xs text-white/45">Nog niet gespeeld</p>;
@@ -124,9 +130,12 @@ function MissColumn({
     body = (
       <ul className="mt-2 space-y-2">
         {items.map((miss, i) => (
-          <li key={`${miss.question}-${i}`} className="rounded-xl bg-white/5 px-2 py-2">
+          <li key={`${miss.question}-${i}`} className="rounded-xl bg-white/5 px-2 py-2 text-left">
             <p className="text-[11px] font-semibold leading-snug text-white/85">{miss.question}</p>
-            <p className="mt-1 text-[11px] leading-snug text-[#c9a227]">Goed: {miss.answer}</p>
+            <p className="mt-1 text-[11px] leading-snug text-rose-300/90">
+              Fout: {miss.picked || "geen antwoord"}
+            </p>
+            <p className="mt-0.5 text-[11px] leading-snug text-[#c9a227]">Goed: {miss.answer}</p>
           </li>
         ))}
       </ul>
@@ -144,12 +153,23 @@ function MissColumn({
       <p className="text-center text-sm font-bold" style={{ color: accent }}>
         {name}
       </p>
+      <p className="mt-1 text-center text-sm font-semibold tabular-nums text-white/80">{timeLabel}</p>
       {body}
     </div>
   );
 }
 
-export function MpQuizStand({ benno, erik, daysLeft, played, correct, misses, onClose }: Props) {
+export function MpQuizStand({
+  benno,
+  erik,
+  daysLeft,
+  played,
+  correct,
+  quizMs,
+  misses,
+  preview,
+  onClose,
+}: Props) {
   const max = Math.max(benno, erik, 1);
   const top = Math.max(benno, erik);
   const lead =
@@ -173,7 +193,9 @@ export function MpQuizStand({ benno, erik, daysLeft, played, correct, misses, on
         <div className="pointer-events-none absolute -right-10 bottom-4 h-44 w-44 rounded-full bg-sky-400/15 blur-3xl" />
 
         <div className="relative flex items-center justify-between">
-          <p className="text-xs font-semibold uppercase tracking-[0.22em] text-[#c9a227]">Tussenstand</p>
+          <p className="text-xs font-semibold uppercase tracking-[0.22em] text-[#c9a227]">
+            {preview ? "Tussenstand · voorbeeld" : "Tussenstand"}
+          </p>
           <button
             type="button"
             onClick={onClose}
@@ -216,11 +238,25 @@ export function MpQuizStand({ benno, erik, daysLeft, played, correct, misses, on
         </p>
         <div className="relative mt-5">
           <p className="text-center text-[11px] font-semibold uppercase tracking-[0.18em] text-white/45">
-            Fouten van vandaag
+            Info van vandaag
           </p>
           <div className="mt-3 grid grid-cols-2 gap-3">
-            <MissColumn name="Benno" played={played.benno} correct={correct.benno} items={misses.benno} accent="#c9a227" />
-            <MissColumn name="Erik" played={played.erik} correct={correct.erik} items={misses.erik} accent="#7dd3fc" />
+            <InfoColumn
+              name="Benno"
+              played={played.benno}
+              correct={correct.benno}
+              quizMs={quizMs.benno}
+              items={misses.benno}
+              accent="#c9a227"
+            />
+            <InfoColumn
+              name="Erik"
+              played={played.erik}
+              correct={correct.erik}
+              quizMs={quizMs.erik}
+              items={misses.erik}
+              accent="#7dd3fc"
+            />
           </div>
         </div>
       </div>

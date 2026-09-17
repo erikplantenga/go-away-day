@@ -27,6 +27,7 @@ type Board = {
   firebaseReady: boolean;
   misses: { erik: QuizMiss[]; benno: QuizMiss[] };
   correct: { erik: number | null; benno: number | null };
+  quizMs: { erik: number | null; benno: number | null };
 };
 
 type Screen = "login" | "welcome" | "wait" | "quiz" | "spinGrant" | "spin" | "result" | "already" | "ended";
@@ -91,6 +92,7 @@ export function MpQuiz({ onOpenNews }: { onOpenNews?: () => void }) {
     firebaseReady: true,
     misses: { erik: [], benno: [] },
     correct: { erik: null, benno: null },
+    quizMs: { erik: null, benno: null },
   });
   const [sheet, setSheet] = useState(false);
   const [screen, setScreen] = useState<Screen>("login");
@@ -117,6 +119,7 @@ export function MpQuiz({ onOpenNews }: { onOpenNews?: () => void }) {
   const [rivalNote, setRivalNote] = useState<string | null>(null);
   const [live, setLive] = useState(false);
   const [now, setNow] = useState(() => new Date());
+  const [quizStartedAt, setQuizStartedAt] = useState<number | null>(null);
 
   const applyBoard = (data: Partial<Board> & { erik?: number; benno?: number }) => {
     setBoard((b) => ({
@@ -128,6 +131,7 @@ export function MpQuiz({ onOpenNews }: { onOpenNews?: () => void }) {
       firebaseReady: data.firebaseReady ?? b.firebaseReady,
       misses: data.misses ?? b.misses,
       correct: data.correct ?? b.correct,
+      quizMs: data.quizMs ?? b.quizMs,
     }));
   };
 
@@ -185,6 +189,10 @@ export function MpQuiz({ onOpenNews }: { onOpenNews?: () => void }) {
           correct: {
             erik: typeof data.correct?.erik === "number" ? data.correct.erik : null,
             benno: typeof data.correct?.benno === "number" ? data.correct.benno : null,
+          },
+          quizMs: {
+            erik: typeof data.quizMs?.erik === "number" ? data.quizMs.erik : null,
+            benno: typeof data.quizMs?.benno === "number" ? data.quizMs.benno : null,
           },
         });
         setLive(true);
@@ -284,6 +292,7 @@ export function MpQuiz({ onOpenNews }: { onOpenNews?: () => void }) {
     setLastSpinPoints(null);
     setTestRound(false);
     setParty(false);
+    setQuizStartedAt(null);
     setStand(false);
     loadBoard();
   };
@@ -376,6 +385,7 @@ export function MpQuiz({ onOpenNews }: { onOpenNews?: () => void }) {
           token,
           answers: picks,
           test: testRound,
+          quizMs: quizStartedAt == null ? null : Date.now() - quizStartedAt,
         }),
       });
       const data = await res.json();
@@ -792,7 +802,10 @@ export function MpQuiz({ onOpenNews }: { onOpenNews?: () => void }) {
                 </div>
                 <button
                   type="button"
-                  onClick={() => setScreen("quiz")}
+                  onClick={() => {
+                    setQuizStartedAt(Date.now());
+                    setScreen("quiz");
+                  }}
                   className="flex min-h-11 w-full items-center justify-center rounded-xl bg-[#c9a227] text-sm font-bold text-[#0b1f3a]"
                 >
                   Start
@@ -966,6 +979,7 @@ export function MpQuiz({ onOpenNews }: { onOpenNews?: () => void }) {
           daysLeft={board.daysLeft}
           played={board.played}
           correct={board.correct}
+          quizMs={board.quizMs}
           misses={board.misses}
           onClose={() => setStand(false)}
         />

@@ -209,6 +209,7 @@ export type MpQuizPlay = {
   spinResults: number[];
   spinScore: number | null;
   misses: QuizMiss[];
+  quizMs: number | null;
 };
 
 type QuizMem = {
@@ -277,6 +278,7 @@ export async function getMpQuizPlay(
     spinResults: Array.isArray(data.spinResults) ? data.spinResults.map((n: number) => Number(n)) : [],
     spinScore: data.spinScore == null ? null : Number(data.spinScore),
     misses: readMisses(data, date),
+    quizMs: data.quizMs == null ? null : Number(data.quizMs),
   };
 }
 
@@ -294,6 +296,7 @@ export async function beginMpQuizPlay(
   date: string,
   correct: number,
   misses: QuizMiss[] = [],
+  quizMs: number | null = null,
 ): Promise<MpQuizPlay> {
   const existing = await getMpQuizPlay(user, date);
   if (existing) return existing;
@@ -304,6 +307,7 @@ export async function beginMpQuizPlay(
     spinResults: [],
     spinScore: Math.max(0, Math.min(5, Math.round(correct))) === 0 ? 0 : null,
     misses,
+    quizMs: quizMs == null ? null : Math.max(0, Math.min(7_200_000, Math.round(quizMs))),
   };
   const d = db();
   if (!d) {
@@ -360,6 +364,7 @@ export async function recordMpQuizSpin(
       spinResults: Array.isArray(data.spinResults) ? data.spinResults.map((n: number) => Number(n)) : [],
       spinScore: data.spinScore == null ? null : Number(data.spinScore),
       misses: readMisses(data as Record<string, unknown>, date),
+      quizMs: data.quizMs == null ? null : Number(data.quizMs),
     };
     if (play.spinScore != null) {
       out = play;

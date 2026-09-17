@@ -1,6 +1,7 @@
 import { createHmac } from "crypto";
 import { NextRequest, NextResponse } from "next/server";
 import {
+  dailyQuizSeed,
   generateMpRound,
   quizDate,
   quizDaysLeft,
@@ -90,6 +91,10 @@ export async function GET() {
       erik: erikPlay == null ? null : erikPlay.correct,
       benno: bennoPlay == null ? null : bennoPlay.correct,
     },
+    quizMs: {
+      erik: erikPlay?.quizMs ?? null,
+      benno: bennoPlay?.quizMs ?? null,
+    },
     misses: {
       erik: erikPlay?.misses ?? [],
       benno: bennoPlay?.misses ?? [],
@@ -170,7 +175,7 @@ export async function POST(req: NextRequest) {
         benno: totals.benno,
       });
     }
-    const round = generateMpRound();
+    const round = generateMpRound(test ? undefined : dailyQuizSeed(date));
     const token = sign({ k: "q", u: body.who, d: date, q: round });
     return NextResponse.json({
       token,
@@ -211,7 +216,11 @@ export async function POST(req: NextRequest) {
         picked: q.choices[answers[i] ?? -1] ?? "geen antwoord",
       });
     });
-    if (!test) await admin.beginMpQuizPlay(token.u, token.d, points, misses);
+    if (!test) {
+      const rawMs = Number(body.quizMs);
+      const quizMs = Number.isFinite(rawMs) ? rawMs : null;
+      await admin.beginMpQuizPlay(token.u, token.d, points, misses, quizMs);
+    }
     const totals = await admin.getMpQuizTotals();
     return NextResponse.json({
       points,

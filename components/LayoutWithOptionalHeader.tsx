@@ -1,5 +1,6 @@
 "use client";
 
+import { usePathname } from "next/navigation";
 import { HeroCarousel } from "@/components/HeroCarousel";
 import { RefreshFeest } from "@/components/RefreshFeest";
 
@@ -8,6 +9,11 @@ export function LayoutWithOptionalHeader({
 }: {
   children: React.ReactNode;
 }) {
+  const pathname = usePathname();
+  if (pathname === "/tussenstand-demo") {
+    return <main>{children}</main>;
+  }
+
   return (
     <>
       <RefreshFeest />
