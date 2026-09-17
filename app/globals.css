@@ -96,18 +96,41 @@ select {
   transform: rotate(180deg);
 }
 
-@keyframes mp-orbit {
-  to {
-    transform: rotate(360deg);
+@keyframes mp-lead-halo {
+  0%,
+  100% {
+    transform: scale(0.88);
+    opacity: 0.4;
+  }
+  50% {
+    transform: scale(1.18);
+    opacity: 0.85;
   }
 }
 
-.mp-orbit {
-  animation: mp-orbit 9s linear infinite;
-  transform-origin: 50% 50%;
+@keyframes mp-lead-aura {
+  0%,
+  100% {
+    box-shadow: 0 0 18px var(--mp-glow), 0 0 40px var(--mp-glow);
+  }
+  50% {
+    box-shadow: 0 0 28px var(--mp-glow), 0 0 64px var(--mp-glow);
+  }
 }
 
-.mp-orbit-rev {
-  animation: mp-orbit 12s linear infinite reverse;
-  transform-origin: 50% 50%;
+.mp-lead-halo {
+  pointer-events: none;
+  position: absolute;
+  inset: 6px;
+  border-radius: 9999px;
+  background: radial-gradient(circle, var(--mp-glow) 0%, transparent 70%);
+  animation: mp-lead-halo 2.1s ease-in-out infinite;
+}
+
+.mp-lead-aura {
+  pointer-events: none;
+  position: absolute;
+  inset: 22px;
+  border-radius: 9999px;
+  animation: mp-lead-aura 2.1s ease-in-out infinite;
 }

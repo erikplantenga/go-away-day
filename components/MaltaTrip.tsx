@@ -39,11 +39,20 @@ export function MaltaTrip() {
   }, []);
 
   const toggle = (id: SectionId) => setOpen((cur) => (cur === id ? null : id));
+  const openNews = () => {
+    setOpen("updates");
+    window.setTimeout(() => {
+      document.getElementById("nieuws-van-de-dag")?.scrollIntoView({
+        behavior: "smooth",
+        block: "start",
+      });
+    }, 140);
+  };
   const todayWeather = weather[0];
 
   return (
     <div className="space-y-2">
-      <MpQuiz onOpenNews={() => toggle("updates")} />
+      <MpQuiz onOpenNews={openNews} />
 
       <LiveCams />
 
@@ -106,6 +115,7 @@ export function MaltaTrip() {
       </Accordion>
 
       <Accordion
+        id="nieuws-van-de-dag"
         open={open === "updates"}
         onToggle={() => toggle("updates")}
         title="Nieuws van de dag"
@@ -118,12 +128,14 @@ export function MaltaTrip() {
 }
 
 function Accordion({
+  id,
   open,
   onToggle,
   title,
   hint,
   children,
 }: {
+  id?: string;
   open: boolean;
   onToggle: () => void;
   title: string;
@@ -132,7 +144,8 @@ function Accordion({
 }) {
   return (
     <div
-      className={`overflow-hidden rounded-2xl transition-colors duration-300 ${
+      id={id}
+      className={`scroll-mt-5 overflow-hidden rounded-2xl transition-colors duration-300 ${
         open ? "bg-[#0b1f3a] text-white" : "bg-[#0b1f3a]/90 text-white"
       }`}
     >

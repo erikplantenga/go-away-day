@@ -67,8 +67,29 @@ export function todayTenAmsterdam(now = new Date()): Date {
   return tenOn(quizDate(now));
 }
 
+function nextAmsterdamDate(date: string): string {
+  const [y, m, d] = date.split("-").map(Number);
+  const next = new Date(Date.UTC(y ?? 2026, (m ?? 1) - 1, (d ?? 1) + 1));
+  return next.toISOString().slice(0, 10);
+}
+
+export function nextQuizUnlock(now = new Date()): Date {
+  const todayTen = todayTenAmsterdam(now);
+  if (now.getTime() < todayTen.getTime()) return todayTen;
+  return tenOn(nextAmsterdamDate(quizDate(now)));
+}
+
 export function quizUnlockedToday(now = new Date()): boolean {
   return quizStillOpen(now) && now.getTime() >= todayTenAmsterdam(now).getTime();
+}
+
+export function quizPlayedWaitCopy(now = new Date()): string {
+  const next = nextQuizUnlock(now);
+  if (!quizStillOpen(next)) {
+    return "Je hebt al gespeeld. Dit was je laatste ronde.";
+  }
+  const wait = formatDurationNl(next.getTime() - now.getTime());
+  return `Je hebt al gespeeld, je kunt over ${wait} weer.`;
 }
 
 export function formatDurationNl(ms: number): string {

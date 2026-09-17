@@ -8,6 +8,7 @@ import {
   dailyUnlockCopy,
   isLocalQuizHost,
   quizDate,
+  quizPlayedWaitCopy,
   quizReminderDue,
   quizRoundsLeft,
   quizUnlockedToday,
@@ -687,8 +688,11 @@ export function MpQuiz({ onOpenNews }: { onOpenNews?: () => void }) {
                 <p className="text-sm text-white/60">
                   {testRound
                     ? "Dit was een lokale test, de stand is niet bewaard."
-                    : `Nog ${quizRoundsLeft(board.daysLeft, board.open, true)} te gaan. Morgen om 10:00 weer een nieuwe ronde.`}
+                    : quizPlayedWaitCopy(now)}
                 </p>
+                {!testRound && (
+                  <p className="text-sm text-white/50">Nog {quizRoundsLeft(board.daysLeft, board.open, true)} te gaan.</p>
+                )}
                 <button
                   type="button"
                   onClick={close}
@@ -701,13 +705,11 @@ export function MpQuiz({ onOpenNews }: { onOpenNews?: () => void }) {
 
             {screen === "already" && (
               <div className="mx-auto mt-8 max-w-md space-y-3 text-center">
-                <p className="text-lg font-bold">Jij hebt vandaag al gespeeld</p>
+                <p className="text-lg font-bold leading-snug">{quizPlayedWaitCopy(now)}</p>
                 <p className="text-sm text-white/70">
                   Stand: Benno {board.benno} · Erik {board.erik}
                 </p>
-                <p className="text-sm text-white/60">
-                  Nog {quizRoundsLeft(board.daysLeft, board.open, true)} te gaan. Morgen om 10:00 weer 5 nieuwe vragen.
-                </p>
+                <p className="text-sm text-white/50">Nog {quizRoundsLeft(board.daysLeft, board.open, true)} te gaan.</p>
                 <button
                   type="button"
                   onClick={close}
