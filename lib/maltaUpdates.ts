@@ -1,6 +1,17 @@
-import { daysUntilDeparture, weatherCodeLabel } from "@/lib/maltaWeather";
+const TRIP_START = "2026-10-03";
+const TRIP_END = "2026-10-06"; // wo 7 okt 07:25 vertrek — overdag telt niet mee
+const MALTA_TZ = "Europe/Malta";
+const UA = "GoAwayDay/1.0 (https://go-away-day.vercel.app)";
+const LISTING_PAGES = [
+  "https://manicmalta.com/events/month/october/",
+  "https://manicmalta.com/events/month/october/page/2/",
+  "https://manicmalta.com/events/month/october/page/3/",
+  "https://manicmalta.com/events/month/october/page/4/",
+  "https://manicmalta.com/events/month/october/page/5/",
+  "https://manicmalta.com/events/month/october/page/6/",
+];
 
-export type UpdateKind = "planning" | "weer" | "malta";
+export type UpdateKind = "activiteit";
 
 export type UpdateItem = {
   id: string;
@@ -19,22 +30,6 @@ export type DailyBriefing = {
   live: boolean;
 };
 
-const MALTA_TZ = "Europe/Malta";
-const FEEDS = [
-  { url: "https://lovinmalta.com/feed", source: "Lovin Malta" },
-  { url: "https://ohmymalta.com.mt/feed", source: "Oh My Malta" },
-];
-const UA = "GoAwayDay/1.0 (https://go-away-day.vercel.app)";
-
-const SKIP_NEWS =
-  /lawsuit|psycho|commenter|bursts into flames|car bursts|ricky caruana|won.?t forgive|threatens every|theft|homeless|murder|rape|arrested|accused|court case|pension boost|facebook and instagram|media battle|dominance in facebook/i;
-
-const PLANNING_NEWS =
-  /notte bianca|andorra|defected|anjunadeep|heritage malta|km malta|airline|airport|flight|ferry|paceville|ta.?qali|nations league|football|voetbal|carlton|sliema|mdina|rabat|birgu|valletta|comino|blue lagoon|mellieha|ticket/i;
-
-const WEATHER_NEWS =
-  /storm|weather|drought|rain|shower|waterspout|heat|flood|buien|droogte|wind|wet week|goodbye drought/i;
-
 const NL_DATE = new Intl.DateTimeFormat("nl-NL", {
   day: "numeric",
   month: "short",
@@ -45,6 +40,13 @@ const NL_TIME = new Intl.DateTimeFormat("nl-NL", {
   hour: "2-digit",
   minute: "2-digit",
   hour12: false,
+  timeZone: MALTA_TZ,
+});
+
+const NL_WEEKDAY = new Intl.DateTimeFormat("nl-NL", {
+  weekday: "short",
+  day: "numeric",
+  month: "short",
   timeZone: MALTA_TZ,
 });
 
@@ -63,19 +65,13 @@ function maltaNowParts(now = new Date()) {
     year: "numeric",
     month: "2-digit",
     day: "2-digit",
-    hour: "2-digit",
-    minute: "2-digit",
     hour12: false,
   }).formatToParts(now);
   const get = (type: string) => parts.find((p) => p.type === type)?.value ?? "";
-  return {
-    date: `${get("year")}-${get("month")}-${get("day")}`,
-    hour: Number(get("hour")),
-    minute: Number(get("minute")),
-  };
+  return { date: `${get("year")}-${get("month")}-${get("day")}` };
 }
 
-function stripXml(raw: string) {
+function stripHtml(raw: string) {
   return raw
     .replace(/<!\[CDATA\[([\s\S]*?)\]\]>/g, "$1")
     .replace(/<[^>]+>/g, " ")
@@ -90,340 +86,301 @@ function stripXml(raw: string) {
     .trim();
 }
 
-function tag(block: string, name: string) {
-  const m = block.match(new RegExp(`<${name}>([\\s\\S]*?)</${name}>`, "i"));
-  return m ? stripXml(m[1]) : "";
-}
-
-function daysCopy(days: number) {
-  if (days > 1) return `${days} dagen tot KM395`;
-  if (days === 1) return "Morgen vliegen we";
-  if (days === 0) return "Vandaag is de heenreis";
-  if (days >= -4) return "We zijn op Malta";
-  return "De trip is geweest";
-}
-
-function planningNotes(now: Date): UpdateItem[] {
-  const days = daysUntilDeparture(now);
-  const items: UpdateItem[] = [
-    {
-      id: "planning-countdown",
-      kind: "planning",
-      title: daysCopy(days),
-      body:
-        days > 0
-          ? `Zaterdag 3 oktober, KM395 van Schiphol 11:50 → Malta 14:55. Daarna inchecken bij de Carlton in Sliema.`
-          : days === 0
-            ? `KM395 vertrekt 11:50 van Schiphol, landing 14:55. Avond: diner in Sliema en Notte Bianca in Valletta.`
-            : `Carlton Hotel Sliema · dagplanning staat in het tablad hieronder.`,
-    },
-  ];
-
-  if (days > 7 && days <= 28) {
-    items.push({
-      id: "planning-tickets-andorra",
-      kind: "planning",
-      title: "Tickets Malta – Andorra",
-      body: `Zondag 4 oktober, 18:00, National Stadium Ta’ Qali. MFA zet kaarten meestal 2–4 weken van tevoren in de verkoop — dit is het moment om te checken.`,
-      href: "https://tickets.mfa.com.mt/",
-      source: "Malta FA",
-    });
-  }
-
-  if (days >= 0 && days <= 21) {
-    items.push({
-      id: "planning-notte",
-      kind: "planning",
-      title: "Notte Bianca blijft staan",
-      body: `Zaterdag 3 oktober, Valletta vanaf 19:00 tot middernacht. Gratis / geen ticket. Van Sliema met de ferry of een taxi. Dagprogramma dichterbij nog even nalopen.`,
-      href: "https://www.festivalfinder.eu/festivals/notte-bianca-5",
-      source: "Notte Bianca",
-    });
-  }
-
-  if (days >= 2 && days <= 10) {
-    items.push({
-      id: "planning-checkin",
-      kind: "planning",
-      title: "Check-in KM395",
-      body: `Online check-in opent vrijdag 2 oktober om 11:50. Terugvlucht KM394: check-in di 6 okt 07:25, transfer 05:15, vertrek 07:25.`,
-      href: "https://www.kmmaltaairlines.com",
-      source: "KM Malta Airlines",
-    });
-  }
-
-  if (days >= 0 && days <= 14) {
-    items.push({
-      id: "planning-defected",
-      kind: "planning",
-      title: "Defected @ UNO",
-      body: `Zondagavond is optie A: Defected in UNO, vanaf ca. €35 + booking fee. Optie B is Paceville / St. Julian’s. Kaarten op tijd checken als jullie A doen.`,
-      href: "https://malta.defected.com/book-2026-tickets",
-      source: "Defected",
-    });
-  }
-
-  return items;
-}
-
-type OpenMeteoNow = {
-  current?: {
-    time: string;
-    temperature_2m: number;
-    weather_code: number;
-    wind_speed_10m: number;
-    precipitation: number;
-  };
-  daily?: {
-    time: string[];
-    temperature_2m_max: number[];
-    temperature_2m_min: number[];
-    precipitation_probability_max: number[];
-    weather_code: number[];
-    wind_speed_10m_max: number[];
-  };
+const MONTH: Record<string, number> = {
+  jan: 1,
+  feb: 2,
+  mar: 3,
+  apr: 4,
+  may: 5,
+  jun: 6,
+  jul: 7,
+  aug: 8,
+  sep: 9,
+  oct: 10,
+  nov: 11,
+  dec: 12,
 };
 
-async function fetchWeatherItems(): Promise<UpdateItem[]> {
-  const url =
-    "https://api.open-meteo.com/v1/forecast" +
-    "?latitude=35.91&longitude=14.51" +
-    "&current=temperature_2m,weather_code,wind_speed_10m,precipitation" +
-    "&daily=weather_code,temperature_2m_max,temperature_2m_min,precipitation_probability_max,wind_speed_10m_max" +
-    "&timezone=Europe%2FMalta&forecast_days=5";
-  const res = await fetch(url, { signal: AbortSignal.timeout(8000), next: { revalidate: 1800 } });
-  if (!res.ok) return [];
-  const data = (await res.json()) as OpenMeteoNow;
-  const cur = data.current;
-  const daily = data.daily;
-  if (!cur || !daily?.time?.length) return [];
-
-  const nowLabel = weatherCodeLabel(cur.weather_code);
-  const temp = Math.round(cur.temperature_2m);
-  const wind = Math.round(cur.wind_speed_10m);
-  const items: UpdateItem[] = [
-    {
-      id: "weer-nu",
-      kind: "weer",
-      title: `Nu in Sliema: ${temp}° · ${nowLabel.toLowerCase()}`,
-      body: `Wind ${wind} km/u${cur.precipitation ? `, ${cur.precipitation} mm neerslag` : ", droog"}. Zeewater nog zomerachtig, zo’n 24°.`,
-      href: "https://weather.apple.com/?lat=35.9126&long=14.5020",
-      source: "Open-Meteo",
-    },
-  ];
-
-  const highs = daily.temperature_2m_max.map((n) => Math.round(n));
-  const maxHigh = Math.max(...highs);
-  const minHigh = Math.min(...highs);
-  const rainPeak = Math.max(...daily.precipitation_probability_max.map((n) => Math.round(n)));
-  const days = daily.time.map((date, i) => {
-    const label = NL_DATE.format(new Date(`${date}T12:00:00+02:00`));
-    return `${label} ${Math.round(daily.temperature_2m_max[i])}°`;
-  });
-
-  items.push({
-    id: "weer-dagen",
-    kind: "weer",
-    title: `Komende dagen ${minHigh}–${maxHigh}°`,
-    body:
-      `${days.join(" · ")}. Max. regenkans ${rainPeak}%. ` +
-      (daysUntilDeparture() > 7
-        ? `Echte tripverwachting voor 3–7 okt volgt over ${daysUntilDeparture() - 7} dagen.`
-        : `De tripweek staat in het tablad Weer.`),
-    href: "https://weather.apple.com/?lat=35.9126&long=14.5020",
-    source: "Open-Meteo",
-  });
-
-  return items;
+function iso(y: number, m: number, d: number) {
+  return `${y}-${String(m).padStart(2, "0")}-${String(d).padStart(2, "0")}`;
 }
 
-type RssItem = { title: string; href: string; source: string; date?: string };
+function parseDateRange(raw: string): { start: string; end: string } | null {
+  const s = stripHtml(raw);
+  let m = s.match(/^(\d{1,2})-(\d{1,2})\s+([A-Za-z]{3})\s+(20\d{2})$/);
+  if (m) {
+    const month = MONTH[m[3].toLowerCase()];
+    const y = Number(m[4]);
+    if (!month) return null;
+    return { start: iso(y, month, Number(m[1])), end: iso(y, month, Number(m[2])) };
+  }
+  m = s.match(/^(\d{1,2})\s+([A-Za-z]{3})\s*[-–]\s*(\d{1,2})\s+([A-Za-z]{3})\s+(20\d{2})$/);
+  if (m) {
+    const y = Number(m[5]);
+    const a = MONTH[m[2].toLowerCase()];
+    const b = MONTH[m[4].toLowerCase()];
+    if (!a || !b) return null;
+    return { start: iso(y, a, Number(m[1])), end: iso(y, b, Number(m[3])) };
+  }
+  m = s.match(/^(\d{1,2})\s+([A-Za-z]{3})\s+(20\d{2})$/);
+  if (m) {
+    const month = MONTH[m[2].toLowerCase()];
+    const y = Number(m[3]);
+    if (!month) return null;
+    const day = iso(y, month, Number(m[1]));
+    return { start: day, end: day };
+  }
+  return null;
+}
 
-async function readFeed(url: string, source: string): Promise<RssItem[]> {
+function daySpan(start: string, end: string) {
+  return Math.round((Date.parse(`${end}T12:00:00Z`) - Date.parse(`${start}T12:00:00Z`)) / 86_400_000);
+}
+
+function formatWhen(start: string, end: string) {
+  if (start === end) return NL_WEEKDAY.format(new Date(`${start}T12:00:00+02:00`));
+  return `${NL_DATE.format(new Date(`${start}T12:00:00+02:00`))} – ${NL_DATE.format(new Date(`${end}T12:00:00+02:00`))}`;
+}
+
+type ScrapedEvent = {
+  title: string;
+  place: string;
+  start: string;
+  end: string;
+  excerpt: string;
+  href: string;
+};
+
+const SKIP =
+  /early stages|main stages|tinies|kinder kids|oceankids|beyblade|baby talks|toi toi baby|9-11 years|12\+ years|14\+ years|notte bianca|defected|andorra|anjunadeep|malta classic|mdina grand prix|david morales|todd terry|ferreck dawn|rya |gmdss|stcw|boat master|officer in charge|nautical licence|wsop|conference|summit|student jobs|home pro|dissecting red flags|skills course|digital workshop|certificate in project|tech wreck|painting retreat|allura by venus|mcast freshers|general admission|oceanman|oceanteams|sprint 2 km|half oceanman|diving holiday|mac pre-festival|transport malta|use of leadership|ewfonija|marsalforn|gozo/i;
+
+const SKIP_TITLE =
+  /^(september|sundays|4 october|13th anniversary|casual commander|up in the air|the beach day ticket|music hidedout|sci_art|captured moments)$/i;
+
+const ARRIVAL_TOO_EARLY =
+  /climb|wied babu|eurobirdwatch|food forest|oceanman|branch to bottle/i;
+
+function keepEvent(ev: ScrapedEvent) {
+  if (ev.end < TRIP_START || ev.start > TRIP_END) return false;
+  if (SKIP.test(`${ev.title} ${ev.excerpt}`)) return false;
+  if (SKIP_TITLE.test(ev.title.trim())) return false;
+  if (ev.title.length < 4 || ev.title.length > 90) return false;
+  const span = daySpan(ev.start, ev.end);
+  const startsInTrip = ev.start >= TRIP_START && ev.start <= TRIP_END;
+  const startsEve = ev.start >= "2026-10-02" && ev.start < TRIP_START;
+  if (!startsInTrip && !startsEve) return false;
+  if (!startsInTrip && span > 4) return false;
+  if (startsInTrip && span > 7) return false;
+  if (ev.start === TRIP_START && ARRIVAL_TOO_EARLY.test(ev.title)) return false;
+  return true;
+}
+
+function category(ev: ScrapedEvent) {
+  const blob = `${ev.title} ${ev.excerpt}`.toLowerCase();
+  if (/\b(hike|trail run|fun walk|v19k)\b/.test(blob)) return "hike";
+  if (/\bfesta\b/.test(blob)) return "festa";
+  if (/\b(theatre live|misanthrope|opera live|the maids|queen at sea)\b/.test(blob)) return "screen";
+  if (/\b(workshop|knitting|embroidery|baking|salsa|yoga|class|padel)\b/.test(blob)) return "les";
+  return "overig";
+}
+
+function scoreEvent(ev: ScrapedEvent) {
+  const blob = `${ev.title} ${ev.place} ${ev.excerpt}`.toLowerCase();
+  let n = 1;
+  if (
+    /\b(workshop|class|festa|kayak|hike|yoga|salsa|knitting|baking|embroidery|flamenco|padel|pottery|pottenbak|concert|theatre|theater|jazz|comedy|maker faire|villa frere)\b/.test(
+      blob,
+    )
+  ) {
+    n += 4;
+  }
+  if (/\b(sliema|valletta|st\.? julian|spinola|gżira|gzira|pieta|pietà|mdina|rabat|birgu)\b/.test(blob)) n += 3;
+  if (/\b(gozo|marsalforn|victoria)\b/.test(blob)) n -= 2;
+  if (ev.start === ev.end) n += 1;
+  return n;
+}
+
+function diversify(events: ScrapedEvent[]) {
+  const used: Record<string, number> = {};
+  const cap: Record<string, number> = { hike: 1, festa: 2, screen: 1, les: 4, overig: 4 };
+  const out: ScrapedEvent[] = [];
+  for (const ev of [...events].sort((a, b) => scoreEvent(b) - scoreEvent(a))) {
+    const cat = category(ev);
+    if ((used[cat] ?? 0) >= (cap[cat] ?? 3)) continue;
+    used[cat] = (used[cat] ?? 0) + 1;
+    out.push(ev);
+    if (out.length >= 9) break;
+  }
+  return out;
+}
+
+const CARD_RE =
+  /<a class="mm-card[^"]*"\s+href="(\/events\/event\/[^"]+)"[\s\S]*?<h3 class="mm-card__title">(.*?)<\/h3>[\s\S]*?(?:<span class="mm-card__loc">(.*?)<\/span>)?[\s\S]*?<span>(\d[^<]*20\d{2})<\/span>[\s\S]*?(?:<p class="mm-card__excerpt">(.*?)<\/p>)?/gi;
+
+async function readListing(url: string): Promise<ScrapedEvent[]> {
   const res = await fetch(url, {
-    headers: { "User-Agent": UA, Accept: "application/rss+xml, application/xml, text/xml" },
+    headers: { "User-Agent": UA, Accept: "text/html" },
     signal: AbortSignal.timeout(8000),
     next: { revalidate: 1800 },
   });
   if (!res.ok) return [];
-  const xml = await res.text();
-  return [...xml.matchAll(/<item>([\s\S]*?)<\/item>/gi)].slice(0, 12).map((m) => ({
-    title: tag(m[1], "title"),
-    href: tag(m[1], "link"),
-    source,
-    date: tag(m[1], "pubDate"),
-  }));
-}
-
-function newsKind(title: string): UpdateKind | null {
-  if (SKIP_NEWS.test(title)) return null;
-  if (WEATHER_NEWS.test(title)) return "weer";
-  if (PLANNING_NEWS.test(title)) return "planning";
-  return "malta";
-}
-
-function newsScore(title: string, kind: UpdateKind) {
-  let n = kind === "weer" ? 4 : kind === "planning" ? 3 : 1;
-  if (
-    /\b(festival|exhibition|restaurant|harbour|ranked|museum|fish fest|storm|drought|weather|football|concert|ticket|airline|gozo|valletta|sliema|mdina|rabat|birgu|notte|andorra|defected)\b/i.test(
-      title,
-    )
-  ) {
-    n += 3;
-  }
-  return n;
-}
-
-function cleanTitle(title: string) {
-  return title.replace(/\s*\|\s*Lovin Malta\s*$/i, "").trim();
-}
-
-async function fetchNewsItems(): Promise<UpdateItem[]> {
-  const lists = await Promise.all(FEEDS.map((f) => readFeed(f.url, f.source).catch(() => [] as RssItem[])));
-  const seen = new Set<string>();
-  const picked: { score: number; item: UpdateItem }[] = [];
-
-  for (const row of lists.flat()) {
-    if (!row.title) continue;
-    const kind = newsKind(row.title);
-    if (!kind) continue;
-    const title = cleanTitle(row.title);
-    const key = title.toLowerCase().slice(0, 48);
-    if (seen.has(key)) continue;
-    seen.add(key);
-    picked.push({
-      score: newsScore(title, kind),
-      item: {
-        id: `news-${picked.length}-${key.replace(/[^a-z0-9]+/g, "").slice(0, 24)}`,
-        kind,
-        title,
-        body: `Uit ${row.source}${row.date ? ` · ${formatRssDate(row.date)}` : ""}.`,
-        href: row.href || undefined,
-        source: row.source,
-      },
+  const html = (await res.text()).replace(/<script[\s\S]*?<\/script>/gi, " ");
+  const out: ScrapedEvent[] = [];
+  const cardRe = new RegExp(CARD_RE.source, "gi");
+  for (const m of html.matchAll(cardRe)) {
+    const range = parseDateRange(m[4] ?? "");
+    if (!range) continue;
+    out.push({
+      title: stripHtml(m[2] ?? ""),
+      place: stripHtml(m[3] ?? ""),
+      start: range.start,
+      end: range.end,
+      excerpt: stripHtml(m[5] ?? ""),
+      href: `https://manicmalta.com${m[1]}`,
     });
   }
-
-  return picked
-    .sort((a, b) => b.score - a.score)
-    .slice(0, 6)
-    .map((row) => row.item);
+  return out;
 }
 
-function formatRssDate(raw: string) {
-  const d = new Date(raw);
-  if (Number.isNaN(d.getTime())) return raw;
-  return NL_DATE.format(d);
+function toItem(ev: ScrapedEvent): UpdateItem {
+  const when = formatWhen(ev.start, ev.end);
+  const place = ev.place || "";
+  const bits = [when, place].filter(Boolean).join(" · ");
+  const body = [bits, ev.excerpt].filter(Boolean).join(". ");
+  const key = ev.title.toLowerCase().replace(/[^a-z0-9]+/g, "").slice(0, 28);
+  return {
+    id: `act-${ev.start}-${key}`,
+    kind: "activiteit",
+    title: ev.title,
+    body: body || bits,
+    href: ev.href,
+    source: "Manic Malta",
+  };
 }
 
-function headlineFor(items: UpdateItem[], days: number, date: string) {
-  const weer = items.find((i) => i.id === "weer-nu");
-  const dayBit = daysCopy(days).replace(" tot KM395", "");
-  if (weer) {
-    const temp = weer.title.match(/(\d+)°/)?.[1];
-    return temp ? `${formatBriefingDate(date)} · ${dayBit} · ${temp}°` : `${formatBriefingDate(date)} · ${dayBit}`;
+const PADEL: UpdateItem = {
+  id: "act-padel-valletta",
+  kind: "activiteit",
+  title: "Padel in de gracht van Valletta",
+  body: "1 Padel Malta, Valletta Ditch. Drop-in via Playtomic, ook ’s avonds. Rackets ter plekke.",
+  href: "https://playtomic.io/tenant/1-padel-malta-valletta",
+  source: "1 Padel Malta",
+};
+
+async function fetchActivityItems(): Promise<UpdateItem[]> {
+  const lists = await Promise.all(LISTING_PAGES.map((url) => readListing(url).catch(() => [] as ScrapedEvent[])));
+  const seen = new Set<string>();
+  const unique: ScrapedEvent[] = [];
+  for (const ev of lists.flat()) {
+    if (!keepEvent(ev)) continue;
+    const key = ev.title.toLowerCase().replace(/[^a-z0-9]+/g, "").slice(0, 28);
+    if (seen.has(key)) continue;
+    seen.add(key);
+    unique.push(ev);
   }
-  return `${formatBriefingDate(date)} · ${dayBit}`;
+
+  const live = diversify(unique).map(toItem);
+  const have = new Set(live.map((i) => i.title.toLowerCase().slice(0, 24)));
+  const extras = SEED_BRIEFING.items.filter((s) => !have.has(s.title.toLowerCase().slice(0, 24)));
+  const items = [...live, ...extras].filter((i, idx, arr) => arr.findIndex((x) => x.title === i.title) === idx);
+  if (!items.some((i) => /padel/i.test(i.title))) items.splice(Math.min(2, items.length), 0, PADEL);
+  return items.slice(0, 10);
 }
 
-/** Snapshot 17 sep 2026 — fallback als RSS/weer even niet meewerken. */
+/** Fallback: activiteiten 3–7 okt 2026, geen herhaling van de dagplanning. */
 export const SEED_BRIEFING: DailyBriefing = {
   date: "2026-09-17",
   checkedAt: "2026-09-17T08:00:00.000Z",
-  headline: "17 sep · 16 dagen · 25°",
+  headline: "10 nieuwe activiteiten",
   live: false,
   items: [
     {
-      id: "planning-countdown",
-      kind: "planning",
-      title: "16 dagen tot KM395",
-      body: "Zaterdag 3 oktober, KM395 van Schiphol 11:50 → Malta 14:55. Daarna inchecken bij de Carlton in Sliema.",
+      id: "act-festa-sliema",
+      kind: "activiteit",
+      title: "Festa Our Lady of the Rosary — Sliema",
+      body: "Zo 4 okt · Tas-Sliema. Dorpsfeest pal bij het hotel: processie, bands en vuurwerk.",
+      href: "https://manicmalta.com/events/event/festa-our-lady-of-the-rosary-tas-sliema-2026/",
+      source: "Manic Malta",
     },
     {
-      id: "planning-tickets-andorra",
-      kind: "planning",
-      title: "Tickets Malta – Andorra",
-      body: "Zondag 4 oktober, 18:00, National Stadium Ta’ Qali. MFA zet kaarten meestal 2–4 weken van tevoren in de verkoop — dit is het moment om te checken.",
-      href: "https://tickets.mfa.com.mt/",
-      source: "Malta FA",
+      id: "act-flamenco",
+      kind: "activiteit",
+      title: "Puerto Flamenco",
+      body: "Za 3 okt · 20:00 · Teatru Salesjan, Sliema. Live flamenco, parterre vanaf €30. Krap na het diner, voor Notte Bianca.",
+      href: "https://manicmalta.com/events/event/puerto-flamenco-teatru-salesjan-2026/",
+      source: "Teatru Salesjan",
     },
     {
-      id: "planning-notte",
-      kind: "planning",
-      title: "Notte Bianca blijft staan",
-      body: "Zaterdag 3 oktober, Valletta vanaf 19:00 tot middernacht. Gratis / geen ticket. Van Sliema met de ferry of een taxi.",
-      href: "https://www.festivalfinder.eu/festivals/notte-bianca-5",
-      source: "Notte Bianca",
+      id: "act-baking",
+      kind: "activiteit",
+      title: "Baking workshop",
+      body: "Za 3 okt. Kleine bakles — check tijd, want we landen pas 14:55.",
+      href: "https://manicmalta.com/events/month/october/",
+      source: "Manic Malta",
     },
     {
-      id: "weer-nu",
-      kind: "weer",
-      title: "Nu in Sliema: 25° · helder",
-      body: "Na een natte week (einde van ~120 droge dagen, waterspout bij Golden Bay op 16 sep) is het weer droog. Wind 2 km/u.",
-      href: "https://weather.apple.com/?lat=35.9126&long=14.5020",
-      source: "Open-Meteo",
+      id: "act-embroidery",
+      kind: "activiteit",
+      title: "Embroidery Saturday Afternoon",
+      body: "Za 3 okt, middag. Borduren — zo klein als het klinkt.",
+      href: "https://manicmalta.com/events/month/october/",
+      source: "Manic Malta",
     },
     {
-      id: "weer-dagen",
-      kind: "weer",
-      title: "Komende dagen 30–31°",
-      body: "17 sep 30° · 18 sep 31° · 19 sep 31° · 20 sep 31°. Kans op een bui in het weekend tot zo’n 40%. Echte tripverwachting volgt over 9 dagen.",
-      source: "Open-Meteo",
+      id: "act-villa-frere",
+      kind: "activiteit",
+      title: "Villa Frere tuinen open",
+      body: "Zo 4 okt · Pietà. Zeldzame eerste-zondag opening van de terrastuinen.",
+      href: "https://manicmalta.com/events/event/experience-villa-frere-2026/",
+      source: "Manic Malta",
     },
     {
-      id: "news-rank",
-      kind: "malta",
-      title: "Malta bij de top 10 landen om te wonen in 2026",
-      body: "Lovin Malta, 16 september.",
-      href: "https://lovinmalta.com/news/local/malta-ranked-among-worlds-top-10-countries-to-live-in-for-2026/",
-      source: "Lovin Malta",
+      id: "act-kayak",
+      kind: "activiteit",
+      title: "Sunset kayaking",
+      body: "Zo 4 okt. Kajak bij zonsondergang — voor de wedstrijd om 18:00 is het krap, daarna te donker.",
+      href: "https://manicmalta.com/events/month/october/",
+      source: "Manic Malta",
     },
     {
-      id: "news-ion",
-      kind: "malta",
-      title: "ION Harbour is terug, met een nieuwe look",
-      body: "Restaurant aan de haven — mogelijk een optie als jullie in Sliema / Valletta Waterfront eten.",
-      href: "https://lovinmalta.com/news/ion-harbour-is-back-with-a-new-look-and-possibly-maltas-most-romantic-table/",
-      source: "Lovin Malta",
+      id: "act-salsa",
+      kind: "activiteit",
+      title: "Cuban salsa voor beginners — San Ġwann",
+      body: "Ma 5 okt. Beginnersles salsa.",
+      href: "https://manicmalta.com/events/month/october/",
+      source: "Manic Malta",
     },
     {
-      id: "news-fishfest",
-      kind: "malta",
-      title: "Malta Fish Fest in Marsaxlokk, zondag 20 september",
-      body: "Nog voor de trip, maar leuk als sfeerpeiling voor het zuiden.",
-      href: "https://ohmymalta.com.mt/2026/09/16/malta-fish-fest-returns-to-marsaxlokk-this-sunday/",
-      source: "Oh My Malta",
+      id: "act-knitting",
+      kind: "activiteit",
+      title: "Knitting course",
+      body: "Ma 5 okt. Brei-avond / les.",
+      href: "https://manicmalta.com/events/month/october/",
+      source: "Manic Malta",
     },
     {
-      id: "news-km",
-      kind: "planning",
-      title: "KM Malta schrapte 8 sep Londen-vluchten (NATS)",
-      body: "Dat ging om de UK-lijn, niet om AMS. KM395/KM394 staan nog gewoon. Dichter bij 3 okt nog even de status checken.",
-      href: "https://www.kmmaltaairlines.com",
-      source: "KM Malta Airlines",
+      id: "act-yoga",
+      kind: "activiteit",
+      title: "Power yoga",
+      body: "Di 6 okt. Losse yogales.",
+      href: "https://manicmalta.com/events/month/october/",
+      source: "Manic Malta",
     },
+    PADEL,
   ],
 };
 
 export async function gatherLiveUpdates(now = new Date()): Promise<DailyBriefing> {
   const { date } = maltaNowParts(now);
-  const days = daysUntilDeparture(now);
-  const planning = planningNotes(now);
-
-  const [weather, news] = await Promise.all([
-    fetchWeatherItems().catch(() => [] as UpdateItem[]),
-    fetchNewsItems().catch(() => [] as UpdateItem[]),
-  ]);
-
-  const live = weather.length + news.length > 0;
-  const merged = [...planning, ...weather, ...news];
-  const items = live ? merged.slice(0, 12) : SEED_BRIEFING.items;
-
+  const items = await fetchActivityItems().catch(() => [] as UpdateItem[]);
+  const live = items.length > 0;
+  const list = live ? items : SEED_BRIEFING.items;
+  const n = list.length;
   return {
     date,
     checkedAt: now.toISOString(),
-    headline: live ? headlineFor(items, days, date) : SEED_BRIEFING.headline,
-    items,
+    headline: n === 1 ? "1 nieuwe activiteit" : `${n} nieuwe activiteiten`,
+    items: list,
     live,
   };
 }
