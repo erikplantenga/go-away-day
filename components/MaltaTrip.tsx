@@ -43,6 +43,8 @@ export function MaltaTrip() {
 
   return (
     <div className="space-y-2">
+      <MpQuiz onOpenNews={() => toggle("updates")} />
+
       <LiveCams />
 
       <Accordion
@@ -111,8 +113,6 @@ export function MaltaTrip() {
       >
         <Updates briefing={briefing} />
       </Accordion>
-
-      <MpQuiz />
     </div>
   );
 }

@@ -5,6 +5,7 @@ import {
   quizDate,
   quizDaysLeft,
   quizStillOpen,
+  quizUnlockedToday,
   type QuizPlayer,
   type QuizQuestionInternal,
 } from "@/lib/mpQuiz";
@@ -64,13 +65,20 @@ export async function GET() {
     return NextResponse.json({ error: "Geen quiz op static export" }, { status: 503 });
   }
   const admin = await fb();
-  const totals = await admin.getMpQuizTotals();
+  const date = quizDate();
+  const [totals, erikPlayed, bennoPlayed] = await Promise.all([
+    admin.getMpQuizTotals(),
+    admin.hasMpQuizPlayed("erik", date),
+    admin.hasMpQuizPlayed("benno", date),
+  ]);
   return NextResponse.json({
     erik: totals.erik,
     benno: totals.benno,
+    played: { erik: erikPlayed, benno: bennoPlayed },
     daysLeft: quizDaysLeft(),
     open: quizStillOpen(),
-    date: quizDate(),
+    unlocked: quizUnlockedToday(),
+    date,
     firebaseReady: admin.isFirebaseAdminConfigured(),
   });
 }
@@ -94,6 +102,9 @@ export async function POST(req: NextRequest) {
     if (!quizStillOpen()) {
       const totals = await admin.getMpQuizTotals();
       return NextResponse.json({ ended: true, ...totals, daysLeft: quizDaysLeft() });
+    }
+    if (!quizUnlockedToday()) {
+      return NextResponse.json({ error: "Vanaf 10:00 kun je de quiz doen." }, { status: 403 });
     }
     if (!isPlayer(body.who) || !checkPass(body.who, body.password)) {
       return NextResponse.json({ error: "Verkeerd wachtwoord" }, { status: 401 });

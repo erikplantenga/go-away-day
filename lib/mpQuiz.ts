@@ -1,3 +1,4 @@
+import { fromZonedTime } from "date-fns-tz";
 import { FLIGHTS, HOTEL, MALTA_DAYS, PASSENGERS, type DayItem, type TripDay } from "@/lib/maltaTrip";
 import { daysUntilDeparture } from "@/lib/maltaWeather";
 
@@ -25,6 +26,63 @@ export function quizDaysLeft(now = new Date()): number {
 
 export function quizStillOpen(now = new Date()): boolean {
   return quizDaysLeft(now) >= 0;
+}
+
+export function quizAmsterdamHour(now = new Date()): number {
+  return Number(
+    new Intl.DateTimeFormat("en-GB", {
+      timeZone: "Europe/Amsterdam",
+      hour: "2-digit",
+      hourCycle: "h23",
+    }).format(now),
+  );
+}
+
+/** Quizdagen tot en met vertrek. Na spelen vandaag telt die ronde niet meer mee. */
+export function quizRoundsLeft(daysLeft: number, open: boolean, playedToday: boolean): number {
+  if (!open) return 0;
+  const includingToday = daysLeft <= 0 ? 1 : daysLeft;
+  return playedToday ? Math.max(0, includingToday - 1) : includingToday;
+}
+
+export function quizReminderDue(now = new Date()): boolean {
+  return quizUnlockedToday(now);
+}
+
+const TZ = "Europe/Amsterdam";
+
+function tenOn(date: string): Date {
+  return fromZonedTime(`${date}T10:00:00`, TZ);
+}
+
+export function todayTenAmsterdam(now = new Date()): Date {
+  return tenOn(quizDate(now));
+}
+
+export function quizUnlockedToday(now = new Date()): boolean {
+  return quizStillOpen(now) && now.getTime() >= todayTenAmsterdam(now).getTime();
+}
+
+export function formatDurationNl(ms: number): string {
+  const totalMin = Math.max(0, Math.ceil(ms / 60_000));
+  const hours = Math.floor(totalMin / 60);
+  const minutes = totalMin % 60;
+  const uur = hours === 1 ? "1 uur" : `${hours} uur`;
+  const min = minutes === 1 ? "1 minuut" : `${minutes} minuten`;
+  if (hours <= 0) return min;
+  if (minutes === 0) return uur;
+  return `${uur} en ${min}`;
+}
+
+export function dailyUnlockCopy(now = new Date()): { ready: boolean; text: string } {
+  if (!quizStillOpen(now)) {
+    return { ready: false, text: "De quiz is afgelopen. Nieuws van de dag blijft staan." };
+  }
+  if (quizUnlockedToday(now)) {
+    return { ready: true, text: "Nieuws van de dag en de quiz staan klaar." };
+  }
+  const wait = formatDurationNl(todayTenAmsterdam(now).getTime() - now.getTime());
+  return { ready: false, text: `Nieuws van de dag en start quiz over ${wait}.` };
 }
 
 function shuffle<T>(list: T[]): T[] {
