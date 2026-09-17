@@ -85,6 +85,19 @@ export function dailyUnlockCopy(now = new Date()): { ready: boolean; text: strin
   return { ready: false, text: `Nieuws van de dag en start quiz over ${wait}.` };
 }
 
+export const QUIZ_REEL_VALUES = [1, 2, 3, 4, 5] as const;
+
+export function rollQuizSpin(): { reels: [number, number, number]; points: number } {
+  const pick = () => QUIZ_REEL_VALUES[Math.floor(Math.random() * QUIZ_REEL_VALUES.length)]!;
+  const reels: [number, number, number] = [pick(), pick(), pick()];
+  return { reels, points: reels[0] + reels[1] + reels[2] };
+}
+
+export function isLocalQuizHost(): boolean {
+  if (typeof window === "undefined") return false;
+  return window.location.hostname === "localhost" || window.location.hostname === "127.0.0.1";
+}
+
 function shuffle<T>(list: T[]): T[] {
   const out = [...list];
   for (let i = out.length - 1; i > 0; i--) {

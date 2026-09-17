@@ -2,7 +2,18 @@
 
 import { useEffect, useState } from "react";
 import { ConfettiBurst } from "@/components/ConfettiBurst";
-import { quizDate, quizReminderDue, quizRoundsLeft, quizUnlockedToday, dailyUnlockCopy, type QuizPlayer, type QuizQuestion } from "@/lib/mpQuiz";
+import { MpQuizSpin } from "@/components/MpQuizSpin";
+import { MpQuizStand } from "@/components/MpQuizStand";
+import {
+  dailyUnlockCopy,
+  isLocalQuizHost,
+  quizDate,
+  quizReminderDue,
+  quizRoundsLeft,
+  quizUnlockedToday,
+  type QuizPlayer,
+  type QuizQuestion,
+} from "@/lib/mpQuiz";
 
 type Board = {
   erik: number;
@@ -13,7 +24,7 @@ type Board = {
   firebaseReady: boolean;
 };
 
-type Screen = "login" | "welcome" | "wait" | "quiz" | "result" | "already" | "ended";
+type Screen = "login" | "welcome" | "wait" | "quiz" | "spinGrant" | "spin" | "result" | "already" | "ended";
 
 const NAME: Record<QuizPlayer, string> = { erik: "Erik", benno: "Benno" };
 
@@ -41,8 +52,17 @@ export function MpQuiz({ onOpenNews }: { onOpenNews?: () => void }) {
   const [picks, setPicks] = useState<(number | null)[]>([null, null, null, null, null]);
   const [step, setStep] = useState(0);
   const [points, setPoints] = useState(0);
+  const [spinToken, setSpinToken] = useState("");
+  const [spinsTotal, setSpinsTotal] = useState(0);
+  const [spinsDone, setSpinsDone] = useState(0);
+  const [spinEarned, setSpinEarned] = useState(0);
+  const [spinning, setSpinning] = useState(false);
+  const [reels, setReels] = useState<[number, number, number] | null>(null);
+  const [lastSpinPoints, setLastSpinPoints] = useState<number | null>(null);
+  const [testRound, setTestRound] = useState(false);
   const [party, setParty] = useState(false);
   const [boot, setBoot] = useState(true);
+  const [stand, setStand] = useState(false);
   const [now, setNow] = useState(() => new Date());
 
   const applyBoard = (data: Partial<Board> & { erik?: number; benno?: number }) => {
@@ -111,13 +131,13 @@ export function MpQuiz({ onOpenNews }: { onOpenNews?: () => void }) {
   }, [board.open, board.played.erik, board.played.benno]);
 
   useEffect(() => {
-    if (!sheet && !boot) return;
+    if (!sheet && !boot && !stand) return;
     const prev = document.body.style.overflow;
     document.body.style.overflow = "hidden";
     return () => {
       document.body.style.overflow = prev;
     };
-  }, [sheet, boot]);
+  }, [sheet, boot, stand]);
 
   useEffect(() => {
     if (sheet && screen === "wait" && board.open && quizUnlockedToday(now)) {
@@ -136,8 +156,22 @@ export function MpQuiz({ onOpenNews }: { onOpenNews?: () => void }) {
     setPicks([null, null, null, null, null]);
     setStep(0);
     setPoints(0);
+    setSpinToken("");
+    setSpinsTotal(0);
+    setSpinsDone(0);
+    setSpinEarned(0);
+    setSpinning(false);
+    setReels(null);
+    setLastSpinPoints(null);
+    setTestRound(false);
     setParty(false);
+    setStand(false);
     loadBoard();
+  };
+
+  const openStand = () => {
+    loadBoard();
+    setStand(true);
   };
 
   const openQuiz = () => {
@@ -184,6 +218,16 @@ export function MpQuiz({ onOpenNews }: { onOpenNews?: () => void }) {
         setScreen("already");
         return;
       }
+      if (data.continueSpins) {
+        setWho(player);
+        setPoints(data.points ?? 0);
+        setSpinToken(data.spinToken);
+        setSpinsTotal(data.spinsTotal ?? data.points ?? 0);
+        setSpinsDone(data.spinsDone ?? 0);
+        setSpinEarned((data.spinResults as number[] | undefined)?.reduce((a, b) => a + b, 0) ?? 0);
+        setScreen("spinGrant");
+        return;
+      }
       setWho(player);
       setToken(data.token);
       setQuestions(data.questions);
@@ -205,7 +249,14 @@ export function MpQuiz({ onOpenNews }: { onOpenNews?: () => void }) {
       const res = await fetch("/api/quiz", {
         method: "POST",
         headers: { "Content-Type": "application/json" },
-        body: JSON.stringify({ op: "submit", who, password, token, answers: picks }),
+        body: JSON.stringify({
+          op: "submit",
+          who,
+          password,
+          token,
+          answers: picks,
+          test: testRound,
+        }),
       });
       const data = await res.json();
       if (!res.ok) {
@@ -222,18 +273,99 @@ export function MpQuiz({ onOpenNews }: { onOpenNews?: () => void }) {
         return;
       }
       setPoints(data.points ?? 0);
+      setSpinToken(data.spinToken ?? "");
+      setSpinsTotal(data.points ?? 0);
+      setSpinsDone(0);
+      setSpinEarned(0);
+      setReels(null);
+      setLastSpinPoints(null);
+      setTestRound(!!data.test);
       applyBoard({
         erik: data.erik,
         benno: data.benno,
         played: { ...board.played, [who]: true },
         firebaseReady: data.firebaseReady !== false,
       });
-      setScreen("result");
-      if ((data.points ?? 0) >= 4) setParty(true);
+      if ((data.points ?? 0) <= 0) {
+        setScreen("result");
+      } else {
+        setScreen("spinGrant");
+      }
     } catch {
       setError("Geen verbinding");
     } finally {
       setBusy(false);
+    }
+  };
+
+  const startTestSpins = async (player: QuizPlayer, pass: string, correct = 3) => {
+    setBusy(true);
+    setError("");
+    try {
+      const res = await fetch("/api/quiz", {
+        method: "POST",
+        headers: { "Content-Type": "application/json" },
+        body: JSON.stringify({ op: "testspin", who: player, password: pass, correct }),
+      });
+      const data = await res.json();
+      if (!res.ok) {
+        setError(data.error ?? "Lukt niet");
+        return;
+      }
+      setWho(player);
+      setPoints(data.points ?? correct);
+      setSpinToken(data.spinToken);
+      setSpinsTotal(data.spinsTotal ?? correct);
+      setSpinsDone(0);
+      setSpinEarned(0);
+      setReels(null);
+      setLastSpinPoints(null);
+      setTestRound(true);
+      setScreen("spinGrant");
+    } catch {
+      setError("Geen verbinding");
+    } finally {
+      setBusy(false);
+    }
+  };
+
+  const doSpin = async () => {
+    if (!who || spinning || busy || spinsDone >= spinsTotal) return;
+    setBusy(true);
+    setError("");
+    try {
+      const res = await fetch("/api/quiz", {
+        method: "POST",
+        headers: { "Content-Type": "application/json" },
+        body: JSON.stringify({ op: "spin", who, password, token: spinToken, test: testRound }),
+      });
+      const data = await res.json();
+      if (!res.ok) {
+        setError(data.error ?? "Lukt niet");
+        return;
+      }
+      setReels(data.reels);
+      setLastSpinPoints(data.points ?? 0);
+      if (data.erik != null) applyBoard({ erik: data.erik, benno: data.benno });
+      setSpinning(true);
+    } catch {
+      setError("Geen verbinding");
+    } finally {
+      setBusy(false);
+    }
+  };
+
+  const finishSpin = () => {
+    const add = lastSpinPoints ?? 0;
+    const nextDone = spinsDone + 1;
+    const nextEarned = spinEarned + add;
+    setSpinsDone(nextDone);
+    setSpinEarned(nextEarned);
+    setSpinning(false);
+    if (nextDone >= spinsTotal) {
+      if (nextEarned >= 12 || points >= 4) setParty(true);
+      loadBoard();
+      setScreen("result");
     }
   };
 
@@ -335,7 +467,13 @@ export function MpQuiz({ onOpenNews }: { onOpenNews?: () => void }) {
               Sluiten
             </button>
             <p className="min-w-0 flex-1 truncate text-center text-sm font-semibold text-[#c9a227]">MP-Quiz</p>
-            <span className="w-[4.5rem]" />
+            <button
+              type="button"
+              onClick={openStand}
+              className="inline-tap flex min-h-11 items-center rounded-full bg-[#c9a227] px-3 text-sm font-bold text-[#0b1f3a]"
+            >
+              Stand
+            </button>
           </div>
 
           <div className="min-h-0 flex-1 overflow-y-auto px-4 pb-[max(1.5rem,env(safe-area-inset-bottom))]">
@@ -365,6 +503,13 @@ export function MpQuiz({ onOpenNews }: { onOpenNews?: () => void }) {
 
             {screen === "login" && (
               <div className="mx-auto mt-6 max-w-md space-y-4">
+                <button
+                  type="button"
+                  onClick={openStand}
+                  className="flex min-h-11 w-full items-center justify-center rounded-xl bg-white/10 text-sm font-semibold"
+                >
+                  Tussenstand
+                </button>
                 <p className="text-center text-lg font-bold">Ben je Benno of Erik?</p>
                 <div className="grid grid-cols-2 gap-2">
                   {(["benno", "erik"] as const).map((id) => (
@@ -410,6 +555,16 @@ export function MpQuiz({ onOpenNews }: { onOpenNews?: () => void }) {
                     className="flex min-h-11 w-full items-center justify-center rounded-xl bg-white/10 text-sm font-semibold"
                   >
                     Zet de 10:00-melding aan
+                  </button>
+                )}
+                {isLocalQuizHost() && (
+                  <button
+                    type="button"
+                    disabled={!who || !password || busy}
+                    onClick={() => who && startTestSpins(who, password, 3)}
+                    className="flex min-h-11 w-full items-center justify-center rounded-xl border border-white/20 text-sm font-semibold text-white/80 disabled:opacity-40"
+                  >
+                    Test spins lokaal (3 goed)
                   </button>
                 )}
               </div>
@@ -482,15 +637,56 @@ export function MpQuiz({ onOpenNews }: { onOpenNews?: () => void }) {
               </div>
             )}
 
+            {screen === "spinGrant" && who && (
+              <div className="mx-auto mt-8 max-w-md space-y-4 text-center">
+                <p className="text-sm font-semibold uppercase tracking-wider text-[#c9a227]">{NAME[who]}</p>
+                <p className="text-4xl font-bold tabular-nums">{points}/5 goed</p>
+                <p className="text-lg font-bold">
+                  Je mag {spinsTotal} {spinsTotal === 1 ? "keer" : "keer"} spinnen
+                </p>
+                <p className="text-sm text-white/70">
+                  Elke spin geeft punten. Na {spinsTotal === 1 ? "deze spin" : `${spinsTotal} spins`} is dat je score
+                  voor vandaag.
+                </p>
+                {error && <p className="text-center text-sm text-red-300">{error}</p>}
+                <button
+                  type="button"
+                  onClick={() => setScreen("spin")}
+                  className="flex min-h-11 w-full items-center justify-center rounded-xl bg-[#c9a227] text-sm font-bold text-[#0b1f3a]"
+                >
+                  Naar de spins
+                </button>
+              </div>
+            )}
+
+            {screen === "spin" && (
+              <>
+                {error && <p className="text-center text-sm text-red-300">{error}</p>}
+                <MpQuizSpin
+                  spinsDone={spinsDone}
+                  spinsTotal={spinsTotal}
+                  earned={spinEarned}
+                  spinning={spinning}
+                  reels={reels}
+                  lastPoints={lastSpinPoints}
+                  onSpin={() => void doSpin()}
+                  onDone={finishSpin}
+                />
+              </>
+            )}
+
             {screen === "result" && who && (
               <div className="mx-auto mt-8 max-w-md space-y-3 text-center">
                 <p className="text-sm font-semibold uppercase tracking-wider text-[#c9a227]">{NAME[who]}</p>
-                <p className="text-4xl font-bold tabular-nums">{points}/5</p>
+                <p className="text-4xl font-bold tabular-nums">{points}/5 goed</p>
+                <p className="text-2xl font-bold">Score: {spinEarned} punten</p>
                 <p className="text-sm text-white/70">
                   Stand: Benno {board.benno} · Erik {board.erik}
                 </p>
                 <p className="text-sm text-white/60">
-                  Nog {quizRoundsLeft(board.daysLeft, board.open, true)} te gaan. Morgen om 10:00 weer een nieuwe ronde.
+                  {testRound
+                    ? "Dit was een lokale test, de stand is niet bewaard."
+                    : `Nog ${quizRoundsLeft(board.daysLeft, board.open, true)} te gaan. Morgen om 10:00 weer een nieuwe ronde.`}
                 </p>
                 <button
                   type="button"
@@ -545,6 +741,15 @@ export function MpQuiz({ onOpenNews }: { onOpenNews?: () => void }) {
             )}
           </div>
         </div>
+      )}
+
+      {stand && (
+        <MpQuizStand
+          benno={board.benno}
+          erik={board.erik}
+          daysLeft={board.daysLeft}
+          onClose={() => setStand(false)}
+        />
       )}
     </>
   );

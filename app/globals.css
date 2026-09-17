@@ -95,3 +95,19 @@ select {
 .chevron.open {
   transform: rotate(180deg);
 }
+
+@keyframes mp-orbit {
+  to {
+    transform: rotate(360deg);
+  }
+}
+
+.mp-orbit {
+  animation: mp-orbit 9s linear infinite;
+  transform-origin: 50% 50%;
+}
+
+.mp-orbit-rev {
+  animation: mp-orbit 12s linear infinite reverse;
+  transform-origin: 50% 50%;
+}

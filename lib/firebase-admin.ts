@@ -201,10 +201,33 @@ export async function combineAndDedupeCities(): Promise<CityEntry[]> {
 
 export type MpQuizTotals = { erik: number; benno: number };
 
-function quizMem(): { totals: MpQuizTotals; plays: Set<string> } {
-  const g = globalThis as unknown as { __mpQuiz?: { totals: MpQuizTotals; plays: Set<string> } };
-  if (!g.__mpQuiz) g.__mpQuiz = { totals: { erik: 0, benno: 0 }, plays: new Set() };
+export type MpQuizPlay = {
+  user: "erik" | "benno";
+  date: string;
+  correct: number;
+  spinResults: number[];
+  spinScore: number | null;
+};
+
+type QuizMem = {
+  totals: MpQuizTotals;
+  plays: Map<string, MpQuizPlay>;
+};
+
+function quizMem(): QuizMem {
+  const g = globalThis as unknown as { __mpQuiz?: QuizMem };
+  if (!g.__mpQuiz || !(g.__mpQuiz.plays instanceof Map)) {
+    const prev = g.__mpQuiz?.totals;
+    g.__mpQuiz = {
+      totals: prev ?? { erik: 0, benno: 0 },
+      plays: new Map(),
+    };
+  }
   return g.__mpQuiz;
+}
+
+function playKey(user: "erik" | "benno", date: string) {
+  return `${user}_${date}`;
 }
 
 export async function getMpQuizTotals(): Promise<MpQuizTotals> {
@@ -218,46 +241,125 @@ export async function getMpQuizTotals(): Promise<MpQuizTotals> {
   };
 }
 
-export async function hasMpQuizPlayed(user: "erik" | "benno", date: string): Promise<boolean> {
-  const d = db();
-  const key = `${user}_${date}`;
-  if (!d) return quizMem().plays.has(key);
-  const snap = await d.collection("mpQuiz").doc(`play_${key}`).get();
-  return snap.exists;
-}
-
-export async function submitMpQuiz(
+export async function getMpQuizPlay(
   user: "erik" | "benno",
   date: string,
-  points: number,
-): Promise<MpQuizTotals> {
+): Promise<MpQuizPlay | null> {
   const d = db();
-  const key = `${user}_${date}`;
-  const pts = Math.max(0, Math.min(5, Math.round(points)));
+  const key = playKey(user, date);
+  if (!d) return quizMem().plays.get(key) ?? null;
+  const snap = await d.collection("mpQuiz").doc(`play_${key}`).get();
+  if (!snap.exists) return null;
+  const data = snap.data() ?? {};
+  return {
+    user,
+    date,
+    correct: Number(data.correct ?? data.points ?? 0),
+    spinResults: Array.isArray(data.spinResults) ? data.spinResults.map((n: number) => Number(n)) : [],
+    spinScore: data.spinScore == null ? null : Number(data.spinScore),
+  };
+}
+
+export async function hasMpQuizPlayed(user: "erik" | "benno", date: string): Promise<boolean> {
+  const play = await getMpQuizPlay(user, date);
+  return play != null && play.spinScore != null;
+}
+
+export async function hasMpQuizStarted(user: "erik" | "benno", date: string): Promise<boolean> {
+  return (await getMpQuizPlay(user, date)) != null;
+}
+
+export async function beginMpQuizPlay(
+  user: "erik" | "benno",
+  date: string,
+  correct: number,
+): Promise<MpQuizPlay> {
+  const existing = await getMpQuizPlay(user, date);
+  if (existing) return existing;
+  const play: MpQuizPlay = {
+    user,
+    date,
+    correct: Math.max(0, Math.min(5, Math.round(correct))),
+    spinResults: [],
+    spinScore: Math.max(0, Math.min(5, Math.round(correct))) === 0 ? 0 : null,
+  };
+  const d = db();
+  if (!d) {
+    quizMem().plays.set(playKey(user, date), play);
+    return play;
+  }
+  await d.collection("mpQuiz").doc(`play_${playKey(user, date)}`).set({
+    ...play,
+    at: new Date().toISOString(),
+  });
+  return play;
+}
+
+export async function recordMpQuizSpin(
+  user: "erik" | "benno",
+  date: string,
+  spinPoints: number,
+): Promise<{ play: MpQuizPlay; totals: MpQuizTotals; added: boolean }> {
+  const pts = Math.max(0, Math.min(15, Math.round(spinPoints)));
+  const d = db();
+  const key = playKey(user, date);
 
   if (!d) {
     const mem = quizMem();
-    if (mem.plays.has(key)) return mem.totals;
-    mem.plays.add(key);
-    mem.totals[user] += pts;
-    return mem.totals;
+    const play = mem.plays.get(key);
+    if (!play) throw new Error("Geen quizronde");
+    if (play.spinScore != null) return { play, totals: mem.totals, added: false };
+    if (play.spinResults.length >= play.correct) {
+      play.spinScore = play.spinResults.reduce((a, b) => a + b, 0);
+      mem.totals[user] += play.spinScore;
+      return { play, totals: mem.totals, added: true };
+    }
+    play.spinResults = [...play.spinResults, pts];
+    if (play.spinResults.length >= play.correct) {
+      play.spinScore = play.spinResults.reduce((a, b) => a + b, 0);
+      mem.totals[user] += play.spinScore;
+      return { play, totals: mem.totals, added: true };
+    }
+    return { play, totals: mem.totals, added: false };
   }
 
   const playRef = d.collection("mpQuiz").doc(`play_${key}`);
   const totRef = d.collection("mpQuiz").doc("totals");
+  let out: MpQuizPlay | null = null;
+  let added = false;
   await d.runTransaction(async (tx) => {
-    const play = await tx.get(playRef);
-    if (play.exists) return;
-    const tot = await tx.get(totRef);
-    const data = tot.data() ?? {};
-    const next = {
-      erik: Number(data.erik ?? 0),
-      benno: Number(data.benno ?? 0),
-      [user]: Number(data[user] ?? 0) + pts,
-      updatedAt: new Date().toISOString(),
+    const snap = await tx.get(playRef);
+    if (!snap.exists) throw new Error("Geen quizronde");
+    const data = snap.data() ?? {};
+    const play: MpQuizPlay = {
+      user,
+      date,
+      correct: Number(data.correct ?? 0),
+      spinResults: Array.isArray(data.spinResults) ? data.spinResults.map((n: number) => Number(n)) : [],
+      spinScore: data.spinScore == null ? null : Number(data.spinScore),
     };
-    tx.set(playRef, { user, date, points: pts, at: new Date().toISOString() });
-    tx.set(totRef, next, { merge: true });
+    if (play.spinScore != null) {
+      out = play;
+      return;
+    }
+    if (play.spinResults.length < play.correct) {
+      play.spinResults = [...play.spinResults, pts];
+    }
+    if (play.spinResults.length >= play.correct) {
+      play.spinScore = play.spinResults.reduce((a, b) => a + b, 0);
+      const tot = await tx.get(totRef);
+      const t = tot.data() ?? {};
+      const next = {
+        erik: Number(t.erik ?? 0),
+        benno: Number(t.benno ?? 0),
+        [user]: Number(t[user] ?? 0) + play.spinScore,
+        updatedAt: new Date().toISOString(),
+      };
+      tx.set(totRef, next, { merge: true });
+      added = true;
+    }
+    tx.set(playRef, { ...play, at: new Date().toISOString() }, { merge: true });
+    out = play;
   });
-  return getMpQuizTotals();
+  return { play: out!, totals: await getMpQuizTotals(), added };
 }

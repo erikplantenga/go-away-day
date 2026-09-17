@@ -1,0 +1,166 @@
+"use client";
+
+import { useEffect, useState } from "react";
+
+type Props = {
+  benno: number;
+  erik: number;
+  daysLeft: number;
+  onClose: () => void;
+};
+
+function useCountUp(target: number, play: boolean) {
+  const [value, setValue] = useState(0);
+  useEffect(() => {
+    if (!play) return;
+    const start = performance.now();
+    const from = 0;
+    const dur = 900;
+    let raf = 0;
+    const tick = (now: number) => {
+      const t = Math.min(1, (now - start) / dur);
+      const eased = 1 - (1 - t) * (1 - t);
+      setValue(Math.round(from + (target - from) * eased));
+      if (t < 1) raf = requestAnimationFrame(tick);
+    };
+    raf = requestAnimationFrame(tick);
+    return () => cancelAnimationFrame(raf);
+  }, [target, play]);
+  return value;
+}
+
+function PersonRing({
+  name,
+  score,
+  max,
+  colorFrom,
+  colorTo,
+  glow,
+  reverse,
+}: {
+  name: string;
+  score: number;
+  max: number;
+  colorFrom: string;
+  colorTo: string;
+  glow: string;
+  reverse?: boolean;
+}) {
+  const shown = useCountUp(score, true);
+  const r = 52;
+  const c = 2 * Math.PI * r;
+  const pct = max <= 0 ? 0 : Math.min(1, score / max);
+  const dash = Math.max(pct === 0 ? 0 : c * Math.max(pct, 0.04), 0);
+  const gid = `mp-${name.toLowerCase()}`;
+
+  return (
+    <div className="flex flex-col items-center">
+      <div className="relative h-[168px] w-[168px]">
+        <svg viewBox="0 0 140 140" className="absolute inset-0 h-full w-full -rotate-90">
+          <defs>
+            <linearGradient id={gid} x1="0%" y1="0%" x2="100%" y2="100%">
+              <stop offset="0%" stopColor={colorFrom} />
+              <stop offset="100%" stopColor={colorTo} />
+            </linearGradient>
+          </defs>
+          <circle cx="70" cy="70" r={r} fill="none" stroke="rgba(255,255,255,0.08)" strokeWidth="14" />
+        </svg>
+        <svg
+          viewBox="0 0 140 140"
+          className={`absolute inset-0 h-full w-full ${reverse ? "mp-orbit-rev" : "mp-orbit"}`}
+          style={{ filter: `drop-shadow(0 0 14px ${glow})` }}
+        >
+          <defs>
+            <linearGradient id={`${gid}-spin`} x1="0%" y1="0%" x2="100%" y2="0%">
+              <stop offset="0%" stopColor={colorFrom} stopOpacity="0.15" />
+              <stop offset="55%" stopColor={colorFrom} />
+              <stop offset="100%" stopColor={colorTo} />
+            </linearGradient>
+          </defs>
+          <circle
+            cx="70"
+            cy="70"
+            r={r}
+            fill="none"
+            stroke={`url(#${gid}-spin)`}
+            strokeWidth="14"
+            strokeLinecap="round"
+            strokeDasharray={`${dash} ${c}`}
+            transform="rotate(-90 70 70)"
+          />
+          <circle cx="70" cy={70 - r} r="7" fill={colorTo} />
+        </svg>
+        <div className="absolute inset-0 flex flex-col items-center justify-center">
+          <span className="text-4xl font-bold tabular-nums tracking-tight">{shown}</span>
+          <span className="text-[11px] font-semibold uppercase tracking-[0.18em] text-white/45">pt</span>
+        </div>
+      </div>
+      <p className="mt-3 text-lg font-bold">{name}</p>
+    </div>
+  );
+}
+
+export function MpQuizStand({ benno, erik, daysLeft, onClose }: Props) {
+  const max = Math.max(benno, erik, 1);
+  const lead =
+    benno === erik ? "Gelijkspel" : benno > erik ? "Benno leidt" : "Erik leidt";
+  const gap = Math.abs(benno - erik);
+
+  return (
+    <div
+      className="fixed inset-0 z-[98] flex items-center justify-center bg-black/70 p-4 backdrop-blur-md"
+      role="dialog"
+      aria-modal="true"
+      aria-label="Tussenstand"
+      onClick={onClose}
+    >
+      <div
+        className="relative w-full max-w-md overflow-hidden rounded-[2rem] bg-[#0b1220] px-5 pb-6 pt-5 text-white shadow-[0_0_80px_rgba(201,162,39,0.18)]"
+        style={{ paddingBottom: "max(1.5rem, env(safe-area-inset-bottom))" }}
+        onClick={(e) => e.stopPropagation()}
+      >
+        <div className="pointer-events-none absolute -left-16 top-8 h-40 w-40 rounded-full bg-[#c9a227]/15 blur-3xl" />
+        <div className="pointer-events-none absolute -right-10 bottom-4 h-44 w-44 rounded-full bg-sky-400/15 blur-3xl" />
+
+        <div className="relative flex items-center justify-between">
+          <p className="text-xs font-semibold uppercase tracking-[0.22em] text-[#c9a227]">Tussenstand</p>
+          <button
+            type="button"
+            onClick={onClose}
+            className="inline-tap flex min-h-11 items-center rounded-full bg-white/10 px-4 text-sm font-semibold"
+          >
+            Sluiten
+          </button>
+        </div>
+
+        <div className="relative mt-8 flex items-end justify-center gap-4 sm:gap-8">
+          <PersonRing
+            name="Benno"
+            score={benno}
+            max={max}
+            colorFrom="#ffe08a"
+            colorTo="#c9a227"
+            glow="rgba(201,162,39,0.65)"
+          />
+          <PersonRing
+            name="Erik"
+            score={erik}
+            max={max}
+            colorFrom="#7dd3fc"
+            colorTo="#0a84ff"
+            glow="rgba(10,132,255,0.55)"
+            reverse
+          />
+        </div>
+
+        <p className="relative mt-6 text-center text-lg font-bold">
+          {lead}
+          {gap > 0 ? <span className="font-semibold text-white/55"> · {gap} punt{gap === 1 ? "" : "en"}</span> : null}
+        </p>
+        <p className="relative mt-1 text-center text-sm text-white/50">
+          {daysLeft > 1 ? `Nog ${daysLeft} dagen tot vertrek` : daysLeft === 1 ? "Nog 1 dag tot vertrek" : "Vertrekdag"}
+        </p>
+      </div>
+    </div>
+  );
+}
