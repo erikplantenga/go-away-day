@@ -359,6 +359,7 @@ export async function recordMpQuizSpin(
       correct: Number(data.correct ?? 0),
       spinResults: Array.isArray(data.spinResults) ? data.spinResults.map((n: number) => Number(n)) : [],
       spinScore: data.spinScore == null ? null : Number(data.spinScore),
+      misses: readMisses(data as Record<string, unknown>, date),
     };
     if (play.spinScore != null) {
       out = play;
