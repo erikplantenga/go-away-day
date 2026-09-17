@@ -680,16 +680,10 @@ export function MpQuiz({ onOpenNews }: { onOpenNews?: () => void }) {
               Sluiten
             </button>
             <p className="min-w-0 flex-1 truncate text-center text-sm font-semibold text-[#c9a227]">MP-Quiz</p>
-            <button
-              type="button"
-              onClick={openStand}
-              className="inline-tap flex min-h-11 items-center rounded-full bg-[#c9a227] px-3 text-sm font-bold text-[#0b1f3a]"
-            >
-              Stand
-            </button>
+            <span className="inline-tap min-h-11 min-w-16" aria-hidden />
           </div>
 
-          <div className="min-h-0 flex-1 overflow-y-auto px-4 pb-[max(1.5rem,env(safe-area-inset-bottom))]">
+          <div className="min-h-0 flex-1 overflow-y-auto px-4 pb-3">
             <p className="text-center text-sm text-white/70">
               {daysLabel} · Benno {board.benno} · Erik {board.erik}
             </p>
@@ -716,13 +710,6 @@ export function MpQuiz({ onOpenNews }: { onOpenNews?: () => void }) {
 
             {screen === "login" && (
               <div className="mx-auto mt-6 max-w-md space-y-4">
-                <button
-                  type="button"
-                  onClick={openStand}
-                  className="flex min-h-11 w-full items-center justify-center rounded-xl bg-white/10 text-sm font-semibold"
-                >
-                  Tussenstand
-                </button>
                 <p className="text-center text-lg font-bold">Ben je Benno of Erik?</p>
                 <div className="grid grid-cols-2 gap-2">
                   {(["benno", "erik"] as const).map((id) => (
@@ -949,6 +936,18 @@ export function MpQuiz({ onOpenNews }: { onOpenNews?: () => void }) {
                 </button>
               </div>
             )}
+          </div>
+          <div
+            className="shrink-0 px-4 pt-2"
+            style={{ paddingBottom: "max(1rem, env(safe-area-inset-bottom))" }}
+          >
+            <button
+              type="button"
+              onClick={openStand}
+              className="flex min-h-11 w-full items-center justify-center rounded-xl bg-[#c9a227] text-sm font-bold text-[#0b1f3a]"
+            >
+              Tussenstand
+            </button>
           </div>
         </div>
       )}
