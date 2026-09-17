@@ -1,6 +1,6 @@
 "use client";
 
-import { useEffect, useState } from "react";
+import { useEffect, useState, type ReactNode } from "react";
 import type { QuizMiss } from "@/lib/mpQuiz";
 
 type Props = {
@@ -8,6 +8,7 @@ type Props = {
   erik: number;
   daysLeft: number;
   played: { erik: boolean; benno: boolean };
+  correct: { erik: number | null; benno: number | null };
   misses: { erik: QuizMiss[]; benno: QuizMiss[] };
   onClose: () => void;
 };
@@ -104,38 +105,51 @@ function PersonRing({
 function MissColumn({
   name,
   played,
+  correct,
   items,
   accent,
 }: {
   name: string;
   played: boolean;
+  correct: number | null;
   items: QuizMiss[];
   accent: string;
 }) {
+  let body: ReactNode;
+  if (!played) {
+    body = <p className="mt-2 text-center text-xs text-white/45">Nog niet gespeeld</p>;
+  } else if (correct === 5) {
+    body = <p className="mt-2 text-center text-xs text-white/45">Alles goed (5/5)</p>;
+  } else if (items.length > 0) {
+    body = (
+      <ul className="mt-2 space-y-2">
+        {items.map((miss, i) => (
+          <li key={`${miss.question}-${i}`} className="rounded-xl bg-white/5 px-2 py-2">
+            <p className="text-[11px] font-semibold leading-snug text-white/85">{miss.question}</p>
+            <p className="mt-1 text-[11px] leading-snug text-[#c9a227]">Goed: {miss.answer}</p>
+          </li>
+        ))}
+      </ul>
+    );
+  } else {
+    body = (
+      <p className="mt-2 text-center text-xs leading-snug text-white/45">
+        {correct == null ? "Geen fouten bekend" : `${correct}/5 goed — fouten van deze ronde zijn niet bewaard`}
+      </p>
+    );
+  }
+
   return (
     <div className="min-w-0">
       <p className="text-center text-sm font-bold" style={{ color: accent }}>
         {name}
       </p>
-      {!played ? (
-        <p className="mt-2 text-center text-xs text-white/45">Nog niet gespeeld</p>
-      ) : items.length === 0 ? (
-        <p className="mt-2 text-center text-xs text-white/45">Alles goed</p>
-      ) : (
-        <ul className="mt-2 space-y-2">
-          {items.map((miss, i) => (
-            <li key={`${miss.question}-${i}`} className="rounded-xl bg-white/5 px-2 py-2">
-              <p className="text-[11px] font-semibold leading-snug text-white/85">{miss.question}</p>
-              <p className="mt-1 text-[11px] leading-snug text-[#c9a227]">Goed: {miss.answer}</p>
-            </li>
-          ))}
-        </ul>
-      )}
+      {body}
     </div>
   );
 }
 
-export function MpQuizStand({ benno, erik, daysLeft, played, misses, onClose }: Props) {
+export function MpQuizStand({ benno, erik, daysLeft, played, correct, misses, onClose }: Props) {
   const max = Math.max(benno, erik, 1);
   const top = Math.max(benno, erik);
   const lead =
@@ -205,8 +219,8 @@ export function MpQuizStand({ benno, erik, daysLeft, played, misses, onClose }: 
             Fouten van vandaag
           </p>
           <div className="mt-3 grid grid-cols-2 gap-3">
-            <MissColumn name="Benno" played={played.benno} items={misses.benno} accent="#c9a227" />
-            <MissColumn name="Erik" played={played.erik} items={misses.erik} accent="#7dd3fc" />
+            <MissColumn name="Benno" played={played.benno} correct={correct.benno} items={misses.benno} accent="#c9a227" />
+            <MissColumn name="Erik" played={played.erik} correct={correct.erik} items={misses.erik} accent="#7dd3fc" />
           </div>
         </div>
       </div>

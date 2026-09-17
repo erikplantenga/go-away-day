@@ -26,6 +26,7 @@ type Board = {
   open: boolean;
   firebaseReady: boolean;
   misses: { erik: QuizMiss[]; benno: QuizMiss[] };
+  correct: { erik: number | null; benno: number | null };
 };
 
 type Screen = "login" | "welcome" | "wait" | "quiz" | "spinGrant" | "spin" | "result" | "already" | "ended";
@@ -89,6 +90,7 @@ export function MpQuiz({ onOpenNews }: { onOpenNews?: () => void }) {
     open: true,
     firebaseReady: true,
     misses: { erik: [], benno: [] },
+    correct: { erik: null, benno: null },
   });
   const [sheet, setSheet] = useState(false);
   const [screen, setScreen] = useState<Screen>("login");
@@ -125,6 +127,7 @@ export function MpQuiz({ onOpenNews }: { onOpenNews?: () => void }) {
       open: data.open ?? b.open,
       firebaseReady: data.firebaseReady ?? b.firebaseReady,
       misses: data.misses ?? b.misses,
+      correct: data.correct ?? b.correct,
     }));
   };
 
@@ -178,6 +181,10 @@ export function MpQuiz({ onOpenNews }: { onOpenNews?: () => void }) {
           misses: {
             erik: Array.isArray(data.misses?.erik) ? data.misses.erik : [],
             benno: Array.isArray(data.misses?.benno) ? data.misses.benno : [],
+          },
+          correct: {
+            erik: typeof data.correct?.erik === "number" ? data.correct.erik : null,
+            benno: typeof data.correct?.benno === "number" ? data.correct.benno : null,
           },
         });
         setLive(true);
@@ -958,6 +965,7 @@ export function MpQuiz({ onOpenNews }: { onOpenNews?: () => void }) {
           erik={board.erik}
           daysLeft={board.daysLeft}
           played={board.played}
+          correct={board.correct}
           misses={board.misses}
           onClose={() => setStand(false)}
         />

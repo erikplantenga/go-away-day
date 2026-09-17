@@ -86,6 +86,10 @@ export async function GET() {
       erik: erikPlay?.spinScore != null,
       benno: bennoPlay?.spinScore != null,
     },
+    correct: {
+      erik: erikPlay == null ? null : erikPlay.correct,
+      benno: bennoPlay == null ? null : bennoPlay.correct,
+    },
     misses: {
       erik: erikPlay?.misses ?? [],
       benno: bennoPlay?.misses ?? [],
