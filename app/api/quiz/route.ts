@@ -15,7 +15,7 @@ import {
 export const dynamic = "force-dynamic";
 
 const PASSWORDS: Record<QuizPlayer, string> = {
-  erik: "Plantenga",
+  erik: "Erik",
   benno: "Wenstra",
 };
 
