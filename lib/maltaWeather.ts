@@ -46,7 +46,7 @@ export function shouldUseRealForecast(now = new Date()): boolean {
   return days <= FORECAST_DAYS_AHEAD;
 }
 
-function wmoLabel(code: number): string {
+export function weatherCodeLabel(code: number): string {
   if (code === 0) return "Helder";
   if (code <= 2) return "Licht bewolkt";
   if (code === 3) return "Bewolkt";
@@ -92,7 +92,7 @@ export async function fetchTripWeather(): Promise<DayWeather[]> {
     date,
     max: Math.round(d.temperature_2m_max[i] ?? 0),
     min: Math.round(d.temperature_2m_min[i] ?? 0),
-    label: wmoLabel(d.weather_code[i] ?? 1),
+    label: weatherCodeLabel(d.weather_code[i] ?? 1),
     rainChance: Math.round(d.precipitation_probability_max[i] ?? 0),
     wind: Math.round(d.wind_speed_10m_max[i] ?? 0),
     source: "verwachting",

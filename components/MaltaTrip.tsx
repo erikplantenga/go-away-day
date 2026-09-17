@@ -7,21 +7,29 @@ import { Handig } from "@/components/Handig";
 import { LiveCams } from "@/components/LiveCams";
 import { WeerStrip } from "@/components/WeerStrip";
 import { PlaceSheet } from "@/components/PlaceSheet";
+import { Updates } from "@/components/Updates";
 import { ESTIMATED_WEATHER, fetchTripWeather, weatherForDate, type DayWeather } from "@/lib/maltaWeather";
 import { PLACE_INFO, placeForItem, type PlaceInfo } from "@/lib/maltaPlaces";
 import { FLIGHTS, HOTEL, MALTA_DAYS, PASSENGERS, type Flight } from "@/lib/maltaTrip";
+import { SEED_BRIEFING, fetchDailyBriefing, type DailyBriefing } from "@/lib/maltaUpdates";
 
-type SectionId = "planning" | "dagen" | "vluchten" | "hotel" | "weer" | "handig";
+type SectionId = "updates" | "planning" | "dagen" | "vluchten" | "hotel" | "weer" | "handig";
 
 export function MaltaTrip() {
   const [open, setOpen] = useState<SectionId | null>(null);
   const [weather, setWeather] = useState<DayWeather[]>(ESTIMATED_WEATHER);
+  const [briefing, setBriefing] = useState<DailyBriefing>(SEED_BRIEFING);
 
   useEffect(() => {
     let cancelled = false;
     fetchTripWeather()
       .then((list) => {
         if (!cancelled && list.length) setWeather(list);
+      })
+      .catch(() => {});
+    fetchDailyBriefing()
+      .then((next) => {
+        if (!cancelled) setBriefing(next);
       })
       .catch(() => {});
     return () => {
@@ -35,6 +43,15 @@ export function MaltaTrip() {
   return (
     <div className="space-y-2">
       <LiveCams />
+
+      <Accordion
+        open={open === "updates"}
+        onToggle={() => toggle("updates")}
+        title="Updates"
+        hint={briefing.headline}
+      >
+        <Updates briefing={briefing} />
+      </Accordion>
 
       <Accordion
         open={open === "planning"}
