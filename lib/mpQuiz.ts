@@ -244,7 +244,7 @@ export function dailyQuizSeed(date = quizDate()): string {
 const BENNO_NAME_DATE = "2026-09-19";
 
 function bennoTweedeNaam(rand: () => number): QuizQuestionInternal | null {
-  return pack("Wat is Benno zijn tweede naam?", "Bokke", ["Sjoerd", "Jacob", "Venstra"], rand);
+  return pack("Wat is Benno zijn tweede naam?", "Sjoerd", ["Bokke", "Jacob", "Flapje"], rand);
 }
 
 export function generateMpRound(seedKey?: string, date = quizDate()): QuizQuestionInternal[] {
