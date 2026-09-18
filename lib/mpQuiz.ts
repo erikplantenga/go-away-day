@@ -13,13 +13,22 @@ export type QuizMiss = {
 export type QuizQuestion = {
   question: string;
   choices: string[];
+  bonus?: boolean;
 };
 
 export type QuizQuestionInternal = QuizQuestion & {
   correct: number;
   corrects?: number[];
   correctLabel?: string;
+  bonusPoints?: number;
 };
+
+export const QUIZ_BONUS_POINTS = 3;
+
+export function quizQuestionValue(q: QuizQuestionInternal): number {
+  if (!q.bonus) return 1;
+  return q.bonusPoints ?? QUIZ_BONUS_POINTS;
+}
 
 export function quizPickIsCorrect(q: QuizQuestionInternal, pick: number): boolean {
   if (Array.isArray(q.corrects) && q.corrects.length > 0) return q.corrects.includes(pick);
@@ -262,23 +271,47 @@ export function dailyQuizSeed(date = quizDate()): string {
   return `mp-quiz-${date}`;
 }
 
-const EXTRA_BY_DATE: Record<string, (rand: () => number) => QuizQuestionInternal | null> = {
+const SILENT_EXTRA_BY_DATE: Record<string, (rand: () => number) => QuizQuestionInternal | null> = {
   "2026-09-19": (rand) => pack("Wat is Benno zijn tweede naam?", "Sjoerd", ["Bokke", "Jacob", "Flapje"], rand),
-  "2026-09-20": (rand) => {
-    const choices = shuffle(["Sloot", "Greppel", "Kanaal", "Bushok"], rand);
-    const good = new Set(["Sloot", "Greppel", "Kanaal"]);
-    const corrects = choices.flatMap((choice, i) => (good.has(choice) ? [i] : []));
-    const correct = corrects[0] ?? -1;
-    if (correct < 0 || corrects.length !== 3) return null;
-    return {
-      question: "Benno fietste met zijn lamme kop in een:",
-      choices,
-      correct,
-      corrects,
-      correctLabel: "Sloot, Greppel of Kanaal",
-    };
-  },
 };
+
+const BONUS_START = "2026-09-20";
+const BONUS_EVERY_DAYS = 3;
+
+function addAmsterdamDays(date: string, days: number): string {
+  const [y, m, d] = date.split("-").map(Number);
+  const next = new Date(Date.UTC(y ?? 2026, (m ?? 1) - 1, (d ?? 1) + days));
+  return next.toISOString().slice(0, 10);
+}
+
+function bonusDate(slot: number): string {
+  return addAmsterdamDays(BONUS_START, slot * BONUS_EVERY_DAYS);
+}
+
+function lammeKopBonus(rand: () => number): QuizQuestionInternal | null {
+  const choices = shuffle(["Sloot", "Greppel", "Kanaal", "Bushok"], rand);
+  const good = new Set(["Sloot", "Greppel", "Kanaal"]);
+  const corrects = choices.flatMap((choice, i) => (good.has(choice) ? [i] : []));
+  const correct = corrects[0] ?? -1;
+  if (correct < 0 || corrects.length !== 3) return null;
+  return {
+    question: "Benno fietste met zijn lamme kop in een:",
+    choices,
+    correct,
+    corrects,
+    correctLabel: "Sloot, Greppel of Kanaal",
+    bonus: true,
+    bonusPoints: QUIZ_BONUS_POINTS,
+  };
+}
+
+/** Slot 0 = 20 sep, daarna elke 3 dagen. */
+const BONUSES: Array<(rand: () => number) => QuizQuestionInternal | null> = [lammeKopBonus];
+
+function bonusForDate(date: string, rand: () => number): QuizQuestionInternal | null {
+  const maker = BONUSES.find((_, slot) => bonusDate(slot) === date);
+  return maker ? maker(rand) : null;
+}
 
 export function generateMpRound(seedKey?: string, date = quizDate()): QuizQuestionInternal[] {
   const rand = seedKey ? mulberry32(hashString(seedKey)) : Math.random;
@@ -365,9 +398,12 @@ export function generateMpRound(seedKey?: string, date = quizDate()): QuizQuesti
   for (const q of bank) {
     if (!unique.has(q.question)) unique.set(q.question, q);
   }
-  const round = shuffle([...unique.values()], rand).slice(0, 5);
-  const extra = EXTRA_BY_DATE[date]?.(rand);
-  if (!extra) return round;
-  const at = Math.floor(rand() * (round.length + 1));
-  return [...round.slice(0, at), extra, ...round.slice(at)];
+  let round = shuffle([...unique.values()], rand).slice(0, 5);
+  const extra = SILENT_EXTRA_BY_DATE[date]?.(rand);
+  if (extra) {
+    const at = Math.floor(rand() * (round.length + 1));
+    round = [...round.slice(0, at), extra, ...round.slice(at)];
+  }
+  const bonus = bonusForDate(date, rand);
+  return bonus ? [...round, bonus] : round;
 }

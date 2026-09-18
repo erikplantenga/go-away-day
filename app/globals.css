@@ -134,3 +134,37 @@ select {
   border-radius: 9999px;
   animation: mp-lead-aura 2.1s ease-in-out infinite;
 }
+
+@keyframes mp-bonus-pop {
+  0% {
+    transform: scale(0.52) rotate(-12deg);
+    opacity: 0;
+  }
+  58% {
+    transform: scale(1.16) rotate(3deg);
+    opacity: 1;
+  }
+  100% {
+    transform: scale(1) rotate(0deg);
+  }
+}
+
+@keyframes mp-bonus-glow {
+  0%,
+  100% {
+    text-shadow: 0 0 14px rgba(255, 224, 138, 0.75), 0 0 40px rgba(201, 162, 39, 0.55);
+  }
+  50% {
+    text-shadow: 0 0 26px rgba(255, 224, 138, 1), 0 0 70px rgba(201, 162, 39, 0.95);
+  }
+}
+
+.mp-bonus-title {
+  animation:
+    mp-bonus-pop 0.8s cubic-bezier(0.22, 1, 0.36, 1),
+    mp-bonus-glow 1.5s ease-in-out infinite 0.8s;
+}
+
+.mp-bonus-points {
+  animation: mp-bonus-pop 0.9s cubic-bezier(0.22, 1, 0.36, 1);
+}

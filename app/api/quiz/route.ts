@@ -9,6 +9,7 @@ import {
   quizUnlockedToday,
   quizCorrectLabel,
   quizPickIsCorrect,
+  quizQuestionValue,
   rollQuizSpin,
   type QuizPlayer,
   type QuizQuestionInternal,
@@ -182,7 +183,11 @@ export async function POST(req: NextRequest) {
     return NextResponse.json({
       token,
       who: body.who,
-      questions: round.map(({ question, choices }) => ({ question, choices })),
+      questions: round.map(({ question, choices, bonus }) => ({
+        question,
+        choices,
+        ...(bonus ? { bonus: true } : {}),
+      })),
     });
   }
 
@@ -206,10 +211,15 @@ export async function POST(req: NextRequest) {
       return NextResponse.json({ alreadyPlayed: true, who: token.u, ...totals, daysLeft: quizDaysLeft() });
     }
     let points = 0;
+    let regularCorrect = 0;
+    let bonusPoints = 0;
     const misses: { date: string; question: string; answer: string; picked: string }[] = [];
     token.q.forEach((q, i) => {
       if (quizPickIsCorrect(q, answers[i] ?? -1)) {
-        points += 1;
+        const value = quizQuestionValue(q);
+        points += value;
+        if (q.bonus) bonusPoints += value;
+        else regularCorrect += 1;
         return;
       }
       misses.push({
@@ -227,6 +237,8 @@ export async function POST(req: NextRequest) {
     const totals = await admin.getMpQuizTotals();
     return NextResponse.json({
       points,
+      regularCorrect,
+      bonusPoints,
       who: token.u,
       spinToken: spinTok(token.u, test ? "test" : token.d, points, test),
       spinsTotal: points,

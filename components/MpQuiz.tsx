@@ -2,6 +2,7 @@
 
 import { useEffect, useState } from "react";
 import { ConfettiBurst } from "@/components/ConfettiBurst";
+import { MpQuizBonus } from "@/components/MpQuizBonus";
 import { MpQuizSpin } from "@/components/MpQuizSpin";
 import { MpQuizStand } from "@/components/MpQuizStand";
 import {
@@ -105,6 +106,8 @@ export function MpQuiz({ onOpenNews }: { onOpenNews?: () => void }) {
   const [picks, setPicks] = useState<(number | null)[]>([null, null, null, null, null]);
   const [step, setStep] = useState(0);
   const [asked, setAsked] = useState(5);
+  const [bonusGot, setBonusGot] = useState(0);
+  const [regularCorrect, setRegularCorrect] = useState<number | null>(null);
   const [points, setPoints] = useState(0);
   const [spinToken, setSpinToken] = useState("");
   const [spinsTotal, setSpinsTotal] = useState(0);
@@ -284,6 +287,8 @@ export function MpQuiz({ onOpenNews }: { onOpenNews?: () => void }) {
     setPicks([null, null, null, null, null]);
     setStep(0);
     setAsked(5);
+    setBonusGot(0);
+    setRegularCorrect(null);
     setPoints(0);
     setSpinToken("");
     setSpinsTotal(0);
@@ -412,6 +417,8 @@ export function MpQuiz({ onOpenNews }: { onOpenNews?: () => void }) {
       setSpinsTotal(data.points ?? 0);
       setSpinsDone(0);
       setSpinEarned(0);
+      setBonusGot(typeof data.bonusPoints === "number" ? data.bonusPoints : 0);
+      setRegularCorrect(typeof data.regularCorrect === "number" ? data.regularCorrect : null);
       setReels(null);
       setLastSpinPoints(null);
       setTestRound(!!data.test);
@@ -818,10 +825,29 @@ export function MpQuiz({ onOpenNews }: { onOpenNews?: () => void }) {
               </div>
             )}
 
-            {screen === "quiz" && questions[step] && (
+            {screen === "quiz" && questions[step]?.bonus && (
+              <MpQuizBonus
+                question={questions[step].question}
+                choices={questions[step].choices}
+                pick={picks[step] ?? null}
+                onPick={(i) =>
+                  setPicks((cur) => {
+                    const next = [...cur];
+                    next[step] = i;
+                    return next;
+                  })
+                }
+                onSubmit={() => void submit()}
+                busy={busy}
+                error={error}
+              />
+            )}
+
+            {screen === "quiz" && questions[step] && !questions[step].bonus && (
               <div className="mx-auto mt-5 max-w-md space-y-4">
                 <p className="text-xs font-semibold uppercase tracking-wider text-[#c9a227]">
-                  Vraag {step + 1} / {questions.length}
+                  Vraag {questions.slice(0, step + 1).filter((item) => !item.bonus).length} /{" "}
+                  {questions.filter((item) => !item.bonus).length || 5}
                   {who ? ` · ${NAME[who]}` : ""}
                 </p>
                 <p className="text-lg font-bold leading-snug">{questions[step].question}</p>
@@ -866,7 +892,13 @@ export function MpQuiz({ onOpenNews }: { onOpenNews?: () => void }) {
             {screen === "spinGrant" && who && (
               <div className="mx-auto mt-8 max-w-md space-y-4 text-center">
                 <p className="text-sm font-semibold uppercase tracking-wider text-[#c9a227]">{NAME[who]}</p>
-                <p className="text-4xl font-bold tabular-nums">{points}/{asked} goed</p>
+                <p className="text-4xl font-bold tabular-nums">
+                  {regularCorrect ?? Math.max(0, points - bonusGot)}/
+                  {questions.filter((item) => !item.bonus).length || asked} goed
+                </p>
+                {bonusGot > 0 ? (
+                  <p className="text-xl font-black text-[#c9a227]">+ {bonusGot} bonuspunten!</p>
+                ) : null}
                 <p className="text-lg font-bold">
                   Je mag {spinsTotal} {spinsTotal === 1 ? "keer" : "keer"} spinnen
                 </p>
@@ -904,7 +936,13 @@ export function MpQuiz({ onOpenNews }: { onOpenNews?: () => void }) {
             {screen === "result" && who && (
               <div className="mx-auto mt-8 max-w-md space-y-3 text-center">
                 <p className="text-sm font-semibold uppercase tracking-wider text-[#c9a227]">{NAME[who]}</p>
-                <p className="text-4xl font-bold tabular-nums">{points}/{asked} goed</p>
+                <p className="text-4xl font-bold tabular-nums">
+                  {regularCorrect ?? Math.max(0, points - bonusGot)}/
+                  {questions.filter((item) => !item.bonus).length || asked} goed
+                </p>
+                {bonusGot > 0 ? (
+                  <p className="text-xl font-black text-[#c9a227]">+ {bonusGot} bonuspunten!</p>
+                ) : null}
                 <p className="text-2xl font-bold">Score: {spinEarned} punten</p>
                 <p className="text-sm text-white/70">
                   Stand: Benno {board.benno} · Erik {board.erik}

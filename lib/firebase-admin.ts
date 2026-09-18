@@ -303,9 +303,9 @@ export async function beginMpQuizPlay(
   const play: MpQuizPlay = {
     user,
     date,
-    correct: Math.max(0, Math.min(6, Math.round(correct))),
+    correct: Math.max(0, Math.min(8, Math.round(correct))),
     spinResults: [],
-    spinScore: Math.max(0, Math.min(6, Math.round(correct))) === 0 ? 0 : null,
+    spinScore: Math.max(0, Math.min(8, Math.round(correct))) === 0 ? 0 : null,
     misses,
     quizMs: quizMs == null ? null : Math.max(0, Math.min(7_200_000, Math.round(quizMs))),
   };
