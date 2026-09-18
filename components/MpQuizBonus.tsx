@@ -2,6 +2,18 @@
 
 import { QUIZ_BONUS_POINTS } from "@/lib/mpQuiz";
 
+export function mpQuizChoiceClass(picked: boolean, reveal: boolean, isCorrect: boolean, goldRing = false): string {
+  const base = "flex w-full items-center rounded-xl px-4 py-3 text-left text-sm font-semibold";
+  if (reveal && isCorrect) return `${base} bg-emerald-500 text-white ring-2 ring-emerald-200`;
+  if (reveal && picked && !isCorrect) return `${base} bg-rose-500 text-white`;
+  if (picked) {
+    return goldRing
+      ? `${base} bg-[#c9a227] text-[#0b1f3a] ring-2 ring-[#ffe08a]`
+      : `${base} bg-[#c9a227] text-[#0b1f3a]`;
+  }
+  return `${base} bg-white/10 text-white`;
+}
+
 type Props = {
   question: string;
   choices: string[];
@@ -9,6 +21,8 @@ type Props = {
   onPick: (index: number) => void;
   onSubmit: () => void;
   busy?: boolean;
+  reveal?: boolean;
+  correctIndexes?: number[];
   error?: string;
   submitLabel?: string;
 };
@@ -20,6 +34,8 @@ export function MpQuizBonus({
   onPick,
   onSubmit,
   busy = false,
+  reveal = false,
+  correctIndexes = [],
   error,
   submitLabel = "Inleveren",
 }: Props) {
@@ -45,10 +61,9 @@ export function MpQuizBonus({
               <button
                 key={`${choice}-${i}`}
                 type="button"
+                disabled={reveal}
                 onClick={() => onPick(i)}
-                className={`flex w-full items-center rounded-xl px-4 py-3 text-left text-sm font-semibold ${
-                  on ? "bg-[#c9a227] text-[#0b1f3a] ring-2 ring-[#ffe08a]" : "bg-white/10 text-white"
-                }`}
+                className={mpQuizChoiceClass(on, reveal, correctIndexes.includes(i), true)}
               >
                 {choice}
               </button>
@@ -58,11 +73,11 @@ export function MpQuizBonus({
         {error ? <p className="relative mt-3 text-center text-sm text-red-300">{error}</p> : null}
         <button
           type="button"
-          disabled={pick == null || busy}
+          disabled={pick == null || busy || reveal}
           onClick={onSubmit}
           className="relative mt-4 flex min-h-11 w-full items-center justify-center rounded-xl bg-[#c9a227] text-sm font-black uppercase tracking-wide text-[#0b1f3a] disabled:opacity-40"
         >
-          {busy ? "Bezig…" : submitLabel}
+          {busy ? "Bezig…" : reveal ? "…" : submitLabel}
         </button>
       </div>
     </div>

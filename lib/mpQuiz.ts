@@ -14,6 +14,8 @@ export type QuizQuestion = {
   question: string;
   choices: string[];
   bonus?: boolean;
+  correct?: number;
+  corrects?: number[];
 };
 
 export type QuizQuestionInternal = QuizQuestion & {

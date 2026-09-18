@@ -23,6 +23,7 @@ export default function BonusDemoPage() {
   const [local, setLocal] = useState(false);
   const [pick, setPick] = useState<number | null>(null);
   const [choices, setChoices] = useState(CHOICES);
+  const [reveal, setReveal] = useState(false);
 
   useEffect(() => {
     if (!isLocalDemoHost()) {
@@ -34,6 +35,9 @@ export default function BonusDemoPage() {
   }, [router]);
 
   if (!local) return null;
+
+  const good = new Set(["Sloot", "Greppel", "Kanaal"]);
+  const correctIndexes = choices.flatMap((choice, i) => (good.has(choice) ? [i] : []));
 
   return (
     <div className="fixed inset-0 z-[95] flex flex-col bg-[#0b1f3a] text-white" role="dialog" aria-modal="true">
@@ -59,11 +63,18 @@ export default function BonusDemoPage() {
           question="Benno fietste met zijn lamme kop in een:"
           choices={choices}
           pick={pick}
+          reveal={reveal}
+          correctIndexes={correctIndexes}
           onPick={setPick}
           submitLabel="Klaar, ik heb ’m gezien"
-          onSubmit={() => router.push("/")}
+          onSubmit={() => {
+            if (reveal) return;
+            setReveal(true);
+            window.setTimeout(() => router.push("/"), 2000);
+          }}
         />
       </div>
     </div>
   );
 }
+

@@ -1,8 +1,8 @@
 "use client";
 
-import { useEffect, useState } from "react";
+import { useEffect, useRef, useState } from "react";
 import { ConfettiBurst } from "@/components/ConfettiBurst";
-import { MpQuizBonus } from "@/components/MpQuizBonus";
+import { MpQuizBonus, mpQuizChoiceClass } from "@/components/MpQuizBonus";
 import { MpQuizSpin } from "@/components/MpQuizSpin";
 import { MpQuizStand } from "@/components/MpQuizStand";
 import {
@@ -108,6 +108,8 @@ export function MpQuiz({ onOpenNews }: { onOpenNews?: () => void }) {
   const [asked, setAsked] = useState(5);
   const [bonusGot, setBonusGot] = useState(0);
   const [regularCorrect, setRegularCorrect] = useState<number | null>(null);
+  const [reveal, setReveal] = useState(false);
+  const revealTimer = useRef<number | null>(null);
   const [points, setPoints] = useState(0);
   const [spinToken, setSpinToken] = useState("");
   const [spinsTotal, setSpinsTotal] = useState(0);
@@ -277,6 +279,11 @@ export function MpQuiz({ onOpenNews }: { onOpenNews?: () => void }) {
   }, [live, board.daysLeft, board.benno, board.erik]);
 
   const close = () => {
+    if (revealTimer.current != null) {
+      window.clearTimeout(revealTimer.current);
+      revealTimer.current = null;
+    }
+    setReveal(false);
     setSheet(false);
     setScreen("login");
     setWho(null);
@@ -378,6 +385,17 @@ export function MpQuiz({ onOpenNews }: { onOpenNews?: () => void }) {
     } finally {
       setBusy(false);
     }
+  };
+
+  const lockAndContinue = () => {
+    if (picks[step] === null || busy || reveal) return;
+    setReveal(true);
+    revealTimer.current = window.setTimeout(() => {
+      revealTimer.current = null;
+      setReveal(false);
+      if (step < questions.length - 1) setStep((s) => s + 1);
+      else void submit();
+    }, 2000);
   };
 
   const submit = async () => {
@@ -830,14 +848,23 @@ export function MpQuiz({ onOpenNews }: { onOpenNews?: () => void }) {
                 question={questions[step].question}
                 choices={questions[step].choices}
                 pick={picks[step] ?? null}
-                onPick={(i) =>
+                reveal={reveal}
+                correctIndexes={
+                  questions[step].corrects?.length
+                    ? questions[step].corrects
+                    : questions[step].correct == null
+                      ? []
+                      : [questions[step].correct]
+                }
+                onPick={(i) => {
+                  if (reveal) return;
                   setPicks((cur) => {
                     const next = [...cur];
                     next[step] = i;
                     return next;
-                  })
-                }
-                onSubmit={() => void submit()}
+                  });
+                }}
+                onSubmit={lockAndContinue}
                 busy={busy}
                 error={error}
               />
@@ -854,20 +881,24 @@ export function MpQuiz({ onOpenNews }: { onOpenNews?: () => void }) {
                 <div className="space-y-2">
                   {questions[step].choices.map((choice, i) => {
                     const on = picks[step] === i;
+                    const isCorrect =
+                      Array.isArray(questions[step].corrects) && questions[step].corrects.length > 0
+                        ? questions[step].corrects.includes(i)
+                        : questions[step].correct === i;
                     return (
                       <button
                         key={`${step}-${i}`}
                         type="button"
-                        onClick={() =>
+                        disabled={reveal}
+                        onClick={() => {
+                          if (reveal) return;
                           setPicks((cur) => {
                             const next = [...cur];
                             next[step] = i;
                             return next;
-                          })
-                        }
-                        className={`flex w-full items-center rounded-xl px-4 py-3 text-left text-sm font-semibold ${
-                          on ? "bg-[#c9a227] text-[#0b1f3a]" : "bg-white/10 text-white"
-                        }`}
+                          });
+                        }}
+                        className={mpQuizChoiceClass(on, reveal, isCorrect)}
                       >
                         {choice}
                       </button>
@@ -877,14 +908,11 @@ export function MpQuiz({ onOpenNews }: { onOpenNews?: () => void }) {
                 {error && <p className="text-center text-sm text-red-300">{error}</p>}
                 <button
                   type="button"
-                  disabled={picks[step] === null || busy}
-                  onClick={() => {
-                    if (step < questions.length - 1) setStep((s) => s + 1);
-                    else void submit();
-                  }}
+                  disabled={picks[step] === null || busy || reveal}
+                  onClick={lockAndContinue}
                   className="flex min-h-11 w-full items-center justify-center rounded-xl bg-white text-sm font-bold text-[#0b1f3a] disabled:opacity-40"
                 >
-                  {step < questions.length - 1 ? "Volgende" : busy ? "Bezig…" : "Inleveren"}
+                  {reveal ? "…" : step < questions.length - 1 ? "Volgende" : busy ? "Bezig…" : "Inleveren"}
                 </button>
               </div>
             )}
