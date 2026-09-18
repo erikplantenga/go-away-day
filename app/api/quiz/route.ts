@@ -7,6 +7,8 @@ import {
   quizDaysLeft,
   quizStillOpen,
   quizUnlockedToday,
+  quizCorrectLabel,
+  quizPickIsCorrect,
   rollQuizSpin,
   type QuizPlayer,
   type QuizQuestionInternal,
@@ -206,14 +208,14 @@ export async function POST(req: NextRequest) {
     let points = 0;
     const misses: { date: string; question: string; answer: string; picked: string }[] = [];
     token.q.forEach((q, i) => {
-      if (answers[i] === q.correct) {
+      if (quizPickIsCorrect(q, answers[i] ?? -1)) {
         points += 1;
         return;
       }
       misses.push({
         date: token.d,
         question: q.question,
-        answer: q.choices[q.correct] ?? "",
+        answer: quizCorrectLabel(q),
         picked: q.choices[answers[i] ?? -1] ?? "geen antwoord",
       });
     });

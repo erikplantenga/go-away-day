@@ -15,7 +15,28 @@ export type QuizQuestion = {
   choices: string[];
 };
 
-export type QuizQuestionInternal = QuizQuestion & { correct: number };
+export type QuizQuestionInternal = QuizQuestion & {
+  correct: number;
+  corrects?: number[];
+  correctLabel?: string;
+};
+
+export function quizPickIsCorrect(q: QuizQuestionInternal, pick: number): boolean {
+  if (Array.isArray(q.corrects) && q.corrects.length > 0) return q.corrects.includes(pick);
+  return pick === q.correct;
+}
+
+export function quizCorrectLabel(q: QuizQuestionInternal): string {
+  if (q.correctLabel) return q.correctLabel;
+  if (Array.isArray(q.corrects) && q.corrects.length > 1) {
+    const names = q.corrects
+      .map((i) => q.choices[i])
+      .filter((name): name is string => Boolean(name));
+    if (names.length <= 1) return names[0] ?? "";
+    return `${names.slice(0, -1).join(", ")} of ${names[names.length - 1]}`;
+  }
+  return q.choices[q.correct] ?? "";
+}
 
 export function quizDate(now = new Date()): string {
   return new Intl.DateTimeFormat("en-CA", {
@@ -241,11 +262,23 @@ export function dailyQuizSeed(date = quizDate()): string {
   return `mp-quiz-${date}`;
 }
 
-const BENNO_NAME_DATE = "2026-09-19";
-
-function bennoTweedeNaam(rand: () => number): QuizQuestionInternal | null {
-  return pack("Wat is Benno zijn tweede naam?", "Sjoerd", ["Bokke", "Jacob", "Flapje"], rand);
-}
+const EXTRA_BY_DATE: Record<string, (rand: () => number) => QuizQuestionInternal | null> = {
+  "2026-09-19": (rand) => pack("Wat is Benno zijn tweede naam?", "Sjoerd", ["Bokke", "Jacob", "Flapje"], rand),
+  "2026-09-20": (rand) => {
+    const choices = shuffle(["Sloot", "Greppel", "Kanaal", "Bushok"], rand);
+    const good = new Set(["Sloot", "Greppel", "Kanaal"]);
+    const corrects = choices.flatMap((choice, i) => (good.has(choice) ? [i] : []));
+    const correct = corrects[0] ?? -1;
+    if (correct < 0 || corrects.length !== 3) return null;
+    return {
+      question: "Benno fietste met zijn lamme kop in een:",
+      choices,
+      correct,
+      corrects,
+      correctLabel: "Sloot, Greppel of Kanaal",
+    };
+  },
+};
 
 export function generateMpRound(seedKey?: string, date = quizDate()): QuizQuestionInternal[] {
   const rand = seedKey ? mulberry32(hashString(seedKey)) : Math.random;
@@ -333,8 +366,7 @@ export function generateMpRound(seedKey?: string, date = quizDate()): QuizQuesti
     if (!unique.has(q.question)) unique.set(q.question, q);
   }
   const round = shuffle([...unique.values()], rand).slice(0, 5);
-  if (date !== BENNO_NAME_DATE) return round;
-  const extra = bennoTweedeNaam(rand);
+  const extra = EXTRA_BY_DATE[date]?.(rand);
   if (!extra) return round;
   const at = Math.floor(rand() * (round.length + 1));
   return [...round.slice(0, at), extra, ...round.slice(at)];
