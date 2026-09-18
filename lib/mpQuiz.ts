@@ -307,8 +307,46 @@ function lammeKopBonus(rand: () => number): QuizQuestionInternal | null {
   };
 }
 
+function toiletSpreukBonus(rand: () => number): QuizQuestionInternal | null {
+  const good =
+    "Je gezicht is je eigen weerbericht\nals je in de spiegel kijkt kun je je eigen bui zien hangen";
+  const others = [
+    "Je gezicht\nis net een stoplicht\nstaat het op onweer\ndan weet iedereen:\neven niet storen",
+    "Je gezicht\nliegt eigenlijk nooit\nje mond zegt “gaat prima”\nmaar je hoofd zegt:\nhou maar even afstand",
+    "Je gezicht\nis je eigen Buienradar\néén blik in de spiegel\nen je weet:\nvandaag 100% kans op gezeik",
+  ];
+  const choices = shuffle([good, ...others], rand);
+  const correct = choices.indexOf(good);
+  if (correct < 0) return null;
+  return {
+    question: "Wat hangt er voor wijze spreuk op Benno’s toilet?",
+    choices,
+    correct,
+    bonus: true,
+    bonusPoints: QUIZ_BONUS_POINTS,
+  };
+}
+
+function femePopBonus(rand: () => number): QuizQuestionInternal | null {
+  const good = "21 september";
+  const choices = shuffle([good, "11 september", "26 september", "20 september"], rand);
+  const correct = choices.indexOf(good);
+  if (correct < 0) return null;
+  return {
+    question: "Wanneer is Feme Pop jarig?",
+    choices,
+    correct,
+    bonus: true,
+    bonusPoints: QUIZ_BONUS_POINTS,
+  };
+}
+
 /** Slot 0 = 20 sep, daarna elke 3 dagen. */
-const BONUSES: Array<(rand: () => number) => QuizQuestionInternal | null> = [lammeKopBonus];
+const BONUSES: Array<(rand: () => number) => QuizQuestionInternal | null> = [
+  lammeKopBonus,
+  toiletSpreukBonus,
+  femePopBonus,
+];
 
 function bonusForDate(date: string, rand: () => number): QuizQuestionInternal | null {
   const maker = BONUSES.find((_, slot) => bonusDate(slot) === date);

@@ -16,13 +16,14 @@ function isLocalDemoHost() {
   );
 }
 
-const CHOICES = ["Sloot", "Greppel", "Kanaal", "Bushok"];
+const GOOD = "21 september";
+const DATES = ["11 september", "26 september", "21 september", "20 september"];
 
 export default function BonusDemoPage() {
   const router = useRouter();
   const [local, setLocal] = useState(false);
   const [pick, setPick] = useState<number | null>(null);
-  const [choices, setChoices] = useState(CHOICES);
+  const [choices, setChoices] = useState(DATES);
   const [reveal, setReveal] = useState(false);
 
   useEffect(() => {
@@ -31,13 +32,10 @@ export default function BonusDemoPage() {
       return;
     }
     setLocal(true);
-    setChoices([...CHOICES].sort(() => Math.random() - 0.5));
+    setChoices([...DATES].sort(() => Math.random() - 0.5));
   }, [router]);
 
   if (!local) return null;
-
-  const good = new Set(["Sloot", "Greppel", "Kanaal"]);
-  const correctIndexes = choices.flatMap((choice, i) => (good.has(choice) ? [i] : []));
 
   return (
     <div className="fixed inset-0 z-[95] flex flex-col bg-[#0b1f3a] text-white" role="dialog" aria-modal="true">
@@ -57,14 +55,14 @@ export default function BonusDemoPage() {
       </div>
       <div className="min-h-0 flex-1 overflow-y-auto px-4 pb-6">
         <p className="text-center text-xs font-semibold uppercase tracking-[0.18em] text-white/45">
-          Lokaal voorbeeld
+          Lokaal voorbeeld · 26 sep
         </p>
         <MpQuizBonus
-          question="Benno fietste met zijn lamme kop in een:"
+          question="Wanneer is Feme Pop jarig?"
           choices={choices}
           pick={pick}
           reveal={reveal}
-          correctIndexes={correctIndexes}
+          correctIndexes={choices.flatMap((choice, i) => (choice === GOOD ? [i] : []))}
           onPick={setPick}
           submitLabel="Klaar, ik heb ’m gezien"
           onSubmit={() => {
@@ -77,4 +75,3 @@ export default function BonusDemoPage() {
     </div>
   );
 }
-

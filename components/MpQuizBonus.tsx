@@ -3,7 +3,8 @@
 import { QUIZ_BONUS_POINTS } from "@/lib/mpQuiz";
 
 export function mpQuizChoiceClass(picked: boolean, reveal: boolean, isCorrect: boolean, goldRing = false): string {
-  const base = "flex w-full items-center rounded-xl px-4 py-3 text-left text-sm font-semibold";
+  const base =
+    "flex w-full items-start rounded-xl px-4 py-3 text-left text-sm font-semibold leading-snug whitespace-pre-line";
   if (reveal && isCorrect) return `${base} bg-emerald-500 text-white ring-2 ring-emerald-200`;
   if (reveal && picked && !isCorrect) return `${base} bg-rose-500 text-white`;
   if (picked) {
