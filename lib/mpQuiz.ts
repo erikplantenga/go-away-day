@@ -241,7 +241,13 @@ export function dailyQuizSeed(date = quizDate()): string {
   return `mp-quiz-${date}`;
 }
 
-export function generateMpRound(seedKey?: string): QuizQuestionInternal[] {
+const BENNO_NAME_DATE = "2026-09-19";
+
+function bennoTweedeNaam(rand: () => number): QuizQuestionInternal | null {
+  return pack("Wat is Benno zijn tweede naam?", "Bokke", ["Sjoerd", "Jacob", "Venstra"], rand);
+}
+
+export function generateMpRound(seedKey?: string, date = quizDate()): QuizQuestionInternal[] {
   const rand = seedKey ? mulberry32(hashString(seedKey)) : Math.random;
   const make = (question: string, answer: string, pool: string[]) => pack(question, answer, pool, rand);
   const acts = activityPool();
@@ -326,5 +332,10 @@ export function generateMpRound(seedKey?: string): QuizQuestionInternal[] {
   for (const q of bank) {
     if (!unique.has(q.question)) unique.set(q.question, q);
   }
-  return shuffle([...unique.values()], rand).slice(0, 5);
+  const round = shuffle([...unique.values()], rand).slice(0, 5);
+  if (date !== BENNO_NAME_DATE) return round;
+  const extra = bennoTweedeNaam(rand);
+  if (!extra) return round;
+  const at = Math.floor(rand() * (round.length + 1));
+  return [...round.slice(0, at), extra, ...round.slice(at)];
 }

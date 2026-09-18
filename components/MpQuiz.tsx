@@ -104,6 +104,7 @@ export function MpQuiz({ onOpenNews }: { onOpenNews?: () => void }) {
   const [token, setToken] = useState("");
   const [picks, setPicks] = useState<(number | null)[]>([null, null, null, null, null]);
   const [step, setStep] = useState(0);
+  const [asked, setAsked] = useState(5);
   const [points, setPoints] = useState(0);
   const [spinToken, setSpinToken] = useState("");
   const [spinsTotal, setSpinsTotal] = useState(0);
@@ -282,6 +283,7 @@ export function MpQuiz({ onOpenNews }: { onOpenNews?: () => void }) {
     setToken("");
     setPicks([null, null, null, null, null]);
     setStep(0);
+    setAsked(5);
     setPoints(0);
     setSpinToken("");
     setSpinsTotal(0);
@@ -354,13 +356,16 @@ export function MpQuiz({ onOpenNews }: { onOpenNews?: () => void }) {
         setSpinsTotal(data.spinsTotal ?? data.points ?? 0);
         setSpinsDone(data.spinsDone ?? 0);
         setSpinEarned((data.spinResults as number[] | undefined)?.reduce((a, b) => a + b, 0) ?? 0);
+        setAsked((data.points ?? 0) >= 6 ? 6 : 5);
         setScreen("spinGrant");
         return;
       }
       setWho(player);
       setToken(data.token);
-      setQuestions(data.questions);
-      setPicks([null, null, null, null, null]);
+      const qs = Array.isArray(data.questions) ? data.questions : [];
+      setQuestions(qs);
+      setAsked(qs.length || 5);
+      setPicks(qs.map(() => null));
       setStep(0);
       setScreen("welcome");
     } catch {
@@ -816,7 +821,8 @@ export function MpQuiz({ onOpenNews }: { onOpenNews?: () => void }) {
             {screen === "quiz" && questions[step] && (
               <div className="mx-auto mt-5 max-w-md space-y-4">
                 <p className="text-xs font-semibold uppercase tracking-wider text-[#c9a227]">
-                  Vraag {step + 1} / 5{who ? ` · ${NAME[who]}` : ""}
+                  Vraag {step + 1} / {questions.length}
+                  {who ? ` · ${NAME[who]}` : ""}
                 </p>
                 <p className="text-lg font-bold leading-snug">{questions[step].question}</p>
                 <div className="space-y-2">
@@ -847,12 +853,12 @@ export function MpQuiz({ onOpenNews }: { onOpenNews?: () => void }) {
                   type="button"
                   disabled={picks[step] === null || busy}
                   onClick={() => {
-                    if (step < 4) setStep((s) => s + 1);
+                    if (step < questions.length - 1) setStep((s) => s + 1);
                     else void submit();
                   }}
                   className="flex min-h-11 w-full items-center justify-center rounded-xl bg-white text-sm font-bold text-[#0b1f3a] disabled:opacity-40"
                 >
-                  {step < 4 ? "Volgende" : busy ? "Bezig…" : "Inleveren"}
+                  {step < questions.length - 1 ? "Volgende" : busy ? "Bezig…" : "Inleveren"}
                 </button>
               </div>
             )}
@@ -860,7 +866,7 @@ export function MpQuiz({ onOpenNews }: { onOpenNews?: () => void }) {
             {screen === "spinGrant" && who && (
               <div className="mx-auto mt-8 max-w-md space-y-4 text-center">
                 <p className="text-sm font-semibold uppercase tracking-wider text-[#c9a227]">{NAME[who]}</p>
-                <p className="text-4xl font-bold tabular-nums">{points}/5 goed</p>
+                <p className="text-4xl font-bold tabular-nums">{points}/{asked} goed</p>
                 <p className="text-lg font-bold">
                   Je mag {spinsTotal} {spinsTotal === 1 ? "keer" : "keer"} spinnen
                 </p>
@@ -898,7 +904,7 @@ export function MpQuiz({ onOpenNews }: { onOpenNews?: () => void }) {
             {screen === "result" && who && (
               <div className="mx-auto mt-8 max-w-md space-y-3 text-center">
                 <p className="text-sm font-semibold uppercase tracking-wider text-[#c9a227]">{NAME[who]}</p>
-                <p className="text-4xl font-bold tabular-nums">{points}/5 goed</p>
+                <p className="text-4xl font-bold tabular-nums">{points}/{asked} goed</p>
                 <p className="text-2xl font-bold">Score: {spinEarned} punten</p>
                 <p className="text-sm text-white/70">
                   Stand: Benno {board.benno} · Erik {board.erik}

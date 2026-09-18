@@ -124,8 +124,8 @@ function InfoColumn({
   let body: ReactNode;
   if (!played) {
     body = <p className="mt-2 text-center text-xs text-white/45">Nog niet gespeeld</p>;
-  } else if (correct === 5) {
-    body = <p className="mt-2 text-center text-xs text-white/45">Alles goed (5/5)</p>;
+  } else if (correct != null && items.length === 0 && correct >= 5) {
+    body = <p className="mt-2 text-center text-xs text-white/45">Alles goed</p>;
   } else if (items.length > 0) {
     body = (
       <ul className="mt-2 space-y-2">
@@ -143,7 +143,7 @@ function InfoColumn({
   } else {
     body = (
       <p className="mt-2 text-center text-xs leading-snug text-white/45">
-        {correct == null ? "Geen fouten bekend" : `${correct}/5 goed — fouten van deze ronde zijn niet bewaard`}
+        {correct == null ? "Geen fouten bekend" : `${correct} goed — fouten van deze ronde zijn niet bewaard`}
       </p>
     );
   }

@@ -175,7 +175,7 @@ export async function POST(req: NextRequest) {
         benno: totals.benno,
       });
     }
-    const round = generateMpRound(test ? undefined : dailyQuizSeed(date));
+    const round = generateMpRound(test ? undefined : dailyQuizSeed(date), date);
     const token = sign({ k: "q", u: body.who, d: date, q: round });
     return NextResponse.json({
       token,
@@ -194,7 +194,8 @@ export async function POST(req: NextRequest) {
       return NextResponse.json({ error: "Deze ronde is van een andere dag." }, { status: 400 });
     }
     const answers = Array.isArray(body.answers) ? body.answers.map((n) => Number(n)) : [];
-    if (answers.length !== 5 || token.q.length !== 5) {
+    const n = token.q.length;
+    if (n < 5 || n > 6 || answers.length !== n) {
       return NextResponse.json({ error: "Antwoorden incompleet" }, { status: 400 });
     }
     const existing = test ? null : await admin.getMpQuizPlay(token.u, token.d);
