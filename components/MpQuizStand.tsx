@@ -111,6 +111,7 @@ function InfoColumn({
   quizMs,
   items,
   accent,
+  hideDetails,
 }: {
   name: string;
   played: boolean;
@@ -118,12 +119,19 @@ function InfoColumn({
   quizMs: number | null;
   items: QuizMiss[];
   accent: string;
+  hideDetails: boolean;
 }) {
   const timeLabel = !played ? "—" : quizMs == null ? "tijd niet bewaard" : formatQuizMs(quizMs);
 
   let body: ReactNode;
   if (!played) {
     body = <p className="mt-2 text-center text-xs text-white/45">Nog niet gespeeld</p>;
+  } else if (hideDetails) {
+    body = (
+      <p className="mt-2 text-center text-xs leading-snug text-white/45">
+        Fouten zie je als jullie allebei gespeeld hebben
+      </p>
+    );
   } else if (correct != null && items.length === 0 && correct >= 5) {
     body = <p className="mt-2 text-center text-xs text-white/45">Alles goed</p>;
   } else if (items.length > 0) {
@@ -170,6 +178,8 @@ export function MpQuizStand({
   preview,
   onClose,
 }: Props) {
+  const bothPlayed = played.erik && played.benno;
+  const showMisses = preview || bothPlayed;
   const max = Math.max(benno, erik, 1);
   const top = Math.max(benno, erik);
   const lead =
@@ -248,6 +258,7 @@ export function MpQuizStand({
               quizMs={quizMs.benno}
               items={misses.benno}
               accent="#c9a227"
+              hideDetails={!showMisses}
             />
             <InfoColumn
               name="Erik"
@@ -256,6 +267,7 @@ export function MpQuizStand({
               quizMs={quizMs.erik}
               items={misses.erik}
               accent="#7dd3fc"
+              hideDetails={!showMisses}
             />
           </div>
         </div>

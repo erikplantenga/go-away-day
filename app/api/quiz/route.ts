@@ -99,8 +99,8 @@ export async function GET() {
       benno: bennoPlay?.quizMs ?? null,
     },
     misses: {
-      erik: erikPlay?.misses ?? [],
-      benno: bennoPlay?.misses ?? [],
+      erik: erikPlay != null && bennoPlay != null ? erikPlay.misses ?? [] : [],
+      benno: erikPlay != null && bennoPlay != null ? bennoPlay.misses ?? [] : [],
     },
     daysLeft: quizDaysLeft(),
     open: quizStillOpen(),
