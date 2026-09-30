@@ -16,6 +16,7 @@ export type QuizQuestion = {
   question: string;
   choices: string[];
   bonus?: boolean;
+  bonusPoints?: number;
   correct?: number;
   corrects?: number[];
 };
@@ -32,6 +33,19 @@ export const QUIZ_BONUS_POINTS = 3;
 export function quizQuestionValue(q: QuizQuestionInternal): number {
   if (!q.bonus) return 1;
   return q.bonusPoints ?? QUIZ_BONUS_POINTS;
+}
+
+/** Spins erbij; jackpots (>8) gaan direct op de stand. */
+export function quizSpinValue(q: QuizQuestionInternal): number {
+  if (!q.bonus) return 1;
+  const pts = quizQuestionValue(q);
+  return pts > 8 ? 0 : pts;
+}
+
+export function quizDirectBonus(q: QuizQuestionInternal): number {
+  if (!q.bonus) return 0;
+  const pts = quizQuestionValue(q);
+  return pts > 8 ? pts : 0;
 }
 
 export function quizPickIsCorrect(q: QuizQuestionInternal, pick: number): boolean {
@@ -368,6 +382,20 @@ function partijBonus(rand: () => number): QuizQuestionInternal | null {
   };
 }
 
+function leeftijdBonus(rand: () => number): QuizQuestionInternal | null {
+  const good = "93";
+  const choices = shuffle([good, "92", "91", "90"], rand);
+  const correct = choices.indexOf(good);
+  if (correct < 0) return null;
+  return {
+    question: "Wat is het leeftijd van Benno Sjoerd en Erik bij elkaar opgeteld?",
+    choices,
+    correct,
+    bonus: true,
+    bonusPoints: 30,
+  };
+}
+
 /** Slot 0 = 20 sep, daarna elke 3 dagen. */
 const BONUSES: Array<(rand: () => number) => QuizQuestionInternal | null> = [
   lammeKopBonus,
@@ -377,6 +405,7 @@ const BONUSES: Array<(rand: () => number) => QuizQuestionInternal | null> = [
 
 const BONUS_BY_DATE: Record<string, (rand: () => number) => QuizQuestionInternal | null> = {
   "2026-10-01": partijBonus,
+  "2026-10-02": leeftijdBonus,
 };
 
 function bonusForDate(date: string, rand: () => number): QuizQuestionInternal | null {

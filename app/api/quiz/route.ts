@@ -10,6 +10,8 @@ import {
   quizCorrectLabel,
   quizPickIsCorrect,
   quizQuestionValue,
+  quizSpinValue,
+  quizDirectBonus,
   quizChampionReady,
   QUIZ_LAST_DATE,
   rollQuizSpin,
@@ -198,12 +200,12 @@ export async function POST(req: NextRequest) {
     return NextResponse.json({
       token,
       who: body.who,
-      questions: round.map(({ question, choices, bonus, correct, corrects }) => ({
+      questions: round.map(({ question, choices, bonus, bonusPoints, correct, corrects }) => ({
         question,
         choices,
         correct,
         ...(corrects && corrects.length > 0 ? { corrects } : {}),
-        ...(bonus ? { bonus: true } : {}),
+        ...(bonus ? { bonus: true, bonusPoints: bonusPoints ?? 3 } : {}),
       })),
     });
   }
@@ -230,13 +232,15 @@ export async function POST(req: NextRequest) {
     let points = 0;
     let regularCorrect = 0;
     let bonusPoints = 0;
+    let jackpot = 0;
     const misses: { date: string; question: string; answer: string; picked: string }[] = [];
     token.q.forEach((q, i) => {
       if (quizPickIsCorrect(q, answers[i] ?? -1)) {
         const value = quizQuestionValue(q);
-        points += value;
+        points += quizSpinValue(q);
         if (q.bonus) bonusPoints += value;
         else regularCorrect += 1;
+        jackpot += quizDirectBonus(q);
         return;
       }
       misses.push({
@@ -249,7 +253,7 @@ export async function POST(req: NextRequest) {
     if (!test) {
       const rawMs = Number(body.quizMs);
       const quizMs = Number.isFinite(rawMs) ? rawMs : null;
-      await admin.beginMpQuizPlay(token.u, token.d, points, misses, quizMs);
+      await admin.beginMpQuizPlay(token.u, token.d, points, misses, quizMs, jackpot);
     }
     const totals = await admin.getMpQuizTotals();
     return NextResponse.json({

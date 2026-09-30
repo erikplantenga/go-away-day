@@ -297,26 +297,50 @@ export async function beginMpQuizPlay(
   correct: number,
   misses: QuizMiss[] = [],
   quizMs: number | null = null,
+  jackpot = 0,
 ): Promise<MpQuizPlay> {
   const existing = await getMpQuizPlay(user, date);
   if (existing) return existing;
+  const spins = Math.max(0, Math.min(8, Math.round(correct)));
+  const extra = Math.max(0, Math.round(jackpot));
   const play: MpQuizPlay = {
     user,
     date,
-    correct: Math.max(0, Math.min(8, Math.round(correct))),
+    correct: spins,
     spinResults: [],
-    spinScore: Math.max(0, Math.min(8, Math.round(correct))) === 0 ? 0 : null,
+    spinScore: spins === 0 ? 0 : null,
     misses,
     quizMs: quizMs == null ? null : Math.max(0, Math.min(7_200_000, Math.round(quizMs))),
   };
   const d = db();
   if (!d) {
-    quizMem().plays.set(playKey(user, date), play);
+    const mem = quizMem();
+    mem.plays.set(playKey(user, date), play);
+    if (extra > 0) mem.totals[user] += extra;
     return play;
   }
-  await d.collection("mpQuiz").doc(`play_${playKey(user, date)}`).set({
-    ...play,
-    at: new Date().toISOString(),
+  const playRef = d.collection("mpQuiz").doc(`play_${playKey(user, date)}`);
+  const totRef = d.collection("mpQuiz").doc("totals");
+  await d.runTransaction(async (tx) => {
+    tx.set(playRef, {
+      ...play,
+      jackpot: extra,
+      at: new Date().toISOString(),
+    });
+    if (extra > 0) {
+      const tot = await tx.get(totRef);
+      const t = tot.data() ?? {};
+      tx.set(
+        totRef,
+        {
+          erik: Number(t.erik ?? 0),
+          benno: Number(t.benno ?? 0),
+          [user]: Number(t[user] ?? 0) + extra,
+          updatedAt: new Date().toISOString(),
+        },
+        { merge: true },
+      );
+    }
   });
   return play;
 }

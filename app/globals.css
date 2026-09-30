@@ -168,3 +168,21 @@ select {
 .mp-bonus-points {
   animation: mp-bonus-pop 0.9s cubic-bezier(0.22, 1, 0.36, 1);
 }
+
+@keyframes mp-bonus-alarm {
+  0%,
+  100% {
+    transform: scale(1);
+    text-shadow: 0 0 10px rgba(255, 77, 77, 0.7), 0 0 28px rgba(255, 77, 77, 0.45);
+    opacity: 1;
+  }
+  50% {
+    transform: scale(1.08);
+    text-shadow: 0 0 22px rgba(255, 77, 77, 1), 0 0 50px rgba(255, 77, 77, 0.9);
+    opacity: 0.85;
+  }
+}
+
+.mp-bonus-alarm {
+  animation: mp-bonus-alarm 0.7s ease-in-out infinite;
+}

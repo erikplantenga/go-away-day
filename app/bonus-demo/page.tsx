@@ -16,14 +16,14 @@ function isLocalDemoHost() {
   );
 }
 
-const GOOD = "VVD";
-const PARTIES = ["VVD", "CDA", "PVV", "ADE"];
+const GOOD = "93";
+const AGES = ["93", "92", "91", "90"];
 
 export default function BonusDemoPage() {
   const router = useRouter();
   const [local, setLocal] = useState(false);
   const [pick, setPick] = useState<number | null>(null);
-  const [choices, setChoices] = useState(PARTIES);
+  const [choices, setChoices] = useState(AGES);
   const [reveal, setReveal] = useState(false);
 
   useEffect(() => {
@@ -32,7 +32,7 @@ export default function BonusDemoPage() {
       return;
     }
     setLocal(true);
-    setChoices([...PARTIES].sort(() => Math.random() - 0.5));
+    setChoices([...AGES].sort(() => Math.random() - 0.5));
   }, [router]);
 
   if (!local) return null;
@@ -55,10 +55,11 @@ export default function BonusDemoPage() {
       </div>
       <div className="min-h-0 flex-1 overflow-y-auto px-4 pb-6">
         <p className="text-center text-xs font-semibold uppercase tracking-[0.18em] text-white/45">
-          Lokaal voorbeeld · 1 okt
+          Lokaal voorbeeld · 2 okt
         </p>
         <MpQuizBonus
-          question="Wat was Benno zijn politieke partij?"
+          question="Wat is het leeftijd van Benno Sjoerd en Erik bij elkaar opgeteld?"
+          bonusPoints={30}
           choices={choices}
           pick={pick}
           reveal={reveal}
