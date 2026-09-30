@@ -16,14 +16,14 @@ function isLocalDemoHost() {
   );
 }
 
-const GOOD = "21 september";
-const DATES = ["11 september", "26 september", "21 september", "20 september"];
+const GOOD = "VVD";
+const PARTIES = ["VVD", "CDA", "PVV", "ADE"];
 
 export default function BonusDemoPage() {
   const router = useRouter();
   const [local, setLocal] = useState(false);
   const [pick, setPick] = useState<number | null>(null);
-  const [choices, setChoices] = useState(DATES);
+  const [choices, setChoices] = useState(PARTIES);
   const [reveal, setReveal] = useState(false);
 
   useEffect(() => {
@@ -32,7 +32,7 @@ export default function BonusDemoPage() {
       return;
     }
     setLocal(true);
-    setChoices([...DATES].sort(() => Math.random() - 0.5));
+    setChoices([...PARTIES].sort(() => Math.random() - 0.5));
   }, [router]);
 
   if (!local) return null;
@@ -55,10 +55,10 @@ export default function BonusDemoPage() {
       </div>
       <div className="min-h-0 flex-1 overflow-y-auto px-4 pb-6">
         <p className="text-center text-xs font-semibold uppercase tracking-[0.18em] text-white/45">
-          Lokaal voorbeeld · 26 sep
+          Lokaal voorbeeld · 1 okt
         </p>
         <MpQuizBonus
-          question="Wanneer is Feme Pop jarig?"
+          question="Wat was Benno zijn politieke partij?"
           choices={choices}
           pick={pick}
           reveal={reveal}

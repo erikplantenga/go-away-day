@@ -10,7 +10,12 @@ export function LayoutWithOptionalHeader({
   children: React.ReactNode;
 }) {
   const pathname = usePathname();
-  if (pathname === "/tussenstand-demo" || pathname === "/bonus-demo" || pathname === "/quiz-demo") {
+  if (
+    pathname === "/tussenstand-demo" ||
+    pathname === "/bonus-demo" ||
+    pathname === "/quiz-demo" ||
+    pathname === "/kampioen-demo"
+  ) {
     return <main>{children}</main>;
   }
 

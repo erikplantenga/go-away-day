@@ -3,6 +3,7 @@
 import { useEffect, useRef, useState } from "react";
 import { ConfettiBurst } from "@/components/ConfettiBurst";
 import { MpQuizBonus, mpQuizChoiceClass } from "@/components/MpQuizBonus";
+import { MpQuizChampion } from "@/components/MpQuizChampion";
 import { MpQuizSpin } from "@/components/MpQuizSpin";
 import { MpQuizStand } from "@/components/MpQuizStand";
 import {
@@ -10,6 +11,7 @@ import {
   isLocalQuizHost,
   quizDate,
   quizFinale,
+  quizLastRound,
   quizPlayedWaitCopy,
   quizReminderDue,
   quizRoundsLeft,
@@ -23,6 +25,9 @@ type Board = {
   erik: number;
   benno: number;
   played: { erik: boolean; benno: boolean };
+  finished: { erik: boolean; benno: boolean };
+  lastFinished: { erik: boolean; benno: boolean };
+  championReady: boolean;
   daysLeft: number;
   open: boolean;
   firebaseReady: boolean;
@@ -88,6 +93,9 @@ export function MpQuiz({ onOpenNews }: { onOpenNews?: () => void }) {
     erik: 0,
     benno: 0,
     played: { erik: false, benno: false },
+    finished: { erik: false, benno: false },
+    lastFinished: { erik: false, benno: false },
+    championReady: false,
     daysLeft: 0,
     open: true,
     firebaseReady: true,
@@ -121,6 +129,9 @@ export function MpQuiz({ onOpenNews }: { onOpenNews?: () => void }) {
   const [testRound, setTestRound] = useState(false);
   const [party, setParty] = useState(false);
   const [boot, setBoot] = useState(true);
+  const [champion, setChampion] = useState(false);
+  const championShown = useRef(false);
+  const pendingChampion = useRef(false);
   const [stand, setStand] = useState(false);
   const [rivalNote, setRivalNote] = useState<string | null>(null);
   const [live, setLive] = useState(false);
@@ -132,6 +143,9 @@ export function MpQuiz({ onOpenNews }: { onOpenNews?: () => void }) {
       erik: data.erik ?? b.erik,
       benno: data.benno ?? b.benno,
       played: data.played ?? b.played,
+      finished: data.finished ?? b.finished,
+      lastFinished: data.lastFinished ?? b.lastFinished,
+      championReady: data.championReady ?? b.championReady,
       daysLeft: data.daysLeft ?? b.daysLeft,
       open: data.open ?? b.open,
       firebaseReady: data.firebaseReady ?? b.firebaseReady,
@@ -185,6 +199,15 @@ export function MpQuiz({ onOpenNews }: { onOpenNews?: () => void }) {
             erik: !!data.played?.erik,
             benno: !!data.played?.benno,
           },
+          finished: {
+            erik: !!data.finished?.erik,
+            benno: !!data.finished?.benno,
+          },
+          lastFinished: {
+            erik: !!data.lastFinished?.erik,
+            benno: !!data.lastFinished?.benno,
+          },
+          championReady: !!data.championReady,
           daysLeft: data.daysLeft ?? 0,
           open: data.open !== false,
           firebaseReady: data.firebaseReady !== false,
@@ -251,13 +274,13 @@ export function MpQuiz({ onOpenNews }: { onOpenNews?: () => void }) {
   }, [board.open, board.played.erik, board.played.benno]);
 
   useEffect(() => {
-    if (!sheet && !boot && !stand && !rivalNote) return;
+    if (!sheet && !boot && !stand && !rivalNote && !champion) return;
     const prev = document.body.style.overflow;
     document.body.style.overflow = "hidden";
     return () => {
       document.body.style.overflow = prev;
     };
-  }, [sheet, boot, stand, rivalNote]);
+  }, [sheet, boot, stand, rivalNote, champion]);
 
   useEffect(() => {
     if (sheet && screen === "wait" && board.open && quizUnlockedToday(now)) {
@@ -266,9 +289,16 @@ export function MpQuiz({ onOpenNews }: { onOpenNews?: () => void }) {
   }, [now, sheet, screen, board.open]);
 
   useEffect(() => {
-    if (!live || board.daysLeft > 0) return;
+    if (!live || !board.championReady || championShown.current) return;
+    championShown.current = true;
+    setChampion(true);
+    setBoot(false);
+  }, [live, board.championReady]);
+
+  useEffect(() => {
+    if (!live || !board.championReady) return;
     try {
-      const key = `mpQuizProost:${quizDate()}`;
+      const key = "mpQuizProost:final";
       if (localStorage.getItem(key)) return;
       localStorage.setItem(key, "1");
       const finale = quizFinale(board.benno, board.erik);
@@ -276,7 +306,7 @@ export function MpQuiz({ onOpenNews }: { onOpenNews?: () => void }) {
     } catch {
       /* privémodus */
     }
-  }, [live, board.daysLeft, board.benno, board.erik]);
+  }, [live, board.championReady, board.benno, board.erik]);
 
   const close = () => {
     if (revealTimer.current != null) {
@@ -306,6 +336,7 @@ export function MpQuiz({ onOpenNews }: { onOpenNews?: () => void }) {
     setLastSpinPoints(null);
     setTestRound(false);
     setParty(false);
+    pendingChampion.current = false;
     setQuizStartedAt(null);
     setStand(false);
     loadBoard();
@@ -317,6 +348,10 @@ export function MpQuiz({ onOpenNews }: { onOpenNews?: () => void }) {
   };
 
   const openQuiz = () => {
+    if (board.championReady) {
+      setChampion(true);
+      return;
+    }
     const unlocked = quizUnlockedToday(now);
     setScreen(!board.open ? "ended" : unlocked ? "login" : "wait");
     setSheet(true);
@@ -508,6 +543,7 @@ export function MpQuiz({ onOpenNews }: { onOpenNews?: () => void }) {
       setReels(data.reels);
       setLastSpinPoints(data.points ?? 0);
       if (data.erik != null) applyBoard({ erik: data.erik, benno: data.benno });
+      if (data.championReady) pendingChampion.current = true;
       setSpinning(true);
     } catch {
       setError("Geen verbinding");
@@ -525,6 +561,10 @@ export function MpQuiz({ onOpenNews }: { onOpenNews?: () => void }) {
     setSpinning(false);
     if (nextDone >= spinsTotal) {
       if (nextEarned >= 12 || points >= 4) setParty(true);
+      if (pendingChampion.current) {
+        championShown.current = true;
+        setChampion(true);
+      }
       loadBoard();
       setScreen("result");
     }
@@ -533,10 +573,12 @@ export function MpQuiz({ onOpenNews }: { onOpenNews?: () => void }) {
   const leftBenno = quizRoundsLeft(board.daysLeft, board.open, board.played.benno);
   const leftErik = quizRoundsLeft(board.daysLeft, board.open, board.played.erik);
   const unlock = dailyUnlockCopy(now);
-  const finaleDay = live && board.daysLeft <= 0;
+  const finaleDay = live && quizLastRound(board.daysLeft, board.open);
   const finale = quizFinale(board.benno, board.erik);
-  const daysLabel =
-    board.daysLeft > 1
+  const otherName = who === "erik" ? "Benno" : who === "benno" ? "Erik" : "de ander";
+  const daysLabel = board.championReady
+    ? "proost, de winnaar is bekend"
+    : board.daysLeft > 1
       ? `nog ${board.daysLeft} dagen`
       : board.daysLeft === 1
         ? "nog 1 dag"
@@ -548,23 +590,19 @@ export function MpQuiz({ onOpenNews }: { onOpenNews?: () => void }) {
     <>
       {boot && (
         <div className="fixed inset-0 z-[96] flex items-center justify-center bg-black/55 p-5" role="dialog" aria-modal="true">
-          {finaleDay ? <ConfettiBurst zIndex={97} /> : null}
           <div
             className={`relative w-full max-w-sm overflow-hidden rounded-2xl bg-[#0b1f3a] px-5 py-6 text-center text-white ${
-              finaleDay ? "shadow-[0_0_80px_rgba(201,162,39,0.35)]" : ""
+              finaleDay ? "shadow-[0_0_80px_rgba(201,162,39,0.18)]" : ""
             }`}
             style={{ paddingBottom: "max(1.5rem, env(safe-area-inset-bottom))" }}
           >
             {finaleDay ? (
               <>
-                <p className="text-xs font-semibold uppercase tracking-[0.22em] text-[#c9a227]">3 oktober · vertrekdag</p>
-                <p className="mt-3 text-2xl font-bold tracking-wide text-[#c9a227]">Proost! 🍻</p>
-                <p className="mt-2 text-2xl font-bold leading-snug">{finale.title}</p>
-                <p className="mt-3 text-base font-semibold">
-                  Benno {board.benno} · Erik {board.erik}
+                <p className="text-xs font-semibold uppercase tracking-[0.22em] text-[#c9a227]">3 oktober · laatste ronde</p>
+                <p className="mt-3 text-2xl font-bold leading-snug">Laatste ronde vandaag</p>
+                <p className="mt-3 text-sm leading-snug text-white/70">
+                  Speel en spin. De winnaar vieren we pas als jullie allebei hebben gespind. Proost volgt.
                 </p>
-                <p className="mt-3 text-sm font-semibold leading-snug text-[#c9a227]">{finale.beer}</p>
-                <p className="mt-2 text-sm leading-snug text-white/70">{finale.toast}</p>
                 <div className="mt-5 space-y-2">
                   <button
                     type="button"
@@ -978,9 +1016,11 @@ export function MpQuiz({ onOpenNews }: { onOpenNews?: () => void }) {
                 <p className="text-sm text-white/60">
                   {testRound
                     ? "Dit was een lokale test, de stand is niet bewaard."
-                    : quizPlayedWaitCopy(now)}
+                    : quizLastRound(board.daysLeft, board.open) && !board.championReady
+                      ? `Dit was je laatste ronde. Als ${otherName} ook heeft gespind, is de winnaar bekend.`
+                      : quizPlayedWaitCopy(now)}
                 </p>
-                {!testRound && (
+                {!testRound && !quizLastRound(board.daysLeft, board.open) && (
                   <p className="text-sm text-white/50">Nog {quizRoundsLeft(board.daysLeft, board.open, true)} te gaan.</p>
                 )}
                 <button
@@ -1012,19 +1052,24 @@ export function MpQuiz({ onOpenNews }: { onOpenNews?: () => void }) {
 
             {screen === "ended" && (
               <div className="mx-auto mt-8 max-w-md space-y-3 text-center">
-                <p className="text-2xl font-bold tracking-wide text-[#c9a227]">Proost! 🍻</p>
-                <p className="text-2xl font-bold leading-snug">{finale.title}</p>
-                <p className="text-base font-semibold">
-                  Benno {board.benno} · Erik {board.erik}
+                <p className="text-2xl font-bold leading-snug">De quiz is afgelopen</p>
+                <p className="text-sm text-white/70">
+                  {board.championReady
+                    ? "De winnaar is bekend."
+                    : "De winnaar volgt als jullie allebei hebben gespind."}
                 </p>
-                <p className="text-sm font-semibold text-[#c9a227]">{finale.beer}</p>
-                <p className="text-sm text-white/70">{finale.toast}</p>
+                <p className="text-sm text-white/70">
+                  Stand: Benno {board.benno} · Erik {board.erik}
+                </p>
                 <button
                   type="button"
-                  onClick={close}
+                  onClick={() => {
+                    if (board.championReady) setChampion(true);
+                    else close();
+                  }}
                   className="flex min-h-11 w-full items-center justify-center rounded-xl bg-[#c9a227] text-sm font-bold text-[#0b1f3a]"
                 >
-                  Terug
+                  {board.championReady ? "Naar het feest" : "Terug"}
                 </button>
               </div>
             )}
@@ -1042,6 +1087,14 @@ export function MpQuiz({ onOpenNews }: { onOpenNews?: () => void }) {
             </button>
           </div>
         </div>
+      )}
+
+      {champion && (
+        <MpQuizChampion
+          benno={board.benno}
+          erik={board.erik}
+          onClose={() => setChampion(false)}
+        />
       )}
 
       {stand && (

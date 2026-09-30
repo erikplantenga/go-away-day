@@ -1,5 +1,7 @@
 import { FLIGHTS, HOTEL, MALTA_DAYS, PASSENGERS, type DayItem, type TripDay } from "@/lib/maltaTrip";
-import { daysUntilDeparture } from "@/lib/maltaWeather";
+import { DEPARTURE_DATE, daysUntilDeparture } from "@/lib/maltaWeather";
+
+export const QUIZ_LAST_DATE = DEPARTURE_DATE;
 
 export type QuizPlayer = "erik" | "benno";
 
@@ -120,6 +122,17 @@ export function nextQuizUnlock(now = new Date()): Date {
 
 export function quizUnlockedToday(now = new Date()): boolean {
   return quizStillOpen(now) && now.getTime() >= todayTenAmsterdam(now).getTime();
+}
+
+export function quizLastRound(daysLeft: number, open: boolean): boolean {
+  return !open || daysLeft <= 0;
+}
+
+export function quizChampionReady(
+  daysLeft: number,
+  lastFinished: { erik: boolean; benno: boolean },
+): boolean {
+  return daysLeft <= 0 && lastFinished.erik && lastFinished.benno;
 }
 
 export function quizPlayedWaitCopy(now = new Date()): string {
@@ -341,6 +354,20 @@ function femePopBonus(rand: () => number): QuizQuestionInternal | null {
   };
 }
 
+function partijBonus(rand: () => number): QuizQuestionInternal | null {
+  const good = "VVD";
+  const choices = shuffle([good, "CDA", "PVV", "ADE"], rand);
+  const correct = choices.indexOf(good);
+  if (correct < 0) return null;
+  return {
+    question: "Wat was Benno zijn politieke partij?",
+    choices,
+    correct,
+    bonus: true,
+    bonusPoints: QUIZ_BONUS_POINTS,
+  };
+}
+
 /** Slot 0 = 20 sep, daarna elke 3 dagen. */
 const BONUSES: Array<(rand: () => number) => QuizQuestionInternal | null> = [
   lammeKopBonus,
@@ -348,7 +375,13 @@ const BONUSES: Array<(rand: () => number) => QuizQuestionInternal | null> = [
   femePopBonus,
 ];
 
+const BONUS_BY_DATE: Record<string, (rand: () => number) => QuizQuestionInternal | null> = {
+  "2026-10-01": partijBonus,
+};
+
 function bonusForDate(date: string, rand: () => number): QuizQuestionInternal | null {
+  const extra = BONUS_BY_DATE[date];
+  if (extra) return extra(rand);
   const maker = BONUSES.find((_, slot) => bonusDate(slot) === date);
   return maker ? maker(rand) : null;
 }

@@ -10,10 +10,13 @@ import {
   quizCorrectLabel,
   quizPickIsCorrect,
   quizQuestionValue,
+  quizChampionReady,
+  QUIZ_LAST_DATE,
   rollQuizSpin,
   type QuizPlayer,
   type QuizQuestionInternal,
 } from "@/lib/mpQuiz";
+import type { MpQuizPlay } from "@/lib/firebase-admin";
 
 export const dynamic = "force-dynamic";
 
@@ -77,11 +80,21 @@ export async function GET() {
   }
   const admin = await fb();
   const date = quizDate();
-  const [totals, erikPlay, bennoPlay] = await Promise.all([
+  const daysLeft = quizDaysLeft();
+  const lastDate = daysLeft < 0 ? QUIZ_LAST_DATE : date;
+  const [totals, erikPlay, bennoPlay, erikLast, bennoLast] = await Promise.all([
     admin.getMpQuizTotals(),
     admin.getMpQuizPlay("erik", date),
     admin.getMpQuizPlay("benno", date),
+    lastDate === date ? Promise.resolve(null) : admin.getMpQuizPlay("erik", lastDate),
+    lastDate === date ? Promise.resolve(null) : admin.getMpQuizPlay("benno", lastDate),
   ]);
+  const lastErik = lastDate === date ? erikPlay : erikLast;
+  const lastBenno = lastDate === date ? bennoPlay : bennoLast;
+  const lastFinished = {
+    erik: lastErik?.spinScore != null,
+    benno: lastBenno?.spinScore != null,
+  };
   return NextResponse.json({
     erik: totals.erik,
     benno: totals.benno,
@@ -90,6 +103,8 @@ export async function GET() {
       erik: erikPlay?.spinScore != null,
       benno: bennoPlay?.spinScore != null,
     },
+    lastFinished,
+    championReady: quizChampionReady(daysLeft, lastFinished),
     correct: {
       erik: erikPlay == null ? null : erikPlay.correct,
       benno: bennoPlay == null ? null : bennoPlay.correct,
@@ -102,7 +117,7 @@ export async function GET() {
       erik: erikPlay != null && bennoPlay != null ? erikPlay.misses ?? [] : [],
       benno: erikPlay != null && bennoPlay != null ? bennoPlay.misses ?? [] : [],
     },
-    daysLeft: quizDaysLeft(),
+    daysLeft,
     open: quizStillOpen(),
     unlocked: quizUnlockedToday(),
     date,
@@ -273,6 +288,14 @@ export async function POST(req: NextRequest) {
       return NextResponse.json({ error: "Deze ronde is van een andere dag." }, { status: 400 });
     }
     const { play, totals } = await admin.recordMpQuizSpin(token.u, token.d, roll.points);
+    const daysLeft = quizDaysLeft();
+    let championReady = false;
+    if (daysLeft <= 0 && play.spinScore != null) {
+      const lastDate = daysLeft < 0 ? QUIZ_LAST_DATE : token.d;
+      const other: QuizPlayer = token.u === "erik" ? "benno" : "erik";
+      const otherPlay: MpQuizPlay | null = await admin.getMpQuizPlay(other, lastDate);
+      championReady = otherPlay?.spinScore != null;
+    }
     return NextResponse.json({
       reels: roll.reels,
       points: roll.points,
@@ -281,7 +304,8 @@ export async function POST(req: NextRequest) {
       spinScore: play.spinScore,
       erik: totals.erik,
       benno: totals.benno,
-      daysLeft: quizDaysLeft(),
+      daysLeft,
+      championReady,
     });
   }
 
