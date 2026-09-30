@@ -16,14 +16,14 @@ function isLocalDemoHost() {
   );
 }
 
-const GOOD = "93";
-const AGES = ["93", "92", "91", "90"];
+const GOOD = "10";
+const JAREN = ["7", "8", "9", "10"];
 
 export default function BonusDemoPage() {
   const router = useRouter();
   const [local, setLocal] = useState(false);
   const [pick, setPick] = useState<number | null>(null);
-  const [choices, setChoices] = useState(AGES);
+  const [choices, setChoices] = useState(JAREN);
   const [reveal, setReveal] = useState(false);
 
   useEffect(() => {
@@ -32,7 +32,7 @@ export default function BonusDemoPage() {
       return;
     }
     setLocal(true);
-    setChoices([...AGES].sort(() => Math.random() - 0.5));
+    setChoices([...JAREN].sort(() => Math.random() - 0.5));
   }, [router]);
 
   if (!local) return null;
@@ -55,10 +55,10 @@ export default function BonusDemoPage() {
       </div>
       <div className="min-h-0 flex-1 overflow-y-auto px-4 pb-6">
         <p className="text-center text-xs font-semibold uppercase tracking-[0.18em] text-white/45">
-          Lokaal voorbeeld · 2 okt
+          Lokaal voorbeeld · 3 okt · laatste ronde
         </p>
         <MpQuizBonus
-          question="Wat is het leeftijd van Benno Sjoerd en Erik bij elkaar opgeteld?"
+          question="Hoeveel verschil zit er in de leeftijd van Benno en Erik?"
           bonusPoints={30}
           choices={choices}
           pick={pick}

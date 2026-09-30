@@ -396,6 +396,20 @@ function leeftijdBonus(rand: () => number): QuizQuestionInternal | null {
   };
 }
 
+function leeftijdVerschilBonus(rand: () => number): QuizQuestionInternal | null {
+  const good = "10";
+  const choices = shuffle([good, "7", "8", "9"], rand);
+  const correct = choices.indexOf(good);
+  if (correct < 0) return null;
+  return {
+    question: "Hoeveel verschil zit er in de leeftijd van Benno en Erik?",
+    choices,
+    correct,
+    bonus: true,
+    bonusPoints: 30,
+  };
+}
+
 /** Slot 0 = 20 sep, daarna elke 3 dagen. */
 const BONUSES: Array<(rand: () => number) => QuizQuestionInternal | null> = [
   lammeKopBonus,
@@ -406,6 +420,7 @@ const BONUSES: Array<(rand: () => number) => QuizQuestionInternal | null> = [
 const BONUS_BY_DATE: Record<string, (rand: () => number) => QuizQuestionInternal | null> = {
   "2026-10-01": partijBonus,
   "2026-10-02": leeftijdBonus,
+  "2026-10-03": leeftijdVerschilBonus,
 };
 
 function bonusForDate(date: string, rand: () => number): QuizQuestionInternal | null {
