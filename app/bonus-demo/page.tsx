@@ -16,7 +16,7 @@ function isLocalDemoHost() {
   );
 }
 
-const GOOD = "10";
+const GOOD = "9";
 const JAREN = ["7", "8", "9", "10"];
 
 export default function BonusDemoPage() {
@@ -55,11 +55,12 @@ export default function BonusDemoPage() {
       </div>
       <div className="min-h-0 flex-1 overflow-y-auto px-4 pb-6">
         <p className="text-center text-xs font-semibold uppercase tracking-[0.18em] text-white/45">
-          Lokaal voorbeeld · 3 okt · laatste ronde
+          Lokaal voorbeeld · 3 okt · turbo mega
         </p>
         <MpQuizBonus
           question="Hoeveel verschil zit er in de leeftijd van Benno en Erik?"
           bonusPoints={30}
+          mega
           choices={choices}
           pick={pick}
           reveal={reveal}

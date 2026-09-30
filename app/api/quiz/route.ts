@@ -200,12 +200,12 @@ export async function POST(req: NextRequest) {
     return NextResponse.json({
       token,
       who: body.who,
-      questions: round.map(({ question, choices, bonus, bonusPoints, correct, corrects }) => ({
+      questions: round.map(({ question, choices, bonus, bonusPoints, mega, correct, corrects }) => ({
         question,
         choices,
         correct,
         ...(corrects && corrects.length > 0 ? { corrects } : {}),
-        ...(bonus ? { bonus: true, bonusPoints: bonusPoints ?? 3 } : {}),
+        ...(bonus ? { bonus: true, bonusPoints: bonusPoints ?? 3, ...(mega ? { mega: true } : {}) } : {}),
       })),
     });
   }

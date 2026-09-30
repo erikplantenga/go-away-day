@@ -1,5 +1,6 @@
 "use client";
 
+import { ConfettiBurst } from "@/components/ConfettiBurst";
 import { QUIZ_BONUS_POINTS } from "@/lib/mpQuiz";
 
 export function mpQuizChoiceClass(picked: boolean, reveal: boolean, isCorrect: boolean, goldRing = false): string {
@@ -27,6 +28,7 @@ type Props = {
   error?: string;
   submitLabel?: string;
   bonusPoints?: number;
+  mega?: boolean;
 };
 
 export function MpQuizBonus({
@@ -41,35 +43,58 @@ export function MpQuizBonus({
   error,
   submitLabel = "Inleveren",
   bonusPoints = QUIZ_BONUS_POINTS,
+  mega = false,
 }: Props) {
   const alarm = bonusPoints >= 10;
   return (
     <div className="relative mx-auto mt-4 max-w-md">
+      {mega ? <ConfettiBurst zIndex={96} /> : null}
       <div
         className={`relative overflow-hidden rounded-[1.75rem] bg-[#160f02] px-4 pb-5 pt-6 ring-2 ${
-          alarm
-            ? "ring-[#ff4d4d] shadow-[0_0_90px_rgba(255,60,60,0.45)]"
-            : "ring-[#ffe08a] shadow-[0_0_80px_rgba(255,214,90,0.4)]"
+          mega
+            ? "ring-[#ffe08a] shadow-[0_0_100px_rgba(255,60,60,0.5),0_0_80px_rgba(255,214,90,0.45)]"
+            : alarm
+              ? "ring-[#ff4d4d] shadow-[0_0_90px_rgba(255,60,60,0.45)]"
+              : "ring-[#ffe08a] shadow-[0_0_80px_rgba(255,214,90,0.4)]"
         }`}
       >
         <div className="pointer-events-none absolute -left-12 -top-10 h-40 w-40 rounded-full bg-[#c9a227]/45 blur-3xl" />
         <div className="pointer-events-none absolute -right-10 bottom-4 h-36 w-36 rounded-full bg-[#ffe08a]/25 blur-3xl" />
-        {alarm ? (
-          <p className="mp-bonus-alarm text-center text-4xl font-black uppercase tracking-[0.18em] text-[#ff4d4d]">
-            Alarm!
-          </p>
+        {mega ? (
+          <>
+            <p className="mp-bonus-alarm text-center text-3xl font-black uppercase tracking-[0.2em] text-[#ff4d4d]">
+              Alarm!
+            </p>
+            <p className="mp-bonus-title mt-2 text-center text-4xl font-black uppercase leading-[0.85] tracking-[0.06em] text-[#ffe08a]">
+              Turbo mega
+            </p>
+            <p className="mp-bonus-title mt-2 text-center text-[1.65rem] font-black uppercase leading-[0.9] tracking-[0.08em] text-white">
+              Laatste bonusvraag
+            </p>
+          </>
+        ) : alarm ? (
+          <>
+            <p className="mp-bonus-alarm text-center text-4xl font-black uppercase tracking-[0.18em] text-[#ff4d4d]">
+              Alarm!
+            </p>
+            <p className="mp-bonus-title mt-3 text-center text-5xl font-black uppercase leading-[0.85] tracking-[0.08em] text-[#ffe08a]">
+              Bonusvraag
+            </p>
+          </>
         ) : (
-          <p className="text-center text-4xl leading-none" aria-hidden>
-            ✨🏆✨
-          </p>
+          <>
+            <p className="text-center text-4xl leading-none" aria-hidden>
+              ✨🏆✨
+            </p>
+            <p className="mp-bonus-title mt-3 text-center text-5xl font-black uppercase leading-[0.85] tracking-[0.08em] text-[#ffe08a]">
+              Bonusvraag
+            </p>
+          </>
         )}
-        <p className="mp-bonus-title mt-3 text-center text-5xl font-black uppercase leading-[0.85] tracking-[0.08em] text-[#ffe08a]">
-          Bonusvraag
-        </p>
         <p className="mp-bonus-points mt-4 text-center text-xl font-black text-white">
           {alarm ? (
             <>
-              Deze is voor <span className="text-[#ff4d4d]">{bonusPoints} punten</span>!
+              Deze is voor <span className={mega ? "text-[#ffe08a]" : "text-[#ff4d4d]"}>{bonusPoints} punten</span>!
             </>
           ) : (
             <>

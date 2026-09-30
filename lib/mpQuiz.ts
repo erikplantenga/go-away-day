@@ -17,6 +17,7 @@ export type QuizQuestion = {
   choices: string[];
   bonus?: boolean;
   bonusPoints?: number;
+  mega?: boolean;
   correct?: number;
   corrects?: number[];
 };
@@ -397,8 +398,8 @@ function leeftijdBonus(rand: () => number): QuizQuestionInternal | null {
 }
 
 function leeftijdVerschilBonus(rand: () => number): QuizQuestionInternal | null {
-  const good = "10";
-  const choices = shuffle([good, "7", "8", "9"], rand);
+  const good = "9";
+  const choices = shuffle([good, "7", "8", "10"], rand);
   const correct = choices.indexOf(good);
   if (correct < 0) return null;
   return {
@@ -407,6 +408,7 @@ function leeftijdVerschilBonus(rand: () => number): QuizQuestionInternal | null 
     correct,
     bonus: true,
     bonusPoints: 30,
+    mega: true,
   };
 }
 

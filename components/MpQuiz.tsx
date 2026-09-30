@@ -885,6 +885,7 @@ export function MpQuiz({ onOpenNews }: { onOpenNews?: () => void }) {
               <MpQuizBonus
                 question={questions[step].question}
                 bonusPoints={questions[step].bonusPoints}
+                mega={questions[step].mega}
                 choices={questions[step].choices}
                 pick={picks[step] ?? null}
                 reveal={reveal}
