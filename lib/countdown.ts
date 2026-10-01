@@ -1,5 +1,17 @@
 const DEPARTURE = new Date("2026-10-03T11:50:00+02:00");
 const CHECK_IN = new Date("2026-10-02T11:50:00+02:00");
+const RETURN_CHECK_IN = new Date("2026-10-06T07:25:00+02:00");
+const RETURN_FLIGHT = new Date("2026-10-07T07:25:00+02:00");
+
+export const CHECK_IN_FEAST_MS = 60 * 60 * 1000;
+
+export type CheckInLeg = "heen" | "terug";
+
+export function activeCheckIn(now = Date.now()): CheckInLeg | null {
+  if (now >= CHECK_IN.getTime() && now < DEPARTURE.getTime()) return "heen";
+  if (now >= RETURN_CHECK_IN.getTime() && now < RETURN_FLIGHT.getTime()) return "terug";
+  return null;
+}
 
 export function msUntilFlight(now = Date.now()): number {
   return Math.max(0, DEPARTURE.getTime() - now);

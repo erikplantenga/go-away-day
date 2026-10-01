@@ -186,3 +186,19 @@ select {
 .mp-bonus-alarm {
   animation: mp-bonus-alarm 0.7s ease-in-out infinite;
 }
+
+@keyframes mp-checkin-pulse {
+  0%,
+  100% {
+    transform: scale(1);
+    text-shadow: 0 0 14px rgba(201, 162, 39, 0.75), 0 0 36px rgba(255, 224, 138, 0.45);
+  }
+  50% {
+    transform: scale(1.06);
+    text-shadow: 0 0 26px rgba(255, 224, 138, 1), 0 0 60px rgba(201, 162, 39, 0.9);
+  }
+}
+
+.mp-checkin-open {
+  animation: mp-checkin-pulse 0.9s ease-in-out infinite;
+}

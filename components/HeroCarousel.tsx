@@ -8,6 +8,7 @@ import {
   msUntilCheckIn,
   msUntilFlight,
 } from "@/lib/countdown";
+import { useCheckInFeast } from "@/lib/useCheckInFeast";
 
 const SLIDES = [
   { src: "/images/go-away-day-hero.jpeg", alt: "Erik & Benno, Malta–Andorra", position: "object-[center_40%]" },
@@ -18,6 +19,7 @@ const SLIDES = [
 ] as const;
 
 export function HeroCarousel() {
+  const { party } = useCheckInFeast();
   const [index, setIndex] = useState(0);
   const [flightLeft, setFlightLeft] = useState<string | null>(null);
   const [checkInLeft, setCheckInLeft] = useState<string | null>(null);
@@ -57,11 +59,22 @@ export function HeroCarousel() {
       <div className="absolute inset-x-0 bottom-0 bg-gradient-to-t from-black/80 via-black/45 to-transparent px-3 pb-3 pt-10">
         <div className="grid grid-cols-2 gap-3">
           <div className="text-center">
-            <p className="text-[11px] font-semibold uppercase tracking-[0.18em] text-white/70">Tot check-in</p>
-            <p className="mt-0.5 text-sm font-bold tabular-nums tracking-wide text-white sm:text-base">
-              {checkInLeft ?? "—"}
-            </p>
-            <p className="text-[11px] text-white/65">2 okt · 11:50</p>
+            {party ? (
+              <>
+                <p className="mp-checkin-open text-sm font-black uppercase tracking-[0.12em] text-[#c9a227] sm:text-base">
+                  Incheck is open
+                </p>
+                <p className="mt-0.5 text-[11px] text-white/65">2 okt · 11:50</p>
+              </>
+            ) : (
+              <>
+                <p className="text-[11px] font-semibold uppercase tracking-[0.18em] text-white/70">Tot check-in</p>
+                <p className="mt-0.5 text-sm font-bold tabular-nums tracking-wide text-white sm:text-base">
+                  {checkInLeft ?? "—"}
+                </p>
+                <p className="text-[11px] text-white/65">2 okt · 11:50</p>
+              </>
+            )}
           </div>
           <div className="text-center">
             <p className="text-[11px] font-semibold uppercase tracking-[0.18em] text-white/70">Tot we vliegen</p>

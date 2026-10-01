@@ -3,6 +3,7 @@
 import Image from "next/image";
 import { useEffect, useState, type ReactNode } from "react";
 import { formatCheckInCountdown } from "@/lib/countdown";
+import { useCheckInFeast } from "@/lib/useCheckInFeast";
 import { ExternalLink } from "@/components/ExternalLink";
 import { Handig } from "@/components/Handig";
 import { LiveCams } from "@/components/LiveCams";
@@ -302,7 +303,7 @@ function VluchtenBody() {
   );
 }
 
-function CheckInCountdown({ at }: { at: string }) {
+function CheckInCountdown({ at, festive }: { at: string; festive?: boolean }) {
   const [left, setLeft] = useState<string | null>(null);
 
   useEffect(() => {
@@ -315,6 +316,13 @@ function CheckInCountdown({ at }: { at: string }) {
     return () => window.clearInterval(id);
   }, [at]);
 
+  if (festive) {
+    return (
+      <p className="mp-checkin-open mt-1 text-lg font-black uppercase tracking-wide text-[#c9a227]">
+        Incheck is open
+      </p>
+    );
+  }
   if (!left) return null;
   return <p className="mt-1 text-sm font-bold tabular-nums text-[#c9a227]">{left}</p>;
 }
@@ -328,6 +336,12 @@ function FlightCard({
   onOpenTicket: (src: string) => void;
   onOpenPlane: () => void;
 }) {
+  const { party, leg } = useCheckInFeast();
+  const festive =
+    party &&
+    ((leg === "heen" && flight.flightNumber === "KM395") ||
+      (leg === "terug" && flight.flightNumber === "KM394"));
+
   return (
     <div className="rounded-xl bg-white/5 p-4">
       <div className="flex items-center justify-between gap-2">
@@ -362,7 +376,7 @@ function FlightCard({
         </div>
       </div>
       <p className="mt-3 text-xs text-white/50">{flight.checkInOpens}</p>
-      <CheckInCountdown at={flight.checkInAt} />
+      <CheckInCountdown at={flight.checkInAt} festive={festive} />
       <button
         type="button"
         onClick={() => onOpenTicket(flight.image)}
