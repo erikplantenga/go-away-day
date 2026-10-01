@@ -2,7 +2,12 @@
 
 import Image from "next/image";
 import { useEffect, useState } from "react";
-import { formatFlightCountdown, msUntilFlight } from "@/lib/countdown";
+import {
+  formatCheckInCountdown,
+  formatFlightCountdown,
+  msUntilCheckIn,
+  msUntilFlight,
+} from "@/lib/countdown";
 
 const SLIDES = [
   { src: "/images/go-away-day-hero.jpeg", alt: "Erik & Benno, Malta–Andorra", position: "object-[center_40%]" },
@@ -14,7 +19,8 @@ const SLIDES = [
 
 export function HeroCarousel() {
   const [index, setIndex] = useState(0);
-  const [left, setLeft] = useState<string | null>(null);
+  const [flightLeft, setFlightLeft] = useState<string | null>(null);
+  const [checkInLeft, setCheckInLeft] = useState<string | null>(null);
 
   useEffect(() => {
     const iv = window.setInterval(() => {
@@ -24,7 +30,10 @@ export function HeroCarousel() {
   }, []);
 
   useEffect(() => {
-    const tick = () => setLeft(formatFlightCountdown(msUntilFlight()));
+    const tick = () => {
+      setFlightLeft(formatFlightCountdown(msUntilFlight()));
+      setCheckInLeft(formatCheckInCountdown(msUntilCheckIn()));
+    };
     tick();
     const iv = window.setInterval(tick, 1000);
     return () => window.clearInterval(iv);
@@ -45,14 +54,23 @@ export function HeroCarousel() {
           sizes="100vw"
         />
       ))}
-      <div className="absolute inset-x-0 bottom-0 bg-gradient-to-t from-black/80 via-black/40 to-transparent px-3 pb-3 pt-10">
-        <p className="text-center text-[11px] font-semibold uppercase tracking-[0.18em] text-white/70">
-          Tot we vliegen
-        </p>
-        <p className="mt-0.5 text-center text-lg font-bold tabular-nums tracking-wide text-white">
-          {left ?? "—"}
-        </p>
-        <p className="text-center text-[11px] text-white/65">3 okt · 11:50 · KM395</p>
+      <div className="absolute inset-x-0 bottom-0 bg-gradient-to-t from-black/80 via-black/45 to-transparent px-3 pb-3 pt-10">
+        <div className="grid grid-cols-2 gap-3">
+          <div className="text-center">
+            <p className="text-[11px] font-semibold uppercase tracking-[0.18em] text-white/70">Tot check-in</p>
+            <p className="mt-0.5 text-sm font-bold tabular-nums tracking-wide text-white sm:text-base">
+              {checkInLeft ?? "—"}
+            </p>
+            <p className="text-[11px] text-white/65">2 okt · 11:50</p>
+          </div>
+          <div className="text-center">
+            <p className="text-[11px] font-semibold uppercase tracking-[0.18em] text-white/70">Tot we vliegen</p>
+            <p className="mt-0.5 text-sm font-bold tabular-nums tracking-wide text-white sm:text-base">
+              {flightLeft ?? "—"}
+            </p>
+            <p className="text-[11px] text-white/65">3 okt · 11:50 · KM395</p>
+          </div>
+        </div>
       </div>
     </div>
   );

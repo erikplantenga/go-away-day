@@ -1,5 +1,5 @@
 import { FLIGHTS, HOTEL, MALTA_DAYS, PASSENGERS, type DayItem, type TripDay } from "@/lib/maltaTrip";
-import { DEPARTURE_DATE, daysUntilDeparture } from "@/lib/maltaWeather";
+import { DEPARTURE_DATE } from "@/lib/maltaWeather";
 
 export const QUIZ_LAST_DATE = DEPARTURE_DATE;
 
@@ -76,7 +76,12 @@ export function quizDate(now = new Date()): string {
 }
 
 export function quizDaysLeft(now = new Date()): number {
-  return daysUntilDeparture(now);
+  const today = quizDate(now);
+  const [ty, tm, td] = today.split("-").map(Number);
+  const [ly, lm, ld] = QUIZ_LAST_DATE.split("-").map(Number);
+  const t = Date.UTC(ty ?? 2026, (tm ?? 1) - 1, td ?? 1);
+  const l = Date.UTC(ly ?? 2026, (lm ?? 1) - 1, ld ?? 1);
+  return Math.round((l - t) / 86_400_000);
 }
 
 export function quizStillOpen(now = new Date()): boolean {
@@ -93,10 +98,10 @@ export function quizAmsterdamHour(now = new Date()): number {
   );
 }
 
-/** Quizdagen tot en met vertrek. Na spelen vandaag telt die ronde niet meer mee. */
+/** Quizdagen tot en met vertrek (zaterdag). Na spelen vandaag telt die ronde niet meer mee. */
 export function quizRoundsLeft(daysLeft: number, open: boolean, playedToday: boolean): number {
   if (!open) return 0;
-  const includingToday = daysLeft <= 0 ? 1 : daysLeft;
+  const includingToday = daysLeft < 0 ? 0 : daysLeft + 1;
   return playedToday ? Math.max(0, includingToday - 1) : includingToday;
 }
 

@@ -29,6 +29,7 @@ export type Flight = {
   arriveCode: string;
   arrivePlace: string;
   checkInOpens: string;
+  checkInAt: string;
   image: string;
   aircraft: string;
   aircraftHref: string;
@@ -78,6 +79,7 @@ export const FLIGHTS: { outbound: Flight; inbound: Flight } = {
     arriveCode: "MLA",
     arrivePlace: "Malta",
     checkInOpens: "Check-in opent vr 2 okt, 11:50",
+    checkInAt: "2026-10-02T11:50:00+02:00",
     image: "/images/heen-vlucht.png",
     aircraft: "Airbus A320neo",
     aircraftHref: "https://nl.wikipedia.org/wiki/Airbus_A320neo",
@@ -95,6 +97,7 @@ export const FLIGHTS: { outbound: Flight; inbound: Flight } = {
     arriveCode: "AMS",
     arrivePlace: "Schiphol",
     checkInOpens: "Check-in opent di 6 okt, 07:25",
+    checkInAt: "2026-10-06T07:25:00+02:00",
     image: "/images/retour-vlucht.png",
     aircraft: "Airbus A320neo",
     aircraftHref: "https://nl.wikipedia.org/wiki/Airbus_A320neo",

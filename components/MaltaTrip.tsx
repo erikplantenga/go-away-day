@@ -2,6 +2,7 @@
 
 import Image from "next/image";
 import { useEffect, useState, type ReactNode } from "react";
+import { formatCheckInCountdown } from "@/lib/countdown";
 import { ExternalLink } from "@/components/ExternalLink";
 import { Handig } from "@/components/Handig";
 import { LiveCams } from "@/components/LiveCams";
@@ -301,6 +302,23 @@ function VluchtenBody() {
   );
 }
 
+function CheckInCountdown({ at }: { at: string }) {
+  const [left, setLeft] = useState<string | null>(null);
+
+  useEffect(() => {
+    const tick = () => {
+      const ms = Math.max(0, new Date(at).getTime() - Date.now());
+      setLeft(formatCheckInCountdown(ms));
+    };
+    tick();
+    const id = window.setInterval(tick, 1000);
+    return () => window.clearInterval(id);
+  }, [at]);
+
+  if (!left) return null;
+  return <p className="mt-1 text-sm font-bold tabular-nums text-[#c9a227]">{left}</p>;
+}
+
 function FlightCard({
   flight,
   onOpenTicket,
@@ -344,6 +362,7 @@ function FlightCard({
         </div>
       </div>
       <p className="mt-3 text-xs text-white/50">{flight.checkInOpens}</p>
+      <CheckInCountdown at={flight.checkInAt} />
       <button
         type="button"
         onClick={() => onOpenTicket(flight.image)}
