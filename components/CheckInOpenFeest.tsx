@@ -4,9 +4,11 @@ import { useEffect, useState } from "react";
 import { ConfettiBurst } from "@/components/ConfettiBurst";
 import { Fireworks } from "@/components/Fireworks";
 import { unlockAudio } from "@/lib/audioContext";
+import { BoardingPassSheet } from "@/components/BoardingPassSheet";
 import { useCheckInFeast } from "@/lib/useCheckInFeast";
 import { useWinSound } from "@/lib/useWinSound";
 import type { CheckInLeg } from "@/lib/countdown";
+import { FLIGHTS } from "@/lib/maltaTrip";
 
 const FLYING = ["✈️", "🎫", "🎉", "🥳", "✈️", "🍾", "🍻", "🌟", "🎫", "✈️", "🎊", "✨", "✈️", "🎉", "🥳", "🎫"];
 
@@ -31,9 +33,11 @@ type Props = {
 export function CheckInOpenFeest({ preview = false, onClose }: Props) {
   const { party, leg } = useCheckInFeast(preview ? "heen" : false);
   const [dismissed, setDismissed] = useState(false);
+  const [boarding, setBoarding] = useState(false);
   const show = (preview || party) && !dismissed;
   const which = leg ?? "heen";
   const copy = COPY[which];
+  const passes = which === "heen" ? FLIGHTS.outbound.boardingPasses : FLIGHTS.inbound.boardingPasses;
 
   useWinSound(show ? "INGECHECKT!" : null);
 
@@ -117,17 +121,30 @@ export function CheckInOpenFeest({ preview = false, onClose }: Props) {
           <p className="mt-4 text-lg font-bold text-white">{copy.flight}</p>
           <p className="mt-1 text-sm text-white/70">{copy.when}</p>
           <p className="mt-4 text-sm font-semibold leading-snug text-[#c9a227]">
-            Tijd om in te checken. Paspoort erbij, boardingpass eruit.
+            Boardingpass klaar. Kies wie je bent.
           </p>
-          <a
-            href={copy.href}
-            target="_blank"
-            rel="noreferrer"
-            onClick={() => unlockAudio()}
-            className="mt-8 flex min-h-12 w-full items-center justify-center rounded-2xl bg-[#c9a227] text-base font-bold text-[#0b1f3a]"
-          >
-            Naar check-in
-          </a>
+          {passes ? (
+            <button
+              type="button"
+              onClick={() => {
+                unlockAudio();
+                setBoarding(true);
+              }}
+              className="mt-8 flex min-h-12 w-full items-center justify-center rounded-2xl bg-[#c9a227] text-base font-bold text-[#0b1f3a]"
+            >
+              Boardingpass
+            </button>
+          ) : (
+            <a
+              href={copy.href}
+              target="_blank"
+              rel="noreferrer"
+              onClick={() => unlockAudio()}
+              className="mt-8 flex min-h-12 w-full items-center justify-center rounded-2xl bg-[#c9a227] text-base font-bold text-[#0b1f3a]"
+            >
+              Boardingpass
+            </a>
+          )}
           <button
             type="button"
             onClick={close}
@@ -137,6 +154,9 @@ export function CheckInOpenFeest({ preview = false, onClose }: Props) {
           </button>
         </div>
       </div>
+      {boarding && passes ? (
+        <BoardingPassSheet passes={passes} zIndex={110} onClose={() => setBoarding(false)} />
+      ) : null}
     </div>
   );
 }

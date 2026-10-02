@@ -10,6 +10,7 @@ import { LiveCams } from "@/components/LiveCams";
 import { WeerStrip } from "@/components/WeerStrip";
 import { PlaceSheet } from "@/components/PlaceSheet";
 import { Updates } from "@/components/Updates";
+import { BoardingPassSheet } from "@/components/BoardingPassSheet";
 import { MpQuiz } from "@/components/MpQuiz";
 import { ESTIMATED_WEATHER, fetchTripWeather, weatherForDate, type DayWeather } from "@/lib/maltaWeather";
 import { PLACE_INFO, placeForItem, type PlaceInfo } from "@/lib/maltaPlaces";
@@ -289,7 +290,7 @@ function VluchtenBody() {
           Malta Airport
         </ExternalLink>
       </div>
-      {boarding && <BoardingWhoSheet passes={boarding} onClose={() => setBoarding(null)} />}
+      {boarding && <BoardingPassSheet passes={boarding} onClose={() => setBoarding(null)} />}
       {ticket && (
         <div className="fixed inset-0 z-[90] flex flex-col bg-black" role="dialog" aria-modal="true">
           <div
@@ -347,56 +348,6 @@ function CheckInCountdown({
   }
   if (!left) return null;
   return <p className="mt-1 text-sm font-bold tabular-nums text-[#c9a227]">{left}</p>;
-}
-
-function BoardingWhoSheet({
-  passes,
-  onClose,
-}: {
-  passes: { benno: string; erik: string };
-  onClose: () => void;
-}) {
-  useLockBody(true);
-
-  return (
-    <div
-      className="fixed inset-0 z-[92] flex items-end justify-center bg-black/65 p-4 sm:items-center"
-      role="dialog"
-      aria-modal="true"
-      aria-labelledby="boarding-who-title"
-    >
-      <div className="w-full max-w-sm rounded-2xl bg-[#0b1220] px-5 py-6 text-white">
-        <p id="boarding-who-title" className="text-center text-lg font-bold leading-snug">
-          Ben je Bokke Sjoerd (Benno) of Erik?
-        </p>
-        <div className="mt-5 space-y-2">
-          <a
-            href={passes.benno}
-            target="_blank"
-            rel="noopener noreferrer"
-            className="flex min-h-12 items-center justify-center rounded-xl bg-[#c9a227] text-sm font-bold text-[#0b1f3a]"
-          >
-            Bokke Sjoerd (Benno)
-          </a>
-          <a
-            href={passes.erik}
-            target="_blank"
-            rel="noopener noreferrer"
-            className="flex min-h-12 items-center justify-center rounded-xl bg-[#c9a227] text-sm font-bold text-[#0b1f3a]"
-          >
-            Erik
-          </a>
-          <button
-            type="button"
-            onClick={onClose}
-            className="flex min-h-11 w-full items-center justify-center rounded-xl bg-white/10 text-sm font-semibold"
-          >
-            Annuleer
-          </button>
-        </div>
-      </div>
-    </div>
-  );
 }
 
 function FlightCard({

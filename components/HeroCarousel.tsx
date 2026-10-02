@@ -23,7 +23,7 @@ export function HeroCarousel() {
   const [index, setIndex] = useState(0);
   const [flightLeft, setFlightLeft] = useState<string | null>(null);
   const [checkInLeft, setCheckInLeft] = useState<string | null>(null);
-  const [checkedIn, setCheckedIn] = useState(false);
+  const [checkedIn, setCheckedIn] = useState(() => msUntilCheckIn() <= 0);
 
   useEffect(() => {
     const iv = window.setInterval(() => {
