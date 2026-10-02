@@ -83,8 +83,8 @@ export const FLIGHTS: { outbound: Flight; inbound: Flight } = {
     checkInAt: "2026-10-02T11:50:00+02:00",
     image: "/images/heen-vlucht.png",
     boardingPasses: {
-      benno: "/boarding/heen-benno.pdf",
-      erik: "/boarding/heen-erik.pdf",
+      benno: "/boarding/heen-benno.png",
+      erik: "/boarding/heen-erik.png",
     },
     aircraft: "Airbus A320neo",
     aircraftHref: "https://nl.wikipedia.org/wiki/Airbus_A320neo",

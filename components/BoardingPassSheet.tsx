@@ -44,11 +44,10 @@ export function BoardingPassSheet({
             ← Terug
           </button>
         </div>
-        <iframe
-          src={src}
-          title="Boardingpass"
-          className="min-h-0 w-full flex-1 bg-white"
-        />
+        <div className="min-h-0 flex-1 overflow-y-auto bg-white px-2 pb-[env(safe-area-inset-bottom)]">
+          {/* eslint-disable-next-line @next/next/no-img-element */}
+          <img src={src} alt="Boardingpass" className="mx-auto block h-auto w-full max-w-3xl" />
+        </div>
       </div>
     );
   }
