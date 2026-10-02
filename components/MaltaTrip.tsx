@@ -251,12 +251,23 @@ function PlanningBody() {
 function VluchtenBody() {
   const [ticket, setTicket] = useState<string | null>(null);
   const [plane, setPlane] = useState(false);
+  const [boarding, setBoarding] = useState<Flight["boardingPasses"] | null>(null);
 
   return (
     <div className="space-y-3 pb-3">
       {plane && <PlaceSheet place={PLACE_INFO.vliegtuig} onBack={() => setPlane(false)} />}
-      <FlightCard flight={FLIGHTS.outbound} onOpenTicket={setTicket} onOpenPlane={() => setPlane(true)} />
-      <FlightCard flight={FLIGHTS.inbound} onOpenTicket={setTicket} onOpenPlane={() => setPlane(true)} />
+      <FlightCard
+        flight={FLIGHTS.outbound}
+        onOpenTicket={setTicket}
+        onOpenPlane={() => setPlane(true)}
+        onOpenBoarding={setBoarding}
+      />
+      <FlightCard
+        flight={FLIGHTS.inbound}
+        onOpenTicket={setTicket}
+        onOpenPlane={() => setPlane(true)}
+        onOpenBoarding={setBoarding}
+      />
       <p className="px-1 text-sm text-white/60">Passagiers: {PASSENGERS.join(" · ")}</p>
       <div className="flex flex-col items-stretch space-y-2 px-1">
         <ExternalLink
@@ -278,6 +289,7 @@ function VluchtenBody() {
           Malta Airport
         </ExternalLink>
       </div>
+      {boarding && <BoardingWhoSheet passes={boarding} onClose={() => setBoarding(null)} />}
       {ticket && (
         <div className="fixed inset-0 z-[90] flex flex-col bg-black" role="dialog" aria-modal="true">
           <div
@@ -303,23 +315,35 @@ function VluchtenBody() {
   );
 }
 
-function CheckInCountdown({ at, festive }: { at: string; festive?: boolean }) {
+function CheckInCountdown({
+  at,
+  festive,
+  checkedIn,
+}: {
+  at: string;
+  festive?: boolean;
+  checkedIn?: boolean;
+}) {
   const [left, setLeft] = useState<string | null>(null);
+  const [open, setOpen] = useState(false);
 
   useEffect(() => {
     const tick = () => {
       const ms = Math.max(0, new Date(at).getTime() - Date.now());
       setLeft(formatCheckInCountdown(ms));
+      setOpen(ms <= 0);
     };
     tick();
     const id = window.setInterval(tick, 1000);
     return () => window.clearInterval(id);
   }, [at]);
 
-  if (festive) {
+  if (festive || (checkedIn && open)) {
     return (
-      <p className="mp-checkin-open mt-1 text-lg font-black uppercase tracking-wide text-[#c9a227]">
-        Incheck is open
+      <p
+        className={`${festive ? "mp-checkin-open" : ""} mt-1 text-lg font-black uppercase tracking-wide text-[#c9a227]`}
+      >
+        Ingecheckt
       </p>
     );
   }
@@ -327,14 +351,66 @@ function CheckInCountdown({ at, festive }: { at: string; festive?: boolean }) {
   return <p className="mt-1 text-sm font-bold tabular-nums text-[#c9a227]">{left}</p>;
 }
 
+function BoardingWhoSheet({
+  passes,
+  onClose,
+}: {
+  passes: { benno: string; erik: string };
+  onClose: () => void;
+}) {
+  useLockBody(true);
+
+  return (
+    <div
+      className="fixed inset-0 z-[92] flex items-end justify-center bg-black/65 p-4 sm:items-center"
+      role="dialog"
+      aria-modal="true"
+      aria-labelledby="boarding-who-title"
+    >
+      <div className="w-full max-w-sm rounded-2xl bg-[#0b1220] px-5 py-6 text-white">
+        <p id="boarding-who-title" className="text-center text-lg font-bold leading-snug">
+          Ben je Bokke Sjoerd (Benno) of Erik?
+        </p>
+        <div className="mt-5 space-y-2">
+          <a
+            href={passes.benno}
+            target="_blank"
+            rel="noopener noreferrer"
+            className="flex min-h-12 items-center justify-center rounded-xl bg-[#c9a227] text-sm font-bold text-[#0b1f3a]"
+          >
+            Bokke Sjoerd (Benno)
+          </a>
+          <a
+            href={passes.erik}
+            target="_blank"
+            rel="noopener noreferrer"
+            className="flex min-h-12 items-center justify-center rounded-xl bg-[#c9a227] text-sm font-bold text-[#0b1f3a]"
+          >
+            Erik
+          </a>
+          <button
+            type="button"
+            onClick={onClose}
+            className="flex min-h-11 w-full items-center justify-center rounded-xl bg-white/10 text-sm font-semibold"
+          >
+            Annuleer
+          </button>
+        </div>
+      </div>
+    </div>
+  );
+}
+
 function FlightCard({
   flight,
   onOpenTicket,
   onOpenPlane,
+  onOpenBoarding,
 }: {
   flight: Flight;
   onOpenTicket: (src: string) => void;
   onOpenPlane: () => void;
+  onOpenBoarding: (passes: NonNullable<Flight["boardingPasses"]>) => void;
 }) {
   const { party, leg } = useCheckInFeast();
   const festive =
@@ -376,11 +452,20 @@ function FlightCard({
         </div>
       </div>
       <p className="mt-3 text-xs text-white/50">{flight.checkInOpens}</p>
-      <CheckInCountdown at={flight.checkInAt} festive={festive} />
+      <CheckInCountdown at={flight.checkInAt} festive={festive} checkedIn={Boolean(flight.boardingPasses)} />
+      {flight.boardingPasses ? (
+        <button
+          type="button"
+          onClick={() => onOpenBoarding(flight.boardingPasses!)}
+          className="mt-3 w-full rounded-xl bg-[#c9a227] py-2.5 text-sm font-bold text-[#0b1f3a]"
+        >
+          Boardingpass bekijken
+        </button>
+      ) : null}
       <button
         type="button"
         onClick={() => onOpenTicket(flight.image)}
-        className="mt-3 w-full rounded-xl bg-white/10 py-2 text-sm font-medium text-white"
+        className={`${flight.boardingPasses ? "mt-2" : "mt-3"} w-full rounded-xl bg-white/10 py-2 text-sm font-medium text-white`}
       >
         Ticket bekijken
       </button>

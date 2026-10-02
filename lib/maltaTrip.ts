@@ -34,6 +34,7 @@ export type Flight = {
   aircraft: string;
   aircraftHref: string;
   transfer?: string;
+  boardingPasses?: { benno: string; erik: string };
 };
 
 export const TRIP_DATES = "3 – 7 oktober 2026";
@@ -81,6 +82,10 @@ export const FLIGHTS: { outbound: Flight; inbound: Flight } = {
     checkInOpens: "Check-in opent vr 2 okt, 11:50",
     checkInAt: "2026-10-02T11:50:00+02:00",
     image: "/images/heen-vlucht.png",
+    boardingPasses: {
+      benno: "/boarding/heen-benno.pdf",
+      erik: "/boarding/heen-erik.pdf",
+    },
     aircraft: "Airbus A320neo",
     aircraftHref: "https://nl.wikipedia.org/wiki/Airbus_A320neo",
   },
