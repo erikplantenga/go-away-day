@@ -1,7 +1,11 @@
 "use client";
 
 import { useEffect, useState, type ReactNode } from "react";
-import { formatQuizMs, type QuizMiss } from "@/lib/mpQuiz";
+import { ConfettiBurst } from "@/components/ConfettiBurst";
+import { Fireworks } from "@/components/Fireworks";
+import { unlockAudio } from "@/lib/audioContext";
+import { formatQuizMs, quizFinale, type QuizMiss } from "@/lib/mpQuiz";
+import { useWinSound } from "@/lib/useWinSound";
 
 type Props = {
   benno: number;
@@ -12,6 +16,7 @@ type Props = {
   quizMs: { erik: number | null; benno: number | null };
   misses: { erik: QuizMiss[]; benno: QuizMiss[] };
   preview?: boolean;
+  finale?: boolean;
   onClose: () => void;
 };
 
@@ -176,26 +181,50 @@ export function MpQuizStand({
   quizMs,
   misses,
   preview,
+  finale = false,
   onClose,
 }: Props) {
   const bothPlayed = played.erik && played.benno;
   const showMisses = preview || bothPlayed;
   const max = Math.max(benno, erik, 1);
   const top = Math.max(benno, erik);
-  const lead =
-    benno === erik ? "Gelijkspel" : benno > erik ? "Benno leidt" : "Erik leidt";
+  const finaleCopy = quizFinale(benno, erik);
+  const lead = finale
+    ? finaleCopy.title
+    : benno === erik
+      ? "Gelijkspel"
+      : benno > erik
+        ? "Benno leidt"
+        : "Erik leidt";
   const gap = Math.abs(benno - erik);
+
+  useWinSound(finale ? finaleCopy.title : null);
+  useEffect(() => {
+    if (finale) unlockAudio();
+  }, [finale]);
 
   return (
     <div
       className="fixed inset-0 z-[98] flex items-center justify-center bg-black/70 p-4 backdrop-blur-md"
       role="dialog"
       aria-modal="true"
-      aria-label="Tussenstand"
+      aria-label={finale ? "Eindstand" : "Tussenstand"}
       onClick={onClose}
     >
+      {finale ? (
+        <>
+          <div className="pointer-events-none absolute inset-0 overflow-hidden">
+            <Fireworks fullScreen />
+          </div>
+          <ConfettiBurst zIndex={99} />
+        </>
+      ) : null}
       <div
-        className="relative max-h-[min(90dvh,44rem)] w-full max-w-md overflow-y-auto rounded-[2rem] bg-[#0b1220] px-5 pb-6 pt-5 text-white shadow-[0_0_80px_rgba(201,162,39,0.18)]"
+        className={`relative z-[100] max-h-[min(90dvh,44rem)] w-full max-w-md overflow-y-auto rounded-[2rem] bg-[#0b1220] px-5 pb-6 pt-5 text-white ${
+          finale
+            ? "shadow-[0_0_90px_rgba(201,162,39,0.35)]"
+            : "shadow-[0_0_80px_rgba(201,162,39,0.18)]"
+        }`}
         style={{ paddingBottom: "max(1.5rem, env(safe-area-inset-bottom))" }}
         onClick={(e) => e.stopPropagation()}
       >
@@ -204,7 +233,13 @@ export function MpQuizStand({
 
         <div className="relative flex items-center justify-between">
           <p className="text-xs font-semibold uppercase tracking-[0.22em] text-[#c9a227]">
-            {preview ? "Tussenstand · voorbeeld" : "Tussenstand"}
+            {finale
+              ? preview
+                ? "Eindstand · voorbeeld"
+                : "Eindstand"
+              : preview
+                ? "Tussenstand · voorbeeld"
+                : "Tussenstand"}
           </p>
           <button
             type="button"
@@ -237,18 +272,31 @@ export function MpQuizStand({
         </div>
 
         <p className="relative mt-6 text-center text-lg font-bold">
-          {lead}
-          {gap > 0 ? <span className="font-semibold text-white/55"> · {gap} punt{gap === 1 ? "" : "en"}</span> : null}
+          {finale ? <span className="text-[#c9a227]">Proost! 🍻</span> : null}
+          {finale ? <span className="mt-1 block">{lead}</span> : lead}
+          {!finale && gap > 0 ? (
+            <span className="font-semibold text-white/55">
+              {" "}
+              · {gap} punt{gap === 1 ? "" : "en"}
+            </span>
+          ) : null}
         </p>
         <p className="relative mt-1 text-center text-sm text-white/50">
-          {daysLeft > 1 ? `Nog ${daysLeft} dagen tot vertrek` : daysLeft === 1 ? "Nog 1 dag tot vertrek" : "Vertrekdag"}
+          {finale
+            ? "De MP-Quiz is afgelopen. Deze eindstand blijft staan."
+            : daysLeft > 1
+              ? `Nog ${daysLeft} dagen tot vertrek`
+              : daysLeft === 1
+                ? "Nog 1 dag tot vertrek"
+                : "Vertrekdag"}
         </p>
         <p className="relative mt-4 text-center text-sm leading-snug text-[#c9a227]">
-          Winnaar krijgt het eerste rondje bier van de verliezer.
+          {finale ? finaleCopy.beer : "Winnaar krijgt het eerste rondje bier van de verliezer."}
         </p>
+        {finale ? <p className="relative mt-2 text-center text-sm text-white/70">{finaleCopy.toast}</p> : null}
         <div className="relative mt-5">
           <p className="text-center text-[11px] font-semibold uppercase tracking-[0.18em] text-white/45">
-            Info van vandaag
+            {finale ? "Laatste ronde" : "Info van vandaag"}
           </p>
           <div className="mt-3 grid grid-cols-2 gap-3">
             <InfoColumn

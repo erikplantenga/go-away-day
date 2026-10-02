@@ -16,7 +16,8 @@ export function LayoutWithOptionalHeader({
     pathname === "/bonus-demo" ||
     pathname === "/quiz-demo" ||
     pathname === "/kampioen-demo" ||
-    pathname === "/checkin-demo"
+    pathname === "/checkin-demo" ||
+    pathname === "/eindstand-demo"
   ) {
     return <main>{children}</main>;
   }

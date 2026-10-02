@@ -349,7 +349,7 @@ export function MpQuiz({ onOpenNews }: { onOpenNews?: () => void }) {
 
   const openQuiz = () => {
     if (board.championReady) {
-      setChampion(true);
+      setStand(true);
       return;
     }
     const unlocked = quizUnlockedToday(now);
@@ -712,7 +712,7 @@ export function MpQuiz({ onOpenNews }: { onOpenNews?: () => void }) {
                 }}
                 className="flex min-h-11 w-full items-center justify-center rounded-xl bg-[#c9a227] text-sm font-bold text-[#0b1f3a]"
               >
-                Tussenstand
+                {board.championReady ? "Eindstand" : "Tussenstand"}
               </button>
               <button
                 type="button"
@@ -1085,7 +1085,7 @@ export function MpQuiz({ onOpenNews }: { onOpenNews?: () => void }) {
               onClick={openStand}
               className="flex min-h-11 w-full items-center justify-center rounded-xl bg-[#c9a227] text-sm font-bold text-[#0b1f3a]"
             >
-              Tussenstand
+              {board.championReady ? "Eindstand" : "Tussenstand"}
             </button>
           </div>
         </div>
@@ -1108,6 +1108,7 @@ export function MpQuiz({ onOpenNews }: { onOpenNews?: () => void }) {
           correct={board.correct}
           quizMs={board.quizMs}
           misses={board.misses}
+          finale={board.championReady}
           onClose={() => setStand(false)}
         />
       )}

@@ -97,27 +97,30 @@ export async function GET() {
     erik: lastErik?.spinScore != null,
     benno: lastBenno?.spinScore != null,
   };
+  const championReady = quizChampionReady(daysLeft, lastFinished);
+  const showErik = daysLeft < 0 ? lastErik : erikPlay;
+  const showBenno = daysLeft < 0 ? lastBenno : bennoPlay;
   return NextResponse.json({
     erik: totals.erik,
     benno: totals.benno,
-    played: { erik: erikPlay != null, benno: bennoPlay != null },
+    played: { erik: showErik != null, benno: showBenno != null },
     finished: {
-      erik: erikPlay?.spinScore != null,
-      benno: bennoPlay?.spinScore != null,
+      erik: showErik?.spinScore != null,
+      benno: showBenno?.spinScore != null,
     },
     lastFinished,
-    championReady: quizChampionReady(daysLeft, lastFinished),
+    championReady,
     correct: {
-      erik: erikPlay == null ? null : erikPlay.correct,
-      benno: bennoPlay == null ? null : bennoPlay.correct,
+      erik: showErik == null ? null : showErik.correct,
+      benno: showBenno == null ? null : showBenno.correct,
     },
     quizMs: {
-      erik: erikPlay?.quizMs ?? null,
-      benno: bennoPlay?.quizMs ?? null,
+      erik: showErik?.quizMs ?? null,
+      benno: showBenno?.quizMs ?? null,
     },
     misses: {
-      erik: erikPlay != null && bennoPlay != null ? erikPlay.misses ?? [] : [],
-      benno: erikPlay != null && bennoPlay != null ? bennoPlay.misses ?? [] : [],
+      erik: showErik != null && showBenno != null ? showErik.misses ?? [] : [],
+      benno: showErik != null && showBenno != null ? showBenno.misses ?? [] : [],
     },
     daysLeft,
     open: quizStillOpen(),
