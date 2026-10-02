@@ -322,13 +322,13 @@ export async function beginMpQuizPlay(
   const playRef = d.collection("mpQuiz").doc(`play_${playKey(user, date)}`);
   const totRef = d.collection("mpQuiz").doc("totals");
   await d.runTransaction(async (tx) => {
+    const tot = extra > 0 ? await tx.get(totRef) : null;
     tx.set(playRef, {
       ...play,
       jackpot: extra,
       at: new Date().toISOString(),
     });
-    if (extra > 0) {
-      const tot = await tx.get(totRef);
+    if (extra > 0 && tot) {
       const t = tot.data() ?? {};
       tx.set(
         totRef,

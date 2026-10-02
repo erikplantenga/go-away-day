@@ -302,8 +302,13 @@ function timePool(): string[] {
   return [...new Set(["11:50", "14:55", "07:25", "10:50", "18:00", "21:00", "08:30", "05:15", ...times])];
 }
 
+const QUIZ_SEED_TAG: Record<string, string> = {
+  "2026-10-02": "rev2",
+};
+
 export function dailyQuizSeed(date = quizDate()): string {
-  return `mp-quiz-${date}`;
+  const tag = QUIZ_SEED_TAG[date];
+  return tag ? `mp-quiz-${date}-${tag}` : `mp-quiz-${date}`;
 }
 
 const SILENT_EXTRA_BY_DATE: Record<string, (rand: () => number) => QuizQuestionInternal | null> = {
@@ -388,13 +393,13 @@ function partijBonus(rand: () => number): QuizQuestionInternal | null {
   };
 }
 
-function leeftijdBonus(rand: () => number): QuizQuestionInternal | null {
-  const good = "93";
-  const choices = shuffle([good, "92", "91", "90"], rand);
+function boekingsnummerBonus(rand: () => number): QuizQuestionInternal | null {
+  const good = "CHNL-53304731";
+  const choices = shuffle([good, "CHNL-53304730", "CHNL-53304732", "CHNL-53304733"], rand);
   const correct = choices.indexOf(good);
   if (correct < 0) return null;
   return {
-    question: "Wat is het leeftijd van Benno Sjoerd en Erik bij elkaar opgeteld?",
+    question: "Wat is ons boekingsnummer?",
     choices,
     correct,
     bonus: true,
@@ -426,7 +431,7 @@ const BONUSES: Array<(rand: () => number) => QuizQuestionInternal | null> = [
 
 const BONUS_BY_DATE: Record<string, (rand: () => number) => QuizQuestionInternal | null> = {
   "2026-10-01": partijBonus,
-  "2026-10-02": leeftijdBonus,
+  "2026-10-02": boekingsnummerBonus,
   "2026-10-03": leeftijdVerschilBonus,
 };
 
