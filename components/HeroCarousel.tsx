@@ -23,6 +23,7 @@ export function HeroCarousel() {
   const [index, setIndex] = useState(0);
   const [flightLeft, setFlightLeft] = useState<string | null>(null);
   const [checkInLeft, setCheckInLeft] = useState<string | null>(null);
+  const [checkedIn, setCheckedIn] = useState(false);
 
   useEffect(() => {
     const iv = window.setInterval(() => {
@@ -33,8 +34,10 @@ export function HeroCarousel() {
 
   useEffect(() => {
     const tick = () => {
+      const untilCheckIn = msUntilCheckIn();
       setFlightLeft(formatFlightCountdown(msUntilFlight()));
-      setCheckInLeft(formatCheckInCountdown(msUntilCheckIn()));
+      setCheckInLeft(formatCheckInCountdown(untilCheckIn));
+      setCheckedIn(untilCheckIn <= 0);
     };
     tick();
     const iv = window.setInterval(tick, 1000);
@@ -59,10 +62,10 @@ export function HeroCarousel() {
       <div className="absolute inset-x-0 bottom-0 bg-gradient-to-t from-black/80 via-black/45 to-transparent px-3 pb-3 pt-10">
         <div className="grid grid-cols-2 gap-3">
           <div className="text-center">
-            {party ? (
+            {party || checkedIn ? (
               <>
                 <p className="mp-checkin-open text-sm font-black uppercase tracking-[0.12em] text-[#c9a227] sm:text-base">
-                  Incheck is open
+                  Ingecheckt!
                 </p>
                 <p className="mt-0.5 text-[11px] text-white/65">2 okt · 11:50</p>
               </>

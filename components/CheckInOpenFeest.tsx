@@ -35,7 +35,7 @@ export function CheckInOpenFeest({ preview = false, onClose }: Props) {
   const which = leg ?? "heen";
   const copy = COPY[which];
 
-  useWinSound(show ? "INCHECK IS OPEN" : null);
+  useWinSound(show ? "INGECHECKT!" : null);
 
   useEffect(() => {
     if (show) unlockAudio();
@@ -53,7 +53,7 @@ export function CheckInOpenFeest({ preview = false, onClose }: Props) {
       className="fixed inset-0 z-[100] overflow-hidden bg-[#070d18] text-white"
       role="dialog"
       aria-modal="true"
-      aria-label="Incheck is open"
+      aria-label="Ingecheckt!"
     >
       <Fireworks fullScreen />
       <ConfettiBurst zIndex={101} />
@@ -108,11 +108,8 @@ export function CheckInOpenFeest({ preview = false, onClose }: Props) {
           <p className="text-xs font-semibold uppercase tracking-[0.28em] text-[#c9a227]">
             KM Malta Airlines
           </p>
-          <p
-            className="mp-checkin-open mt-4 text-4xl font-black uppercase leading-[0.9] tracking-[0.04em] text-[#c9a227] sm:text-5xl"
-            style={{ animation: "mp-checkin-pop 700ms ease-out" }}
-          >
-            Incheck is open
+          <p className="mp-checkin-open mt-4 text-4xl font-black uppercase leading-[0.9] tracking-[0.04em] text-[#c9a227] sm:text-5xl">
+            Ingecheckt!
           </p>
           <p className="mt-3 text-3xl" aria-hidden>
             ✈️🎫🥳

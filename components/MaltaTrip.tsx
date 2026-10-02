@@ -340,10 +340,8 @@ function CheckInCountdown({
 
   if (festive || (checkedIn && open)) {
     return (
-      <p
-        className={`${festive ? "mp-checkin-open" : ""} mt-1 text-lg font-black uppercase tracking-wide text-[#c9a227]`}
-      >
-        Ingecheckt
+      <p className="mp-checkin-open mt-1 text-lg font-black uppercase tracking-wide text-[#c9a227]">
+        Ingecheckt!
       </p>
     );
   }
