@@ -6,6 +6,16 @@ import * as supabase from "./supabase";
 
 export type MediaUser = "erik" | "benno";
 
+export type TripDayId = "za-3" | "zo-4" | "ma-5" | "di-6" | "wo-7";
+
+export const TRIP_DAY_LABELS: Record<TripDayId, string> = {
+  "za-3": "Za 3 okt",
+  "zo-4": "Zo 4 okt",
+  "ma-5": "Ma 5 okt",
+  "di-6": "Di 6 okt",
+  "wo-7": "Wo 7 okt",
+};
+
 export interface MediaUploadEntry {
   id?: string;
   user: MediaUser;
@@ -13,6 +23,8 @@ export interface MediaUploadEntry {
   fileType: string;
   url: string;
   uploadedAt: Timestamp | string;
+  day?: TripDayId;
+  caption?: string;
 }
 
 function isSupabaseMode(): boolean {
@@ -22,24 +34,32 @@ function isSupabaseMode(): boolean {
 export async function uploadMedia(
   file: File,
   user: MediaUser,
-  onProgress?: (progress: number) => void
+  options?: {
+    day?: TripDayId;
+    caption?: string;
+    onProgress?: (progress: number) => void;
+  }
 ): Promise<MediaUploadEntry> {
   const timestamp = Date.now();
   const safeFileName = file.name.replace(/[^a-zA-Z0-9.-]/g, "_");
   const path = `uploads/${user}/${timestamp}_${safeFileName}`;
 
   if (isSupabaseMode()) {
-    return uploadToSupabase(file, user, path, onProgress);
+    return uploadToSupabase(file, user, path, options);
   }
 
-  return uploadToFirebase(file, user, path, onProgress);
+  return uploadToFirebase(file, user, path, options);
 }
 
 async function uploadToFirebase(
   file: File,
   user: MediaUser,
   path: string,
-  onProgress?: (progress: number) => void
+  options?: {
+    day?: TripDayId;
+    caption?: string;
+    onProgress?: (progress: number) => void;
+  }
 ): Promise<MediaUploadEntry> {
   const storage = getStorage(getApp());
   const storageRef = ref(storage, path);
@@ -51,7 +71,7 @@ async function uploadToFirebase(
       "state_changed",
       (snapshot) => {
         const progress = (snapshot.bytesTransferred / snapshot.totalBytes) * 100;
-        onProgress?.(progress);
+        options?.onProgress?.(progress);
       },
       (error) => {
         reject(error);
@@ -66,6 +86,8 @@ async function uploadToFirebase(
             fileType: file.type,
             url: downloadURL,
             uploadedAt: serverTimestamp() as Timestamp,
+            day: options?.day,
+            caption: options?.caption,
           };
 
           const db = getDb();
@@ -88,14 +110,18 @@ async function uploadToSupabase(
   file: File,
   user: MediaUser,
   path: string,
-  onProgress?: (progress: number) => void
+  options?: {
+    day?: TripDayId;
+    caption?: string;
+    onProgress?: (progress: number) => void;
+  }
 ): Promise<MediaUploadEntry> {
   const { createClient } = await import("@supabase/supabase-js");
   const url = process.env.NEXT_PUBLIC_SUPABASE_URL ?? "";
   const key = process.env.NEXT_PUBLIC_SUPABASE_ANON_KEY ?? "";
   const client = createClient(url, key);
 
-  onProgress?.(10);
+  options?.onProgress?.(10);
 
   const { data, error } = await client.storage
     .from("media")
@@ -108,7 +134,7 @@ async function uploadToSupabase(
     throw error;
   }
 
-  onProgress?.(80);
+  options?.onProgress?.(80);
 
   const { data: urlData } = client.storage.from("media").getPublicUrl(data.path);
 
@@ -118,13 +144,15 @@ async function uploadToSupabase(
     fileType: file.type,
     url: urlData.publicUrl,
     uploadedAt: new Date().toISOString(),
+    day: options?.day,
+    caption: options?.caption,
   };
 
   const existing = (await getValue<MediaUploadEntry[]>("mediaUploads")) ?? [];
   existing.push(entry);
   await setValue("mediaUploads", existing);
 
-  onProgress?.(100);
+  options?.onProgress?.(100);
 
   return entry;
 }
