@@ -318,12 +318,12 @@ function VluchtenBody() {
 
 function CheckInCountdown({
   at,
-  festive,
-  checkedIn,
+  festiveLabel,
+  hideWhenOpen,
 }: {
   at: string;
-  festive?: boolean;
-  checkedIn?: boolean;
+  festiveLabel?: string | null;
+  hideWhenOpen?: boolean;
 }) {
   const [left, setLeft] = useState<string | null>(null);
   const [open, setOpen] = useState(false);
@@ -339,13 +339,14 @@ function CheckInCountdown({
     return () => window.clearInterval(id);
   }, [at]);
 
-  if (festive || (checkedIn && open)) {
+  if (festiveLabel) {
     return (
       <p className="mp-checkin-open mt-1 text-lg font-black uppercase tracking-wide text-[#c9a227]">
-        Ingecheckt!
+        {festiveLabel}
       </p>
     );
   }
+  if (hideWhenOpen && open) return null;
   if (!left) return null;
   return <p className="mt-1 text-sm font-bold tabular-nums text-[#c9a227]">{left}</p>;
 }
@@ -361,11 +362,13 @@ function FlightCard({
   onOpenPlane: () => void;
   onOpenBoarding: (passes: NonNullable<Flight["boardingPasses"]>) => void;
 }) {
-  const { party, leg } = useCheckInFeast();
-  const festive =
-    party &&
-    ((leg === "heen" && flight.flightNumber === "KM395") ||
-      (leg === "terug" && flight.flightNumber === "KM394"));
+  const { party, kind } = useCheckInFeast();
+  const festiveLabel =
+    flight.flightNumber === "KM395" && kind === "goede-vlucht"
+      ? "Goede vlucht!!"
+      : flight.flightNumber === "KM394" && party && kind === "return-checkin"
+        ? "Incheck is open"
+        : null;
 
   return (
     <div className="rounded-xl bg-white/5 p-4">
@@ -401,7 +404,11 @@ function FlightCard({
         </div>
       </div>
       <p className="mt-3 text-xs text-white/50">{flight.checkInOpens}</p>
-      <CheckInCountdown at={flight.checkInAt} festive={festive} checkedIn={Boolean(flight.boardingPasses)} />
+      <CheckInCountdown
+        at={flight.checkInAt}
+        festiveLabel={festiveLabel}
+        hideWhenOpen={Boolean(flight.boardingPasses)}
+      />
       {flight.boardingPasses ? (
         <button
           type="button"

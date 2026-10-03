@@ -1,36 +1,42 @@
 "use client";
 
 import { useEffect, useState } from "react";
-import { activeCheckIn, CHECK_IN_FEAST_MS, type CheckInLeg } from "@/lib/countdown";
+import { CHECK_IN_FEAST_MS, tripFeast, type FeastKind } from "@/lib/countdown";
 
-let feastUntil = 0;
+let returnFeastUntil = 0;
 
-export function useCheckInFeast(force: CheckInLeg | false = false) {
+export function useCheckInFeast(force: FeastKind | false = false) {
   const [party, setParty] = useState(!!force);
-  const [leg, setLeg] = useState<CheckInLeg | null>(force || null);
+  const [kind, setKind] = useState<FeastKind | null>(force || null);
 
   useEffect(() => {
     if (force) {
       setParty(true);
-      setLeg(force);
+      setKind(force);
       return;
     }
     const tick = () => {
-      const next = activeCheckIn();
+      const next = tripFeast();
       if (!next) {
         setParty(false);
-        setLeg(null);
+        setKind(null);
         return;
       }
-      if (feastUntil === 0) feastUntil = Date.now() + CHECK_IN_FEAST_MS;
-      const on = Date.now() < feastUntil;
-      setParty(on);
-      setLeg(on ? next : null);
+      if (next === "return-checkin") {
+        if (returnFeastUntil === 0) returnFeastUntil = Date.now() + CHECK_IN_FEAST_MS;
+        const on = Date.now() < returnFeastUntil;
+        setParty(on);
+        setKind(on ? next : null);
+        return;
+      }
+      setParty(true);
+      setKind(next);
     };
     tick();
     const id = window.setInterval(tick, 1000);
     return () => window.clearInterval(id);
   }, [force]);
 
-  return { party, leg };
+  const leg = kind === "return-checkin" ? "terug" : kind ? "heen" : null;
+  return { party, kind, leg };
 }
