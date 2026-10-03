@@ -56,6 +56,15 @@ export function MaltaTrip() {
 
   return (
     <div className="space-y-2">
+      <Accordion
+        open={open === "upload"}
+        onToggle={() => toggle("upload")}
+        title="Beeldmateriaal"
+        hint="Foto's en video's uploaden"
+      >
+        <MediaUpload />
+      </Accordion>
+
       <MpQuiz onOpenNews={openNews} />
 
       <LiveCams />
@@ -87,15 +96,6 @@ export function MaltaTrip() {
         hint="KM395 · KM394"
       >
         <VluchtenBody />
-      </Accordion>
-
-      <Accordion
-        open={open === "upload"}
-        onToggle={() => toggle("upload")}
-        title="Upload"
-        hint="Foto's en video's delen"
-      >
-        <MediaUpload />
       </Accordion>
 
       <Accordion
