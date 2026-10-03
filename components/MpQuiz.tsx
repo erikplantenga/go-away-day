@@ -577,7 +577,7 @@ export function MpQuiz({ onOpenNews }: { onOpenNews?: () => void }) {
   const finale = quizFinale(board.benno, board.erik);
   const otherName = who === "erik" ? "Benno" : who === "benno" ? "Erik" : "de ander";
   const daysLabel = board.championReady
-    ? "proost, de winnaar is bekend"
+    ? `🏆 ${finale.title}`
     : board.daysLeft > 1
       ? `nog ${board.daysLeft} dagen`
       : board.daysLeft === 1
@@ -733,17 +733,33 @@ export function MpQuiz({ onOpenNews }: { onOpenNews?: () => void }) {
       >
         <span className="min-w-0 flex-1">
           <span className="block text-base font-bold tracking-wide">MP-Quiz</span>
-          <span className="block truncate text-sm text-[#0b1f3a]/75">
-            Malta Planning Quiz · 1 per dag · {daysLabel}
-          </span>
-          <span className="mt-0.5 block text-sm font-semibold">
-            Benno {board.benno} · Erik {board.erik}
-          </span>
-          <span className="block text-xs font-medium text-[#0b1f3a]/70">
-            Elk nog {Math.max(leftBenno, leftErik) === leftBenno && leftBenno === leftErik
-              ? `${leftBenno} te gaan`
-              : `Benno ${leftBenno} · Erik ${leftErik} te gaan`}
-          </span>
+          {board.championReady ? (
+            <>
+              <span className="mt-1 block text-lg font-black tracking-wide">
+                🏆 {finale.title}
+              </span>
+              <span className="mt-0.5 block text-sm font-semibold">
+                Benno {board.benno} · Erik {board.erik}
+              </span>
+              <span className="block text-xs font-medium text-[#0b1f3a]/70">
+                Proost! {finale.beer}
+              </span>
+            </>
+          ) : (
+            <>
+              <span className="block truncate text-sm text-[#0b1f3a]/75">
+                Malta Planning Quiz · 1 per dag · {daysLabel}
+              </span>
+              <span className="mt-0.5 block text-sm font-semibold">
+                Benno {board.benno} · Erik {board.erik}
+              </span>
+              <span className="block text-xs font-medium text-[#0b1f3a]/70">
+                Elk nog {Math.max(leftBenno, leftErik) === leftBenno && leftBenno === leftErik
+                  ? `${leftBenno} te gaan`
+                  : `Benno ${leftBenno} · Erik ${leftErik} te gaan`}
+              </span>
+            </>
+          )}
         </span>
         <span className="text-2xl" aria-hidden>
           🏆
