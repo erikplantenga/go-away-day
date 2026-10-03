@@ -274,21 +274,21 @@ export function MediaUpload() {
                 setShowPresentation(true);
               }}
             >
-              {upload.fileType.startsWith("video/") ? (
-                <video
-                  src={upload.url}
-                  className="h-full w-full object-cover"
-                  muted
-                  playsInline
-                />
-              ) : (
-                // eslint-disable-next-line @next/next/no-img-element
-                <img
-                  src={upload.url}
-                  alt={upload.caption || upload.fileName}
-                  className="h-full w-full object-cover"
-                />
-              )}
+                {upload.fileType.startsWith("video/") ? (
+                  <video
+                    src={upload.data}
+                    className="h-full w-full object-cover"
+                    muted
+                    playsInline
+                  />
+                ) : (
+                  // eslint-disable-next-line @next/next/no-img-element
+                  <img
+                    src={upload.data}
+                    alt={upload.caption || upload.fileName}
+                    className="h-full w-full object-cover"
+                  />
+                )}
               <span className="absolute left-1 top-1 rounded bg-black/60 px-1 py-0.5 text-[9px] font-bold text-white">
                 {upload.user === "benno" ? "B" : "E"}
               </span>
@@ -394,8 +394,8 @@ function PresentationModal({
       >
         {current.fileType.startsWith("video/") ? (
           <video
-            key={current.url}
-            src={current.url}
+            key={current.id}
+            src={current.data}
             className="max-h-full max-w-full object-contain"
             controls
             autoPlay
@@ -404,8 +404,8 @@ function PresentationModal({
         ) : (
           // eslint-disable-next-line @next/next/no-img-element
           <img
-            key={current.url}
-            src={current.url}
+            key={current.id}
+            src={current.data}
             alt={current.caption || current.fileName}
             className="max-h-full max-w-full object-contain"
           />

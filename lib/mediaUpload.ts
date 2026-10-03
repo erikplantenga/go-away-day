@@ -1,5 +1,3 @@
-import { createClient } from "@supabase/supabase-js";
-
 export type MediaUser = "erik" | "benno";
 
 export type TripDayId = "za-3" | "zo-4" | "ma-5" | "di-6" | "wo-7";
@@ -13,20 +11,37 @@ export const TRIP_DAY_LABELS: Record<TripDayId, string> = {
 };
 
 export interface MediaUploadEntry {
-  id?: string;
+  id: string;
   user: MediaUser;
   fileName: string;
   fileType: string;
-  url: string;
+  data: string; // base64
   uploadedAt: string;
   day?: TripDayId;
   caption?: string;
 }
 
-function getClient() {
-  const url = process.env.NEXT_PUBLIC_SUPABASE_URL ?? "";
-  const key = process.env.NEXT_PUBLIC_SUPABASE_ANON_KEY ?? "";
-  return createClient(url, key);
+const STORAGE_KEY = "goAwayDayMedia";
+
+function loadFromStorage(): MediaUploadEntry[] {
+  if (typeof window === "undefined") return [];
+  try {
+    const raw = localStorage.getItem(STORAGE_KEY);
+    return raw ? JSON.parse(raw) : [];
+  } catch {
+    return [];
+  }
+}
+
+function saveToStorage(entries: MediaUploadEntry[]) {
+  if (typeof window === "undefined") return;
+  try {
+    localStorage.setItem(STORAGE_KEY, JSON.stringify(entries));
+  } catch {
+    // Storage full - verwijder oude items
+    const trimmed = entries.slice(0, 20);
+    localStorage.setItem(STORAGE_KEY, JSON.stringify(trimmed));
+  }
 }
 
 export async function uploadMedia(
@@ -38,50 +53,31 @@ export async function uploadMedia(
     onProgress?: (progress: number) => void;
   }
 ): Promise<MediaUploadEntry> {
-  const client = getClient();
-  
   options?.onProgress?.(10);
 
-  const timestamp = Date.now();
-  const safeFileName = file.name.replace(/[^a-zA-Z0-9.-]/g, "_");
-  const path = `${user}/${timestamp}_${safeFileName}`;
+  // Resize image if too large
+  const resized = await resizeImage(file, 1200);
+  
+  options?.onProgress?.(50);
 
-  options?.onProgress?.(20);
-
-  const { data, error } = await client.storage
-    .from("media")
-    .upload(path, file, {
-      cacheControl: "3600",
-      upsert: false,
-    });
-
-  if (error) {
-    throw new Error(error.message);
-  }
-
-  options?.onProgress?.(70);
-
-  const { data: urlData } = client.storage.from("media").getPublicUrl(data.path);
+  const base64 = await fileToBase64(resized);
+  
+  options?.onProgress?.(80);
 
   const entry: MediaUploadEntry = {
-    id: `${timestamp}`,
+    id: `${Date.now()}`,
     user,
     fileName: file.name,
-    fileType: file.type,
-    url: urlData.publicUrl,
+    fileType: resized.type,
+    data: base64,
     uploadedAt: new Date().toISOString(),
     day: options?.day,
     caption: options?.caption,
   };
 
-  // Save metadata to store
-  const existing = await getMediaUploads();
+  const existing = loadFromStorage();
   existing.unshift(entry);
-  
-  await client.from("store").upsert(
-    { key: "mediaUploads", value: existing },
-    { onConflict: "key" }
-  );
+  saveToStorage(existing);
 
   options?.onProgress?.(100);
 
@@ -89,16 +85,56 @@ export async function uploadMedia(
 }
 
 export async function getMediaUploads(): Promise<MediaUploadEntry[]> {
-  try {
-    const client = getClient();
-    const { data } = await client
-      .from("store")
-      .select("value")
-      .eq("key", "mediaUploads")
-      .single();
-    
-    return (data?.value as MediaUploadEntry[]) ?? [];
-  } catch {
-    return [];
+  return loadFromStorage();
+}
+
+function fileToBase64(file: File | Blob): Promise<string> {
+  return new Promise((resolve, reject) => {
+    const reader = new FileReader();
+    reader.onload = () => resolve(reader.result as string);
+    reader.onerror = reject;
+    reader.readAsDataURL(file);
+  });
+}
+
+async function resizeImage(file: File, maxSize: number): Promise<Blob> {
+  // Videos niet resizen
+  if (file.type.startsWith("video/")) {
+    return file;
   }
+
+  return new Promise((resolve) => {
+    const img = new Image();
+    img.onload = () => {
+      let { width, height } = img;
+      
+      if (width <= maxSize && height <= maxSize) {
+        resolve(file);
+        return;
+      }
+
+      if (width > height) {
+        height = (height / width) * maxSize;
+        width = maxSize;
+      } else {
+        width = (width / height) * maxSize;
+        height = maxSize;
+      }
+
+      const canvas = document.createElement("canvas");
+      canvas.width = width;
+      canvas.height = height;
+      
+      const ctx = canvas.getContext("2d")!;
+      ctx.drawImage(img, 0, 0, width, height);
+      
+      canvas.toBlob(
+        (blob) => resolve(blob || file),
+        "image/jpeg",
+        0.85
+      );
+    };
+    img.onerror = () => resolve(file);
+    img.src = URL.createObjectURL(file);
+  });
 }
