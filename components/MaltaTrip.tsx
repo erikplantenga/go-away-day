@@ -431,7 +431,23 @@ function FlightCard({
 
 function HotelBody() {
   const [confirm, setConfirm] = useState(false);
+  const [wifiCopied, setWifiCopied] = useState(false);
   useLockBody(confirm);
+
+  const copyWifiPassword = async () => {
+    try {
+      await navigator.clipboard.writeText(HOTEL.wifi.password);
+    } catch {
+      const textarea = document.createElement("textarea");
+      textarea.value = HOTEL.wifi.password;
+      document.body.appendChild(textarea);
+      textarea.select();
+      document.execCommand("copy");
+      document.body.removeChild(textarea);
+    }
+    setWifiCopied(true);
+    setTimeout(() => setWifiCopied(false), 3000);
+  };
 
   return (
     <div className="rounded-xl bg-white/5 p-4 pb-4">
@@ -459,8 +475,23 @@ function HotelBody() {
       </ul>
       <button
         type="button"
+        onClick={copyWifiPassword}
+        className="mt-5 flex min-h-11 w-full items-center justify-center gap-2 rounded-xl bg-[#c9a227] px-4 text-sm font-semibold text-[#0b1f3a] transition-all active:scale-[0.98]"
+      >
+        <svg className="h-5 w-5" fill="none" viewBox="0 0 24 24" stroke="currentColor" strokeWidth={2}>
+          <path strokeLinecap="round" strokeLinejoin="round" d="M8.111 16.404a5.5 5.5 0 017.778 0M12 20h.01m-7.08-7.071c3.904-3.905 10.236-3.905 14.142 0M1.394 9.393c5.857-5.857 15.355-5.857 21.213 0" />
+        </svg>
+        {wifiCopied ? "Wachtwoord gekopieerd!" : "WiFi wachtwoord kopiëren"}
+      </button>
+      {wifiCopied && (
+        <p className="mt-2 text-center text-xs text-white/70">
+          Netwerk: <span className="font-semibold">{HOTEL.wifi.ssid}</span> · Ga naar Instellingen → WiFi en plak het wachtwoord
+        </p>
+      )}
+      <button
+        type="button"
         onClick={() => setConfirm(true)}
-        className="mt-5 flex min-h-11 w-full items-center justify-center rounded-xl bg-white px-4 text-sm font-semibold text-[#0b1f3a]"
+        className="mt-2 flex min-h-11 w-full items-center justify-center rounded-xl bg-white px-4 text-sm font-semibold text-[#0b1f3a]"
       >
         Bevestiging bekijken
       </button>
