@@ -2,7 +2,6 @@
 
 import Image from "next/image";
 import { useEffect, useState, type ReactNode } from "react";
-import { QRCodeSVG } from "qrcode.react";
 import { formatCheckInCountdown } from "@/lib/countdown";
 import { useCheckInFeast } from "@/lib/useCheckInFeast";
 import { ExternalLink } from "@/components/ExternalLink";
@@ -432,28 +431,22 @@ function FlightCard({
 
 function HotelBody() {
   const [confirm, setConfirm] = useState(false);
-  const [wifiSheet, setWifiSheet] = useState(false);
-  const [copied, setCopied] = useState<"ssid" | "password" | null>(null);
-  useLockBody(confirm || wifiSheet);
+  const [wifiCopied, setWifiCopied] = useState(false);
+  useLockBody(confirm);
 
-  const wifiString = `WIFI:T:${HOTEL.wifi.type};S:${HOTEL.wifi.ssid};P:${HOTEL.wifi.password};;`;
-
-  const copyToClipboard = async (text: string, type: "ssid" | "password") => {
+  const copyWifiPassword = async () => {
     try {
-      await navigator.clipboard.writeText(text);
-      setCopied(type);
-      setTimeout(() => setCopied(null), 2000);
+      await navigator.clipboard.writeText(HOTEL.wifi.password);
     } catch {
-      // Fallback for older browsers
       const textarea = document.createElement("textarea");
-      textarea.value = text;
+      textarea.value = HOTEL.wifi.password;
       document.body.appendChild(textarea);
       textarea.select();
       document.execCommand("copy");
       document.body.removeChild(textarea);
-      setCopied(type);
-      setTimeout(() => setCopied(null), 2000);
     }
+    setWifiCopied(true);
+    setTimeout(() => setWifiCopied(false), 3000);
   };
 
   return (
@@ -482,14 +475,19 @@ function HotelBody() {
       </ul>
       <button
         type="button"
-        onClick={() => setWifiSheet(true)}
-        className="mt-5 flex min-h-11 w-full items-center justify-center gap-2 rounded-xl bg-[#c9a227] px-4 text-sm font-semibold text-[#0b1f3a]"
+        onClick={copyWifiPassword}
+        className="mt-5 flex min-h-11 w-full items-center justify-center gap-2 rounded-xl bg-[#c9a227] px-4 text-sm font-semibold text-[#0b1f3a] transition-all active:scale-[0.98]"
       >
         <svg className="h-5 w-5" fill="none" viewBox="0 0 24 24" stroke="currentColor" strokeWidth={2}>
           <path strokeLinecap="round" strokeLinejoin="round" d="M8.111 16.404a5.5 5.5 0 017.778 0M12 20h.01m-7.08-7.071c3.904-3.905 10.236-3.905 14.142 0M1.394 9.393c5.857-5.857 15.355-5.857 21.213 0" />
         </svg>
-        WiFi verbinden
+        {wifiCopied ? "Wachtwoord gekopieerd!" : "WiFi wachtwoord kopiëren"}
       </button>
+      {wifiCopied && (
+        <p className="mt-2 text-center text-xs text-white/70">
+          Netwerk: <span className="font-semibold">{HOTEL.wifi.ssid}</span> · Ga naar Instellingen → WiFi en plak het wachtwoord
+        </p>
+      )}
       <button
         type="button"
         onClick={() => setConfirm(true)}
@@ -503,69 +501,6 @@ function HotelBody() {
       >
         Website openen
       </ExternalLink>
-      {wifiSheet && (
-        <div className="fixed inset-0 z-[90] flex flex-col bg-[#0b1f3a]" role="dialog" aria-modal="true">
-          <div
-            className="flex shrink-0 items-center justify-between px-4"
-            style={{ paddingTop: "max(0.75rem, env(safe-area-inset-top))" }}
-          >
-            <h2 className="text-lg font-bold text-white">Hotel WiFi</h2>
-            <button
-              type="button"
-              onClick={() => setWifiSheet(false)}
-              className="inline-tap flex h-11 w-11 items-center justify-center rounded-full bg-white/15 text-2xl leading-none text-white"
-              aria-label="Sluiten"
-            >
-              ×
-            </button>
-          </div>
-          <div className="flex flex-1 flex-col items-center justify-center gap-6 px-6 pb-[env(safe-area-inset-bottom)]">
-            <div className="rounded-2xl bg-white p-4">
-              <QRCodeSVG
-                value={wifiString}
-                size={200}
-                level="M"
-                bgColor="#ffffff"
-                fgColor="#0b1f3a"
-              />
-            </div>
-            <p className="text-center text-sm text-white/70">
-              Scan de QR-code met je camera om automatisch te verbinden
-            </p>
-            <div className="w-full max-w-sm space-y-3">
-              <div className="rounded-xl bg-white/10 p-4">
-                <p className="text-xs font-semibold uppercase tracking-wider text-[#c9a227]">Netwerk</p>
-                <div className="mt-1 flex items-center justify-between gap-2">
-                  <p className="text-lg font-bold text-white">{HOTEL.wifi.ssid}</p>
-                  <button
-                    type="button"
-                    onClick={() => copyToClipboard(HOTEL.wifi.ssid, "ssid")}
-                    className="rounded-lg bg-white/10 px-3 py-1.5 text-xs font-medium text-white active:bg-white/20"
-                  >
-                    {copied === "ssid" ? "Gekopieerd!" : "Kopieer"}
-                  </button>
-                </div>
-              </div>
-              <div className="rounded-xl bg-white/10 p-4">
-                <p className="text-xs font-semibold uppercase tracking-wider text-[#c9a227]">Wachtwoord</p>
-                <div className="mt-1 flex items-center justify-between gap-2">
-                  <p className="font-mono text-lg font-bold text-white">{HOTEL.wifi.password}</p>
-                  <button
-                    type="button"
-                    onClick={() => copyToClipboard(HOTEL.wifi.password, "password")}
-                    className="rounded-lg bg-white/10 px-3 py-1.5 text-xs font-medium text-white active:bg-white/20"
-                  >
-                    {copied === "password" ? "Gekopieerd!" : "Kopieer"}
-                  </button>
-                </div>
-              </div>
-            </div>
-            <p className="max-w-xs text-center text-xs text-white/50">
-              iPhone: open Camera en richt op de QR-code. Android: WiFi-instellingen → QR-code scannen.
-            </p>
-          </div>
-        </div>
-      )}
       {confirm && (
         <div className="fixed inset-0 z-[90] flex flex-col bg-black" role="dialog" aria-modal="true">
           <div
