@@ -12,8 +12,6 @@ import {
 
 export function MediaUpload() {
   const [user, setUser] = useState<MediaUser | null>(null);
-  const [day, setDay] = useState<TripDayId | null>(null);
-  const [caption, setCaption] = useState("");
   const [uploading, setUploading] = useState(false);
   const [progress, setProgress] = useState(0);
   const [uploads, setUploads] = useState<MediaUploadEntry[]>([]);
@@ -21,6 +19,9 @@ export function MediaUpload() {
   const [success, setSuccess] = useState(false);
   const [showPresentation, setShowPresentation] = useState(false);
   const [presentationIndex, setPresentationIndex] = useState(0);
+  const [showOptions, setShowOptions] = useState(false);
+  const [day, setDay] = useState<TripDayId | null>(null);
+  const [caption, setCaption] = useState("");
   const fileInputRef = useRef<HTMLInputElement>(null);
 
   useEffect(() => {
@@ -53,6 +54,8 @@ export function MediaUpload() {
       }
       setSuccess(true);
       setCaption("");
+      setDay(null);
+      setShowOptions(false);
       setTimeout(() => setSuccess(false), 3000);
     } catch (err) {
       setError(err instanceof Error ? err.message : "Upload mislukt");
@@ -88,7 +91,7 @@ export function MediaUpload() {
   };
 
   return (
-    <div className="space-y-4 pb-4">
+    <div className="space-y-3 pb-4">
       {/* Presentatie Modal */}
       {showPresentation && uploads.length > 0 && (
         <PresentationModal
@@ -100,7 +103,7 @@ export function MediaUpload() {
         />
       )}
 
-      {/* Wie ben je? */}
+      {/* Wie ben je + Upload */}
       <div className="rounded-xl bg-white/5 p-4">
         <p className="text-sm font-semibold text-[#c9a227]">Wie ben je?</p>
         <div className="mt-3 flex gap-3">
@@ -127,47 +130,9 @@ export function MediaUpload() {
             Erik
           </button>
         </div>
-      </div>
 
-      {user && (
-        <>
-          {/* Welke dag? */}
-          <div className="rounded-xl bg-white/5 p-4">
-            <p className="text-sm font-semibold text-[#c9a227]">Welke dag?</p>
-            <div className="mt-3 flex flex-wrap gap-2">
-              {(Object.keys(TRIP_DAY_LABELS) as TripDayId[]).map((dayId) => (
-                <button
-                  key={dayId}
-                  type="button"
-                  onClick={() => setDay(day === dayId ? null : dayId)}
-                  className={`rounded-lg px-3 py-2 text-xs font-semibold transition-all ${
-                    day === dayId
-                      ? "bg-[#c9a227] text-[#0b1f3a]"
-                      : "bg-white/10 text-white hover:bg-white/20"
-                  }`}
-                >
-                  {TRIP_DAY_LABELS[dayId]}
-                </button>
-              ))}
-            </div>
-          </div>
-
-          {/* Naam / beschrijving */}
-          <div className="rounded-xl bg-white/5 p-4">
-            <p className="text-sm font-semibold text-[#c9a227]">
-              Naam of beschrijving (optioneel)
-            </p>
-            <input
-              type="text"
-              value={caption}
-              onChange={(e) => setCaption(e.target.value)}
-              placeholder="Bijv. Sunset bij Blue Lagoon"
-              className="mt-3 w-full rounded-xl bg-white/10 px-4 py-3 text-sm text-white placeholder-white/40 outline-none focus:bg-white/15"
-            />
-          </div>
-
-          {/* Upload knop */}
-          <div className="rounded-xl bg-white/5 p-4">
+        {user && (
+          <>
             <input
               ref={fileInputRef}
               type="file"
@@ -181,7 +146,7 @@ export function MediaUpload() {
               type="button"
               onClick={triggerFileInput}
               disabled={uploading}
-              className="flex w-full items-center justify-center gap-2 rounded-xl bg-[#c9a227] py-3 text-sm font-bold text-[#0b1f3a] transition-all active:scale-[0.98] disabled:opacity-50"
+              className="mt-4 flex w-full items-center justify-center gap-2 rounded-xl bg-[#c9a227] py-3 text-sm font-bold text-[#0b1f3a] transition-all active:scale-[0.98] disabled:opacity-50"
             >
               <svg
                 className="h-5 w-5"
@@ -196,20 +161,60 @@ export function MediaUpload() {
                   d="M4 16l4.586-4.586a2 2 0 012.828 0L16 16m-2-2l1.586-1.586a2 2 0 012.828 0L20 14m-6-6h.01M6 20h12a2 2 0 002-2V6a2 2 0 00-2-2H6a2 2 0 00-2 2v12a2 2 0 002 2z"
                 />
               </svg>
-              {uploading ? "Bezig met uploaden..." : "Selecteer uit fotoalbum"}
+              {uploading ? "Bezig..." : "Upload foto's"}
             </button>
+
+            {/* Optionele extra's - ingeklapt */}
+            <button
+              type="button"
+              onClick={() => setShowOptions(!showOptions)}
+              className="mt-2 w-full text-center text-xs text-white/50"
+            >
+              {showOptions ? "Minder opties ▲" : "Dag of naam toevoegen ▼"}
+            </button>
+
+            {showOptions && (
+              <div className="mt-3 space-y-3 border-t border-white/10 pt-3">
+                <div>
+                  <p className="text-xs text-white/60">Welke dag?</p>
+                  <div className="mt-2 flex flex-wrap gap-1.5">
+                    {(Object.keys(TRIP_DAY_LABELS) as TripDayId[]).map((dayId) => (
+                      <button
+                        key={dayId}
+                        type="button"
+                        onClick={() => setDay(day === dayId ? null : dayId)}
+                        className={`rounded-lg px-2.5 py-1.5 text-xs font-medium transition-all ${
+                          day === dayId
+                            ? "bg-[#c9a227] text-[#0b1f3a]"
+                            : "bg-white/10 text-white"
+                        }`}
+                      >
+                        {TRIP_DAY_LABELS[dayId]}
+                      </button>
+                    ))}
+                  </div>
+                </div>
+                <div>
+                  <p className="text-xs text-white/60">Naam (optioneel)</p>
+                  <input
+                    type="text"
+                    value={caption}
+                    onChange={(e) => setCaption(e.target.value)}
+                    placeholder="Bijv. Sunset Blue Lagoon"
+                    className="mt-1 w-full rounded-lg bg-white/10 px-3 py-2 text-sm text-white placeholder-white/40 outline-none"
+                  />
+                </div>
+              </div>
+            )}
 
             {uploading && (
               <div className="mt-3">
-                <div className="h-2 overflow-hidden rounded-full bg-white/10">
+                <div className="h-1.5 overflow-hidden rounded-full bg-white/10">
                   <div
                     className="h-full bg-[#c9a227] transition-all duration-300"
                     style={{ width: `${progress}%` }}
                   />
                 </div>
-                <p className="mt-1 text-center text-xs text-white/60">
-                  {Math.round(progress)}%
-                </p>
               </div>
             )}
 
@@ -221,12 +226,12 @@ export function MediaUpload() {
 
             {success && (
               <p className="mt-3 rounded-lg bg-green-500/20 p-2 text-center text-sm text-green-300">
-                Upload gelukt!
+                Gelukt!
               </p>
             )}
-          </div>
-        </>
-      )}
+          </>
+        )}
+      </div>
 
       {/* Presentatie knop */}
       {uploads.length > 0 && (
@@ -253,65 +258,53 @@ export function MediaUpload() {
               d="M21 12a9 9 0 11-18 0 9 9 0 0118 0z"
             />
           </svg>
-          Presentatie starten ({uploads.length} foto&apos;s)
+          Presentatie ({uploads.length})
         </button>
       )}
 
       {/* Grid met uploads */}
       {uploads.length > 0 && (
-        <div className="rounded-xl bg-white/5 p-4">
-          <p className="text-sm font-semibold text-[#c9a227]">
-            Geüploade foto&apos;s ({uploads.length})
-          </p>
-          <div className="mt-3 grid grid-cols-3 gap-2">
-            {uploads.slice(0, 9).map((upload, i) => (
-              <div
-                key={upload.id || i}
-                className="relative aspect-square overflow-hidden rounded-lg bg-black/30"
-              >
-                {upload.fileType.startsWith("video/") ? (
-                  <video
-                    src={upload.url}
-                    className="h-full w-full object-cover"
-                    muted
-                    playsInline
-                  />
-                ) : (
-                  // eslint-disable-next-line @next/next/no-img-element
-                  <img
-                    src={upload.url}
-                    alt={upload.caption || upload.fileName}
-                    className="h-full w-full object-cover"
-                  />
-                )}
-                <div className="absolute bottom-0 left-0 right-0 bg-gradient-to-t from-black/80 to-transparent px-1.5 pb-1 pt-4">
-                  <span className="block truncate text-[10px] font-medium text-white">
-                    {upload.caption ||
-                      (upload.day ? TRIP_DAY_LABELS[upload.day] : "")}
-                  </span>
-                </div>
-                <span className="absolute left-1 top-1 rounded bg-black/60 px-1.5 py-0.5 text-[10px] font-medium text-white">
-                  {upload.user === "benno" ? "B" : "E"}
+        <div className="grid grid-cols-3 gap-1.5">
+          {uploads.slice(0, 12).map((upload, i) => (
+            <div
+              key={upload.id || i}
+              className="relative aspect-square overflow-hidden rounded-lg bg-black/30"
+              onClick={() => {
+                setPresentationIndex(i);
+                setShowPresentation(true);
+              }}
+            >
+              {upload.fileType.startsWith("video/") ? (
+                <video
+                  src={upload.url}
+                  className="h-full w-full object-cover"
+                  muted
+                  playsInline
+                />
+              ) : (
+                // eslint-disable-next-line @next/next/no-img-element
+                <img
+                  src={upload.url}
+                  alt={upload.caption || upload.fileName}
+                  className="h-full w-full object-cover"
+                />
+              )}
+              <span className="absolute left-1 top-1 rounded bg-black/60 px-1 py-0.5 text-[9px] font-bold text-white">
+                {upload.user === "benno" ? "B" : "E"}
+              </span>
+              {upload.fileType.startsWith("video/") && (
+                <span className="absolute right-1 top-1 text-xs text-white drop-shadow">
+                  ▶
                 </span>
-                {upload.day && (
-                  <span className="absolute right-1 top-1 rounded bg-[#c9a227]/80 px-1.5 py-0.5 text-[10px] font-bold text-[#0b1f3a]">
-                    {upload.day.split("-")[0].toUpperCase()}
-                  </span>
-                )}
-                {upload.fileType.startsWith("video/") && (
-                  <span className="absolute right-1 top-6 rounded bg-black/60 px-1.5 py-0.5 text-[10px] text-white">
-                    ▶
-                  </span>
-                )}
-              </div>
-            ))}
-          </div>
-          {uploads.length > 9 && (
-            <p className="mt-2 text-center text-xs text-white/50">
-              +{uploads.length - 9} meer
-            </p>
-          )}
+              )}
+            </div>
+          ))}
         </div>
+      )}
+      {uploads.length > 12 && (
+        <p className="text-center text-xs text-white/50">
+          +{uploads.length - 12} meer
+        </p>
       )}
     </div>
   );
@@ -381,12 +374,12 @@ function PresentationModal({
               autoPlay ? "bg-[#c9a227] text-[#0b1f3a]" : "bg-white/15 text-white"
             }`}
           >
-            {autoPlay ? "Stop" : "Auto"}
+            {autoPlay ? "■ Stop" : "▶ Auto"}
           </button>
           <button
             type="button"
             onClick={onClose}
-            className="inline-tap flex h-11 w-11 items-center justify-center rounded-full bg-white/15 text-2xl leading-none text-white"
+            className="flex h-10 w-10 items-center justify-center rounded-full bg-white/15 text-xl text-white"
             aria-label="Sluiten"
           >
             ×
@@ -419,46 +412,18 @@ function PresentationModal({
         )}
       </div>
 
-      {/* Info & Controls */}
+      {/* Info */}
       <div
-        className="shrink-0 px-4 pb-4"
+        className="shrink-0 px-4 pb-4 text-center"
         style={{ paddingBottom: "max(1rem, env(safe-area-inset-bottom))" }}
       >
-        {/* Caption & metadata */}
-        <div className="mb-3 text-center">
-          {current.caption && (
-            <p className="text-lg font-semibold text-white">{current.caption}</p>
-          )}
-          <p className="mt-1 text-sm text-white/60">
-            {current.day ? TRIP_DAY_LABELS[current.day] : ""}
-            {current.day && " · "}
-            {current.user === "benno" ? "Benno" : "Erik"}
-          </p>
-        </div>
-
-        {/* Nav buttons */}
-        <div className="flex items-center justify-center gap-4">
-          <button
-            type="button"
-            onClick={(e) => {
-              e.stopPropagation();
-              onPrev();
-            }}
-            className="flex h-12 w-12 items-center justify-center rounded-full bg-white/15 text-xl text-white"
-          >
-            ←
-          </button>
-          <button
-            type="button"
-            onClick={(e) => {
-              e.stopPropagation();
-              onNext();
-            }}
-            className="flex h-12 w-12 items-center justify-center rounded-full bg-white/15 text-xl text-white"
-          >
-            →
-          </button>
-        </div>
+        {current.caption && (
+          <p className="text-base font-semibold text-white">{current.caption}</p>
+        )}
+        <p className="text-sm text-white/60">
+          {current.day ? TRIP_DAY_LABELS[current.day] + " · " : ""}
+          {current.user === "benno" ? "Benno" : "Erik"}
+        </p>
       </div>
     </div>
   );
