@@ -1,3 +1,5 @@
+import { createClient } from "@supabase/supabase-js";
+
 export type MediaUser = "erik" | "benno";
 
 export type TripDayId = "za-3" | "zo-4" | "ma-5" | "di-6" | "wo-7";
@@ -21,6 +23,12 @@ export interface MediaUploadEntry {
   caption?: string;
 }
 
+function getClient() {
+  const url = process.env.NEXT_PUBLIC_SUPABASE_URL ?? "";
+  const key = process.env.NEXT_PUBLIC_SUPABASE_ANON_KEY ?? "";
+  return createClient(url, key);
+}
+
 export async function uploadMedia(
   file: File,
   user: MediaUser,
@@ -30,29 +38,51 @@ export async function uploadMedia(
     onProgress?: (progress: number) => void;
   }
 ): Promise<MediaUploadEntry> {
+  const client = getClient();
+  
   options?.onProgress?.(10);
 
-  const formData = new FormData();
-  formData.append("file", file);
-  formData.append("user", user);
-  if (options?.day) formData.append("day", options.day);
-  if (options?.caption) formData.append("caption", options.caption);
+  const timestamp = Date.now();
+  const safeFileName = file.name.replace(/[^a-zA-Z0-9.-]/g, "_");
+  const path = `${user}/${timestamp}_${safeFileName}`;
 
-  options?.onProgress?.(30);
+  options?.onProgress?.(20);
 
-  const response = await fetch("/api/upload", {
-    method: "POST",
-    body: formData,
-  });
+  const { data, error } = await client.storage
+    .from("media")
+    .upload(path, file, {
+      cacheControl: "3600",
+      upsert: false,
+    });
 
-  options?.onProgress?.(90);
-
-  if (!response.ok) {
-    const error = await response.json();
-    throw new Error(error.error || "Upload mislukt");
+  if (error) {
+    throw new Error(error.message);
   }
 
-  const entry = await response.json();
+  options?.onProgress?.(70);
+
+  const { data: urlData } = client.storage.from("media").getPublicUrl(data.path);
+
+  const entry: MediaUploadEntry = {
+    id: `${timestamp}`,
+    user,
+    fileName: file.name,
+    fileType: file.type,
+    url: urlData.publicUrl,
+    uploadedAt: new Date().toISOString(),
+    day: options?.day,
+    caption: options?.caption,
+  };
+
+  // Save metadata to store
+  const existing = await getMediaUploads();
+  existing.unshift(entry);
+  
+  await client.from("store").upsert(
+    { key: "mediaUploads", value: existing },
+    { onConflict: "key" }
+  );
+
   options?.onProgress?.(100);
 
   return entry;
@@ -60,9 +90,14 @@ export async function uploadMedia(
 
 export async function getMediaUploads(): Promise<MediaUploadEntry[]> {
   try {
-    const response = await fetch("/api/upload");
-    if (!response.ok) return [];
-    return await response.json();
+    const client = getClient();
+    const { data } = await client
+      .from("store")
+      .select("value")
+      .eq("key", "mediaUploads")
+      .single();
+    
+    return (data?.value as MediaUploadEntry[]) ?? [];
   } catch {
     return [];
   }
