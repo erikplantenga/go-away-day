@@ -1,3 +1,5 @@
+import { createClient } from "@supabase/supabase-js";
+
 export type MediaUser = "erik" | "benno";
 
 export type TripDayId = "za-3" | "zo-4" | "ma-5" | "di-6" | "wo-7";
@@ -15,7 +17,7 @@ export interface MediaUploadEntry {
   user: MediaUser;
   fileName: string;
   fileType: string;
-  data: string; // base64
+  data: string;
   uploadedAt: string;
   day?: TripDayId;
   caption?: string;
@@ -23,7 +25,38 @@ export interface MediaUploadEntry {
 
 const STORAGE_KEY = "goAwayDayMedia";
 
-function loadFromStorage(): MediaUploadEntry[] {
+function getSupabase() {
+  const url = process.env.NEXT_PUBLIC_SUPABASE_URL;
+  const key = process.env.NEXT_PUBLIC_SUPABASE_ANON_KEY;
+  if (!url || !key) return null;
+  return createClient(url, key);
+}
+
+async function loadFromSupabase(): Promise<MediaUploadEntry[]> {
+  const client = getSupabase();
+  if (!client) return [];
+  try {
+    const { data } = await client
+      .from("store")
+      .select("value")
+      .eq("key", STORAGE_KEY)
+      .single();
+    return (data?.value as MediaUploadEntry[]) ?? [];
+  } catch {
+    return [];
+  }
+}
+
+async function saveToSupabase(entries: MediaUploadEntry[]) {
+  const client = getSupabase();
+  if (!client) return;
+  await client.from("store").upsert(
+    { key: STORAGE_KEY, value: entries },
+    { onConflict: "key" }
+  );
+}
+
+function loadFromLocal(): MediaUploadEntry[] {
   if (typeof window === "undefined") return [];
   try {
     const raw = localStorage.getItem(STORAGE_KEY);
@@ -33,13 +66,12 @@ function loadFromStorage(): MediaUploadEntry[] {
   }
 }
 
-function saveToStorage(entries: MediaUploadEntry[]) {
+function saveToLocal(entries: MediaUploadEntry[]) {
   if (typeof window === "undefined") return;
   try {
     localStorage.setItem(STORAGE_KEY, JSON.stringify(entries));
   } catch {
-    // Storage full - verwijder oude items
-    const trimmed = entries.slice(0, 20);
+    const trimmed = entries.slice(0, 10);
     localStorage.setItem(STORAGE_KEY, JSON.stringify(trimmed));
   }
 }
@@ -55,14 +87,13 @@ export async function uploadMedia(
 ): Promise<MediaUploadEntry> {
   options?.onProgress?.(10);
 
-  // Resize image if too large
-  const resized = await resizeImage(file, 1200);
+  const resized = await resizeImage(file, 800);
   
   options?.onProgress?.(50);
 
   const base64 = await fileToBase64(resized);
   
-  options?.onProgress?.(80);
+  options?.onProgress?.(70);
 
   const entry: MediaUploadEntry = {
     id: `${Date.now()}`,
@@ -75,9 +106,14 @@ export async function uploadMedia(
     caption: options?.caption,
   };
 
-  const existing = loadFromStorage();
+  const existing = await getMediaUploads();
   existing.unshift(entry);
-  saveToStorage(existing);
+  
+  // Probeer Supabase, anders lokaal
+  if (getSupabase()) {
+    await saveToSupabase(existing);
+  }
+  saveToLocal(existing);
 
   options?.onProgress?.(100);
 
@@ -85,7 +121,13 @@ export async function uploadMedia(
 }
 
 export async function getMediaUploads(): Promise<MediaUploadEntry[]> {
-  return loadFromStorage();
+  // Probeer Supabase eerst
+  const client = getSupabase();
+  if (client) {
+    const remote = await loadFromSupabase();
+    if (remote.length > 0) return remote;
+  }
+  return loadFromLocal();
 }
 
 function fileToBase64(file: File | Blob): Promise<string> {
@@ -98,7 +140,6 @@ function fileToBase64(file: File | Blob): Promise<string> {
 }
 
 async function resizeImage(file: File, maxSize: number): Promise<Blob> {
-  // Videos niet resizen
   if (file.type.startsWith("video/")) {
     return file;
   }
@@ -131,7 +172,7 @@ async function resizeImage(file: File, maxSize: number): Promise<Blob> {
       canvas.toBlob(
         (blob) => resolve(blob || file),
         "image/jpeg",
-        0.85
+        0.8
       );
     };
     img.onerror = () => resolve(file);
