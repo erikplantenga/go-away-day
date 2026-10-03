@@ -64,6 +64,11 @@ export const HOTEL = {
     "Gratis wifi",
     "24-uurs receptie",
   ],
+  wifi: {
+    ssid: "Carlton Guests",
+    password: "08CarltonHotel24",
+    type: "WPA" as const,
+  },
 };
 
 export const FLIGHTS: { outbound: Flight; inbound: Flight } = {
