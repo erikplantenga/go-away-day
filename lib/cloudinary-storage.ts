@@ -100,7 +100,7 @@ export async function uploadPhoto(
     fullUrl,
   };
 
-  // Store metadata in Firestore (if available) or return just the meta
+  // Store metadata in Firestore
   try {
     const { getFirestore } = await import("firebase-admin/firestore");
     const { getApps, initializeApp, cert } = await import("firebase-admin/app");
@@ -113,9 +113,13 @@ export async function uploadPhoto(
       }
       const db = getFirestore();
       await db.collection("photos").doc(id).set(meta);
+      console.log("Photo saved to Firestore:", id);
+    } else {
+      console.log("No Firebase config, photo not saved to database");
     }
   } catch (e) {
-    console.error("Firestore save error (non-fatal):", e);
+    console.error("Firestore save error:", e);
+    // Still return the meta - photo is in Cloudinary
   }
 
   return meta;
@@ -127,7 +131,10 @@ export async function getPhotos(uploader?: "erik" | "benno"): Promise<PhotoMeta[
     const { getApps, initializeApp, cert } = await import("firebase-admin/app");
     
     const json = process.env.FIREBASE_SERVICE_ACCOUNT_JSON;
-    if (!json) return [];
+    if (!json) {
+      console.log("No Firebase config, cannot get photos");
+      return [];
+    }
     
     const key = JSON.parse(json);
     if (getApps().length === 0) {
@@ -135,11 +142,15 @@ export async function getPhotos(uploader?: "erik" | "benno"): Promise<PhotoMeta[
     }
     
     const db = getFirestore();
-    let query: FirebaseFirestore.Query = db.collection("photos").orderBy("uploadedAt", "desc");
+    
+    // Eerst checken of collectie bestaat
+    const photosRef = db.collection("photos");
+    let query: FirebaseFirestore.Query = photosRef.orderBy("uploadedAt", "desc");
     if (uploader) {
       query = query.where("uploader", "==", uploader);
     }
     const snap = await query.get();
+    console.log(`Found ${snap.docs.length} photos`);
     return snap.docs.map((doc) => doc.data() as PhotoMeta);
   } catch (e) {
     console.error("getPhotos error:", e);
