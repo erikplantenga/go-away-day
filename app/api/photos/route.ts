@@ -108,11 +108,13 @@ export async function POST(req: NextRequest) {
           uploader: who as "erik" | "benno",
           day: String(photo.day || ""),
           caption: String(photo.caption || ""),
-          location: photo.location ? String(photo.location) : undefined,
           uploadedAt: new Date().toISOString(),
           thumbUrl: photo.thumbUrl,
           fullUrl: photo.fullUrl,
         };
+        if (photo.location) {
+          meta.location = String(photo.location);
+        }
         await savePhotoMeta(meta);
         return NextResponse.json({ photo: meta });
       }
