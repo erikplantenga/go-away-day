@@ -1,7 +1,16 @@
 "use client";
 
 import { useEffect, useState, useRef } from "react";
-import type { PhotoMeta } from "@/lib/firebase-storage";
+
+type PhotoMeta = {
+  id: string;
+  uploader: "erik" | "benno";
+  day: string;
+  caption: string;
+  uploadedAt: string;
+  thumbUrl: string;
+  fullUrl: string;
+};
 
 const DAYS = [
   { value: "2026-10-03", label: "Vrijdag 3 okt" },
@@ -18,13 +27,14 @@ export function Photos() {
   const [filter, setFilter] = useState<Filter>("all");
   const [loading, setLoading] = useState(true);
   const [uploading, setUploading] = useState(false);
+  const [uploadProgress, setUploadProgress] = useState(0);
   const [showUpload, setShowUpload] = useState(false);
   const [viewPhoto, setViewPhoto] = useState<PhotoMeta | null>(null);
   const [error, setError] = useState("");
 
   const [who, setWho] = useState<"erik" | "benno" | "">("");
   const [password, setPassword] = useState("");
-  const [day, setDay] = useState(DAYS[0].value);
+  const [day, setDay] = useState(DAYS[1].value);
   const [caption, setCaption] = useState("");
   const fileRef = useRef<HTMLInputElement>(null);
 
@@ -52,14 +62,27 @@ export function Photos() {
     } catch {}
   }, []);
 
-  const handleUpload = async () => {
+  const handleUpload = () => {
     const file = fileRef.current?.files?.[0];
-    if (!file || !who || !password || !day) {
-      setError("Vul alles in");
+    if (!file) {
+      setError("Selecteer eerst een foto");
+      return;
+    }
+    if (!who) {
+      setError("Kies wie je bent");
+      return;
+    }
+    if (!password) {
+      setError("Vul je wachtwoord in");
+      return;
+    }
+    if (!day) {
+      setError("Kies een dag");
       return;
     }
 
     setUploading(true);
+    setUploadProgress(0);
     setError("");
 
     const formData = new FormData();
@@ -70,22 +93,45 @@ export function Photos() {
     formData.append("caption", caption);
     formData.append("file", file);
 
-    try {
-      const res = await fetch("/api/photos", { method: "POST", body: formData });
-      const data = await res.json();
-      if (!res.ok) {
-        setError(data.error || "Upload mislukt");
-        return;
+    const xhr = new XMLHttpRequest();
+    
+    xhr.upload.addEventListener("progress", (e) => {
+      if (e.lengthComputable) {
+        const pct = Math.round((e.loaded / e.total) * 100);
+        setUploadProgress(pct);
       }
-      setShowUpload(false);
-      setCaption("");
-      if (fileRef.current) fileRef.current.value = "";
-      loadPhotos();
-    } catch {
-      setError("Geen verbinding");
-    } finally {
+    });
+
+    xhr.addEventListener("load", () => {
       setUploading(false);
-    }
+      try {
+        const data = JSON.parse(xhr.responseText);
+        if (xhr.status >= 200 && xhr.status < 300 && data.photo) {
+          setShowUpload(false);
+          setCaption("");
+          setUploadProgress(0);
+          if (fileRef.current) fileRef.current.value = "";
+          loadPhotos();
+        } else {
+          setError(data.error || "Upload mislukt");
+        }
+      } catch {
+        setError("Onverwachte fout: " + xhr.status);
+      }
+    });
+
+    xhr.addEventListener("error", () => {
+      setUploading(false);
+      setError("Geen verbinding met server");
+    });
+
+    xhr.addEventListener("abort", () => {
+      setUploading(false);
+      setError("Upload geannuleerd");
+    });
+
+    xhr.open("POST", "/api/photos");
+    xhr.send(formData);
   };
 
   const dayLabel = (dateStr: string) => {
@@ -216,9 +262,9 @@ export function Photos() {
                   ref={fileRef}
                   type="file"
                   accept="image/*"
-                  capture="environment"
                   className="w-full text-sm text-white file:mr-3 file:rounded-lg file:border-0 file:bg-white/10 file:px-4 file:py-2 file:text-sm file:font-semibold file:text-white"
                 />
+                <p className="mt-1 text-xs text-white/50">Kies uit camera of fotoalbum</p>
               </div>
 
               <textarea
@@ -231,14 +277,30 @@ export function Photos() {
 
               {error && <p className="text-center text-sm text-red-300">{error}</p>}
 
-              <button
-                type="button"
-                disabled={uploading || !who || !password}
-                onClick={handleUpload}
-                className="flex min-h-12 w-full items-center justify-center rounded-xl bg-[#c9a227] text-sm font-bold text-[#0b1f3a] disabled:opacity-50"
-              >
-                {uploading ? "Bezig met uploaden..." : "Uploaden"}
-              </button>
+              {uploading ? (
+                <div className="space-y-2">
+                  <div className="relative h-12 w-full overflow-hidden rounded-xl bg-white/10">
+                    <div
+                      className="absolute inset-y-0 left-0 bg-[#c9a227] transition-all duration-300"
+                      style={{ width: `${uploadProgress}%` }}
+                    />
+                    <div className="absolute inset-0 flex items-center justify-center">
+                      <span className="text-sm font-bold text-white drop-shadow">
+                        {uploadProgress}% uploaden...
+                      </span>
+                    </div>
+                  </div>
+                </div>
+              ) : (
+                <button
+                  type="button"
+                  disabled={!who || !password}
+                  onClick={handleUpload}
+                  className="flex min-h-12 w-full items-center justify-center rounded-xl bg-[#c9a227] text-sm font-bold text-[#0b1f3a] disabled:opacity-50"
+                >
+                  Uploaden
+                </button>
+              )}
             </div>
           </div>
         </div>

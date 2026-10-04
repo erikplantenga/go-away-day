@@ -64,19 +64,20 @@ export async function POST(req: NextRequest) {
       const buffer = Buffer.from(await file.arrayBuffer());
       const contentType = file.type || "image/jpeg";
 
-      const photo = await uploadPhoto(
-        buffer,
-        contentType,
-        who as "erik" | "benno",
-        day,
-        caption || "",
-      );
-
-      if (!photo) {
-        return NextResponse.json({ error: "Upload mislukt" }, { status: 500 });
+      try {
+        const photo = await uploadPhoto(
+          buffer,
+          contentType,
+          who as "erik" | "benno",
+          day,
+          caption || "",
+        );
+        return NextResponse.json({ photo });
+      } catch (uploadErr) {
+        console.error("Upload error:", uploadErr);
+        const msg = uploadErr instanceof Error ? uploadErr.message : "Upload mislukt";
+        return NextResponse.json({ error: msg }, { status: 500 });
       }
-
-      return NextResponse.json({ photo });
     }
 
     if (op === "delete") {
@@ -105,6 +106,7 @@ export async function POST(req: NextRequest) {
     return NextResponse.json({ error: "Onbekende actie" }, { status: 400 });
   } catch (err) {
     console.error("Photo API error:", err);
-    return NextResponse.json({ error: "Er ging iets mis" }, { status: 500 });
+    const msg = err instanceof Error ? err.message : "Onbekende fout";
+    return NextResponse.json({ error: `Fout: ${msg}` }, { status: 500 });
   }
 }
