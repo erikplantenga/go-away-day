@@ -43,16 +43,12 @@ export function Photos() {
   const [loadingLocation, setLoadingLocation] = useState(false);
   const fileRef = useRef<HTMLInputElement>(null);
 
-  const handleLike = async (photoId: string, liked: boolean | null) => {
-    if (!who || !password) {
-      setError("Log eerst in om te liken");
-      return;
-    }
+  const handleLike = async (photoId: string, liked: boolean | null, user: "erik" | "benno") => {
     try {
       const res = await fetch("/api/photos", {
         method: "POST",
         headers: { "Content-Type": "application/json" },
-        body: JSON.stringify({ op: "like", who, password, photoId, liked }),
+        body: JSON.stringify({ op: "like-public", user, photoId, liked }),
       });
       if (res.ok) {
         // Update local state
@@ -60,9 +56,9 @@ export function Photos() {
           if (p.id !== photoId) return p;
           const likes = { ...p.likes };
           if (liked === null) {
-            delete likes[who as "erik" | "benno"];
+            delete likes[user];
           } else {
-            likes[who as "erik" | "benno"] = liked;
+            likes[user] = liked;
           }
           return { ...p, likes };
         }));
@@ -71,9 +67,9 @@ export function Photos() {
             if (!prev) return prev;
             const likes = { ...prev.likes };
             if (liked === null) {
-              delete likes[who as "erik" | "benno"];
+              delete likes[user];
             } else {
-              likes[who as "erik" | "benno"] = liked;
+              likes[user] = liked;
             }
             return { ...prev, likes };
           });
@@ -706,13 +702,11 @@ export function Photos() {
               )}
               
               {/* Like/Dislike buttons */}
-              <div className="mt-3 flex items-center gap-3">
+              <div className="mt-3">
                 <LikeButtons
                   likes={viewPhoto.likes}
-                  currentUser={who || null}
-                  onLike={(liked) => handleLike(viewPhoto.id, liked)}
+                  onLike={(liked, user) => handleLike(viewPhoto.id, liked, user)}
                 />
-                <LikeSummary likes={viewPhoto.likes} />
               </div>
             </div>
           </div>
@@ -915,45 +909,75 @@ function PresentationModal({
 
 function LikeButtons({
   likes,
-  currentUser,
   onLike,
 }: {
   likes?: { erik?: boolean; benno?: boolean };
-  currentUser: "erik" | "benno" | null;
-  onLike: (liked: boolean | null) => void;
+  onLike: (liked: boolean | null, user: "erik" | "benno") => void;
 }) {
-  if (!currentUser) {
-    return (
-      <p className="text-xs text-white/40">Log in om te liken</p>
-    );
-  }
-
-  const myLike = likes?.[currentUser];
+  const erikLike = likes?.erik;
+  const bennoLike = likes?.benno;
 
   return (
-    <div className="flex gap-2">
-      <button
-        type="button"
-        onClick={() => onLike(myLike === true ? null : true)}
-        className={`flex h-10 w-10 items-center justify-center rounded-full text-lg transition-all ${
-          myLike === true
-            ? "bg-green-500 text-white scale-110"
-            : "bg-white/10 text-white/60 hover:bg-white/20"
-        }`}
-      >
-        👍
-      </button>
-      <button
-        type="button"
-        onClick={() => onLike(myLike === false ? null : false)}
-        className={`flex h-10 w-10 items-center justify-center rounded-full text-lg transition-all ${
-          myLike === false
-            ? "bg-red-500 text-white scale-110"
-            : "bg-white/10 text-white/60 hover:bg-white/20"
-        }`}
-      >
-        👎
-      </button>
+    <div className="space-y-3">
+      <p className="text-xs font-semibold text-white/60">Wat vind je ervan?</p>
+      
+      {/* Erik row */}
+      <div className="flex items-center gap-3">
+        <span className="w-14 text-sm font-medium text-white">Erik</span>
+        <div className="flex gap-2">
+          <button
+            type="button"
+            onClick={() => onLike(erikLike === true ? null : true, "erik")}
+            className={`flex h-10 w-10 items-center justify-center rounded-full text-lg transition-all ${
+              erikLike === true
+                ? "bg-green-500 text-white scale-110"
+                : "bg-white/10 text-white/60 hover:bg-white/20"
+            }`}
+          >
+            👍
+          </button>
+          <button
+            type="button"
+            onClick={() => onLike(erikLike === false ? null : false, "erik")}
+            className={`flex h-10 w-10 items-center justify-center rounded-full text-lg transition-all ${
+              erikLike === false
+                ? "bg-red-500 text-white scale-110"
+                : "bg-white/10 text-white/60 hover:bg-white/20"
+            }`}
+          >
+            👎
+          </button>
+        </div>
+      </div>
+
+      {/* Benno row */}
+      <div className="flex items-center gap-3">
+        <span className="w-14 text-sm font-medium text-white">Benno</span>
+        <div className="flex gap-2">
+          <button
+            type="button"
+            onClick={() => onLike(bennoLike === true ? null : true, "benno")}
+            className={`flex h-10 w-10 items-center justify-center rounded-full text-lg transition-all ${
+              bennoLike === true
+                ? "bg-green-500 text-white scale-110"
+                : "bg-white/10 text-white/60 hover:bg-white/20"
+            }`}
+          >
+            👍
+          </button>
+          <button
+            type="button"
+            onClick={() => onLike(bennoLike === false ? null : false, "benno")}
+            className={`flex h-10 w-10 items-center justify-center rounded-full text-lg transition-all ${
+              bennoLike === false
+                ? "bg-red-500 text-white scale-110"
+                : "bg-white/10 text-white/60 hover:bg-white/20"
+            }`}
+          >
+            👎
+          </button>
+        </div>
+      </div>
     </div>
   );
 }

@@ -109,7 +109,21 @@ export async function POST(req: NextRequest) {
         const photoId = body.photoId as string;
         const liked = body.liked as boolean | null;
         if (!photoId) return NextResponse.json({ error: "Geen foto ID" }, { status: 400 });
+        // Like zonder wachtwoord check
         const success = await setPhotoLike(photoId, who as "erik" | "benno", liked);
+        if (!success) return NextResponse.json({ error: "Like opslaan mislukt" }, { status: 500 });
+        return NextResponse.json({ success: true });
+      }
+
+      if (op === "like-public") {
+        const photoId = body.photoId as string;
+        const liked = body.liked as boolean | null;
+        const user = body.user as string;
+        if (!photoId) return NextResponse.json({ error: "Geen foto ID" }, { status: 400 });
+        if (!user || !["erik", "benno"].includes(user)) {
+          return NextResponse.json({ error: "Kies Erik of Benno" }, { status: 400 });
+        }
+        const success = await setPhotoLike(photoId, user as "erik" | "benno", liked);
         if (!success) return NextResponse.json({ error: "Like opslaan mislukt" }, { status: 500 });
         return NextResponse.json({ success: true });
       }
