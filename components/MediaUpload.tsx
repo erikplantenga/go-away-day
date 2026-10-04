@@ -10,6 +10,13 @@ import {
   type TripDayId,
 } from "@/lib/mediaUpload";
 
+interface PendingFile {
+  file: File;
+  preview: string;
+  caption: string;
+  day: TripDayId | null;
+}
+
 export function MediaUpload() {
   const [user, setUser] = useState<MediaUser | null>(null);
   const [uploading, setUploading] = useState(false);
@@ -19,11 +26,9 @@ export function MediaUpload() {
   const [success, setSuccess] = useState(false);
   const [showPresentation, setShowPresentation] = useState(false);
   const [presentationIndex, setPresentationIndex] = useState(0);
-  const [showOptions, setShowOptions] = useState(false);
-  const [day, setDay] = useState<TripDayId | null>(null);
-  const [caption, setCaption] = useState("");
   const [filter, setFilter] = useState<MediaUser | "all">("all");
-  const [pendingFiles, setPendingFiles] = useState<File[]>([]);
+  const [pendingFiles, setPendingFiles] = useState<PendingFile[]>([]);
+  const [globalDay, setGlobalDay] = useState<TripDayId | null>(null);
   const fileInputRef = useRef<HTMLInputElement>(null);
 
   useEffect(() => {
@@ -39,8 +44,40 @@ export function MediaUpload() {
   const handleFileSelect = (e: React.ChangeEvent<HTMLInputElement>) => {
     const files = e.target.files;
     if (!files || files.length === 0) return;
-    setPendingFiles(Array.from(files));
-    setShowOptions(true);
+    
+    const newPending: PendingFile[] = Array.from(files).map(file => ({
+      file,
+      preview: URL.createObjectURL(file),
+      caption: "",
+      day: globalDay,
+    }));
+    
+    setPendingFiles(prev => [...prev, ...newPending]);
+  };
+
+  const updatePendingCaption = (index: number, caption: string) => {
+    setPendingFiles(prev => prev.map((p, i) => 
+      i === index ? { ...p, caption } : p
+    ));
+  };
+
+  const updatePendingDay = (index: number, day: TripDayId | null) => {
+    setPendingFiles(prev => prev.map((p, i) => 
+      i === index ? { ...p, day } : p
+    ));
+  };
+
+  const removePending = (index: number) => {
+    setPendingFiles(prev => {
+      const removed = prev[index];
+      if (removed) URL.revokeObjectURL(removed.preview);
+      return prev.filter((_, i) => i !== index);
+    });
+  };
+
+  const applyDayToAll = (day: TripDayId) => {
+    setGlobalDay(day);
+    setPendingFiles(prev => prev.map(p => ({ ...p, day })));
   };
 
   const handleUpload = async () => {
@@ -53,10 +90,10 @@ export function MediaUpload() {
 
     try {
       for (let i = 0; i < pendingFiles.length; i++) {
-        const file = pendingFiles[i];
-        const newEntry = await uploadMedia(file, user, {
-          day: day ?? undefined,
-          caption: caption.trim() || undefined,
+        const pending = pendingFiles[i];
+        const newEntry = await uploadMedia(pending.file, user, {
+          day: pending.day ?? undefined,
+          caption: pending.caption.trim() || undefined,
           onProgress: (p) => {
             const overallProgress = ((i + p / 100) / pendingFiles.length) * 100;
             setProgress(overallProgress);
@@ -64,11 +101,13 @@ export function MediaUpload() {
         });
         setUploads((prev) => [newEntry, ...prev]);
       }
+      
+      // Cleanup previews
+      pendingFiles.forEach(p => URL.revokeObjectURL(p.preview));
+      
       setSuccess(true);
-      setCaption("");
-      setDay(null);
       setPendingFiles([]);
-      setShowOptions(false);
+      setGlobalDay(null);
       if (fileInputRef.current) fileInputRef.current.value = "";
       setTimeout(() => setSuccess(false), 3000);
     } catch (err) {
@@ -80,10 +119,9 @@ export function MediaUpload() {
   };
 
   const cancelUpload = () => {
+    pendingFiles.forEach(p => URL.revokeObjectURL(p.preview));
     setPendingFiles([]);
-    setShowOptions(false);
-    setCaption("");
-    setDay(null);
+    setGlobalDay(null);
     if (fileInputRef.current) fileInputRef.current.value = "";
   };
 
@@ -160,35 +198,31 @@ export function MediaUpload() {
               className="hidden"
             />
 
-            {pendingFiles.length === 0 ? (
-              <button
-                type="button"
-                onClick={triggerFileInput}
-                disabled={uploading}
-                className="mt-4 flex w-full items-center justify-center gap-2 rounded-xl bg-[#c9a227] py-3 text-sm font-bold text-[#0b1f3a] transition-all active:scale-[0.98] disabled:opacity-50"
-              >
-                <svg className="h-5 w-5" fill="none" viewBox="0 0 24 24" stroke="currentColor" strokeWidth={2}>
-                  <path strokeLinecap="round" strokeLinejoin="round" d="M4 16l4.586-4.586a2 2 0 012.828 0L16 16m-2-2l1.586-1.586a2 2 0 012.828 0L20 14m-6-6h.01M6 20h12a2 2 0 002-2V6a2 2 0 00-2-2H6a2 2 0 00-2 2v12a2 2 0 002 2z" />
-                </svg>
-                Selecteer foto&apos;s
-              </button>
-            ) : (
-              <div className="mt-4 space-y-3">
-                <p className="text-sm text-white/70">
-                  {pendingFiles.length} bestand{pendingFiles.length > 1 ? "en" : ""} geselecteerd
-                </p>
+            <button
+              type="button"
+              onClick={triggerFileInput}
+              disabled={uploading}
+              className="mt-4 flex w-full items-center justify-center gap-2 rounded-xl bg-[#c9a227] py-3 text-sm font-bold text-[#0b1f3a] transition-all active:scale-[0.98] disabled:opacity-50"
+            >
+              <svg className="h-5 w-5" fill="none" viewBox="0 0 24 24" stroke="currentColor" strokeWidth={2}>
+                <path strokeLinecap="round" strokeLinejoin="round" d="M12 4v16m8-8H4" />
+              </svg>
+              {pendingFiles.length > 0 ? "Meer toevoegen" : "Selecteer foto's"}
+            </button>
 
-                {/* Dag selectie */}
+            {pendingFiles.length > 0 && (
+              <div className="mt-4 space-y-3">
+                {/* Dag voor alles */}
                 <div>
-                  <p className="text-xs text-white/60">Welke dag?</p>
+                  <p className="text-xs text-white/60">Dag voor alle foto&apos;s:</p>
                   <div className="mt-2 flex flex-wrap gap-1.5">
                     {(Object.keys(TRIP_DAY_LABELS) as TripDayId[]).map((dayId) => (
                       <button
                         key={dayId}
                         type="button"
-                        onClick={() => setDay(day === dayId ? null : dayId)}
+                        onClick={() => applyDayToAll(dayId)}
                         className={`rounded-lg px-2.5 py-1.5 text-xs font-medium transition-all ${
-                          day === dayId
+                          globalDay === dayId
                             ? "bg-[#c9a227] text-[#0b1f3a]"
                             : "bg-white/10 text-white"
                         }`}
@@ -199,16 +233,46 @@ export function MediaUpload() {
                   </div>
                 </div>
 
-                {/* Naam */}
-                <div>
-                  <p className="text-xs text-white/60">Naam (optioneel)</p>
-                  <input
-                    type="text"
-                    value={caption}
-                    onChange={(e) => setCaption(e.target.value)}
-                    placeholder="Bijv. Sunset Blue Lagoon"
-                    className="mt-1 w-full rounded-lg bg-white/10 px-3 py-2 text-sm text-white placeholder-white/40 outline-none"
-                  />
+                {/* Foto lijst */}
+                <div className="max-h-80 space-y-2 overflow-y-auto">
+                  {pendingFiles.map((pending, i) => (
+                    <div key={i} className="flex gap-3 rounded-lg bg-white/5 p-2">
+                      <div className="relative h-16 w-16 shrink-0 overflow-hidden rounded-lg bg-black/30">
+                        {pending.file.type.startsWith("video/") ? (
+                          <video src={pending.preview} className="h-full w-full object-cover" muted />
+                        ) : (
+                          // eslint-disable-next-line @next/next/no-img-element
+                          <img src={pending.preview} alt="" className="h-full w-full object-cover" />
+                        )}
+                        <button
+                          type="button"
+                          onClick={() => removePending(i)}
+                          className="absolute -right-1 -top-1 flex h-5 w-5 items-center justify-center rounded-full bg-red-500 text-xs text-white"
+                        >
+                          ×
+                        </button>
+                      </div>
+                      <div className="min-w-0 flex-1 space-y-1">
+                        <input
+                          type="text"
+                          value={pending.caption}
+                          onChange={(e) => updatePendingCaption(i, e.target.value)}
+                          placeholder="Naam..."
+                          className="w-full rounded bg-white/10 px-2 py-1 text-sm text-white placeholder-white/40 outline-none"
+                        />
+                        <select
+                          value={pending.day || ""}
+                          onChange={(e) => updatePendingDay(i, (e.target.value || null) as TripDayId | null)}
+                          className="w-full rounded bg-white/10 px-2 py-1 text-xs text-white outline-none"
+                        >
+                          <option value="">Geen dag</option>
+                          {(Object.keys(TRIP_DAY_LABELS) as TripDayId[]).map((dayId) => (
+                            <option key={dayId} value={dayId}>{TRIP_DAY_LABELS[dayId]}</option>
+                          ))}
+                        </select>
+                      </div>
+                    </div>
+                  ))}
                 </div>
 
                 {/* Knoppen */}
@@ -227,7 +291,7 @@ export function MediaUpload() {
                     disabled={uploading}
                     className="flex-1 rounded-xl bg-[#c9a227] py-3 text-sm font-bold text-[#0b1f3a] disabled:opacity-50"
                   >
-                    {uploading ? "Bezig..." : "Opslaan"}
+                    {uploading ? "Bezig..." : `Opslaan (${pendingFiles.length})`}
                   </button>
                 </div>
               </div>
