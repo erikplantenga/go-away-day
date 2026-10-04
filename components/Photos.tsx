@@ -38,10 +38,6 @@ export function Photos() {
 
   const [who, setWho] = useState<"erik" | "benno" | "">("");
   const [password, setPassword] = useState("");
-  const [day, setDay] = useState(DAYS[1].value);
-  const [caption, setCaption] = useState("");
-  const [locationName, setLocationName] = useState<string | null>(null);
-  const [loadingLocation, setLoadingLocation] = useState(false);
   const [likedPhotos, setLikedPhotos] = useState<Set<string>>(new Set());
   const [showDeleteConfirm, setShowDeleteConfirm] = useState(false);
   const [deleting, setDeleting] = useState(false);
@@ -50,6 +46,17 @@ export function Photos() {
   const [editCaption, setEditCaption] = useState("");
   const [saving, setSaving] = useState(false);
   const [touchStart, setTouchStart] = useState<number | null>(null);
+  
+  // Multi-file upload state
+  type PendingFile = {
+    file: File;
+    preview: string;
+    day: string;
+    caption: string;
+    isVideo: boolean;
+  };
+  const [pendingFiles, setPendingFiles] = useState<PendingFile[]>([]);
+  const [currentUploadIndex, setCurrentUploadIndex] = useState(-1);
   const fileRef = useRef<HTMLInputElement>(null);
 
   useEffect(() => {
@@ -311,28 +318,39 @@ export function Photos() {
   };
 
   const handleFileSelect = async () => {
-    const file = fileRef.current?.files?.[0];
-    if (!file) return;
+    const files = fileRef.current?.files;
+    if (!files || files.length === 0) return;
 
-    setLoadingLocation(true);
-    setLocationName(null);
-
-    try {
-      const coords = await readExifLocation(file);
-      if (coords) {
-        const name = await reverseGeocode(coords.lat, coords.lng);
-        if (name) {
-          setLocationName(name);
-          if (!caption) {
-            setCaption(name);
+    const newPending: PendingFile[] = [];
+    
+    for (let i = 0; i < files.length; i++) {
+      const file = files[i];
+      const isVideo = file.type.startsWith("video/");
+      const preview = URL.createObjectURL(file);
+      
+      let caption = "";
+      // Try to get location for images
+      if (!isVideo) {
+        try {
+          const coords = await readExifLocation(file);
+          if (coords) {
+            const name = await reverseGeocode(coords.lat, coords.lng);
+            if (name) caption = name;
           }
-        }
+        } catch {}
       }
-    } catch {
-      // No location found, that's ok
-    } finally {
-      setLoadingLocation(false);
+      
+      newPending.push({
+        file,
+        preview,
+        day: DAYS[1].value,
+        caption,
+        isVideo,
+      });
     }
+    
+    setPendingFiles(prev => [...prev, ...newPending]);
+    if (fileRef.current) fileRef.current.value = "";
   };
 
   const compressImage = (file: File, maxSizeMB = 2): Promise<Blob> => {
@@ -424,61 +442,28 @@ export function Photos() {
     };
   }, [showUpload, viewPhoto]);
 
-  const handleUpload = async () => {
-    const file = fileRef.current?.files?.[0];
-    if (!file) {
-      setError("Selecteer eerst een foto of video");
-      return;
-    }
-    if (!who) {
-      setError("Kies wie je bent");
-      return;
-    }
-    if (!password) {
-      setError("Vul je wachtwoord in");
-      return;
-    }
-    if (!day) {
-      setError("Kies een dag");
-      return;
-    }
-
-    const isVideo = file.type.startsWith("video/");
+  const uploadSingleFile = async (pending: PendingFile): Promise<boolean> => {
+    const { file, day, caption, isVideo } = pending;
     
-    setUploading(true);
-    setUploadProgress(0);
-    setError("");
-
     let uploadFile: Blob = file;
     
     if (!isVideo && file.size > 2 * 1024 * 1024) {
       try {
-        setUploadProgress(5);
         uploadFile = await compressImage(file, 2);
-        setUploadProgress(10);
       } catch {
-        setError("Foto comprimeren mislukt");
-        setUploading(false);
-        return;
+        return false;
       }
     }
 
     try {
-      // 1) Vraag handtekening aan bij onze server
-      setUploadProgress(8);
       const signRes = await fetch("/api/photos", {
         method: "POST",
         headers: { "Content-Type": "application/json" },
         body: JSON.stringify({ op: isVideo ? "sign-video" : "sign", who, password }),
       });
       const signed = await signRes.json();
-      if (!signRes.ok) {
-        setError(signed.error || "Kon upload niet starten");
-        setUploading(false);
-        return;
-      }
+      if (!signRes.ok) return false;
 
-      // 2) Upload direct naar Cloudinary
       const cloudinaryData = new FormData();
       cloudinaryData.append("file", uploadFile);
       cloudinaryData.append("api_key", signed.apiKey);
@@ -487,29 +472,26 @@ export function Photos() {
       cloudinaryData.append("folder", signed.folder);
       cloudinaryData.append("public_id", signed.publicId);
 
-      await new Promise<void>((resolve, reject) => {
+      return new Promise<boolean>((resolve) => {
         const xhr = new XMLHttpRequest();
         xhr.upload.addEventListener("progress", (e) => {
           if (e.lengthComputable) {
-            setUploadProgress(10 + Math.round((e.loaded / e.total) * 80));
+            setUploadProgress(Math.round((e.loaded / e.total) * 100));
           }
         });
         xhr.addEventListener("load", async () => {
           try {
             const data = JSON.parse(xhr.responseText);
             if (xhr.status < 200 || xhr.status >= 300 || !data.secure_url) {
-              setError(data.error?.message || "Upload naar Cloudinary mislukt");
-              reject(new Error("upload"));
+              resolve(false);
               return;
             }
 
-            setUploadProgress(95);
             const publicId = data.public_id as string;
             const thumbUrl = isVideo
               ? data.secure_url.replace("/upload/", "/upload/c_fill,w_400,h_400,q_auto,f_jpg,so_0/")
               : data.secure_url.replace("/upload/", "/upload/c_fill,w_400,h_400,q_auto,f_auto/");
 
-            // 3) Bewaar metadata in Firestore (gedeeld voor Erik & Benno)
             const saveRes = await fetch("/api/photos", {
               method: "POST",
               headers: { "Content-Type": "application/json" },
@@ -521,45 +503,66 @@ export function Photos() {
                   id: publicId.includes("/") ? publicId.split("/").pop() : publicId,
                   day,
                   caption: caption || "",
-                  location: locationName || "",
                   thumbUrl,
                   fullUrl: data.secure_url,
                   isVideo,
                 },
               }),
             });
-            const saved = await saveRes.json();
-            if (!saveRes.ok) {
-              setError(saved.error || (isVideo ? "Video" : "Foto") + " geüpload, maar opslaan mislukt");
-              reject(new Error("save"));
-              return;
-            }
-
-            setUploadProgress(100);
-            setShowUpload(false);
-            setCaption("");
-            setLocationName(null);
-            setUploadProgress(0);
-            if (fileRef.current) fileRef.current.value = "";
-            await loadPhotos();
-            resolve();
+            resolve(saveRes.ok);
           } catch {
-            setError("Onverwachte fout: " + xhr.status);
-            reject(new Error("parse"));
+            resolve(false);
           }
         });
-        xhr.addEventListener("error", () => {
-          setError("Geen verbinding met Cloudinary");
-          reject(new Error("network"));
-        });
+        xhr.addEventListener("error", () => resolve(false));
         const resourceType = isVideo ? "video" : "image";
         xhr.open("POST", `https://api.cloudinary.com/v1_1/${signed.cloudName}/${resourceType}/upload`);
         xhr.send(cloudinaryData);
       });
     } catch {
-      // error already set
-    } finally {
-      setUploading(false);
+      return false;
+    }
+  };
+
+  const handleUpload = async () => {
+    if (pendingFiles.length === 0) {
+      setError("Selecteer eerst foto's of video's");
+      return;
+    }
+    if (!who) {
+      setError("Kies wie je bent");
+      return;
+    }
+    if (!password) {
+      setError("Vul je wachtwoord in");
+      return;
+    }
+
+    setUploading(true);
+    setError("");
+
+    let successCount = 0;
+    for (let i = 0; i < pendingFiles.length; i++) {
+      setCurrentUploadIndex(i);
+      setUploadProgress(0);
+      const success = await uploadSingleFile(pendingFiles[i]);
+      if (success) successCount++;
+    }
+
+    // Cleanup previews
+    pendingFiles.forEach(p => URL.revokeObjectURL(p.preview));
+    
+    setUploading(false);
+    setCurrentUploadIndex(-1);
+    setUploadProgress(0);
+    setPendingFiles([]);
+    
+    if (successCount === pendingFiles.length) {
+      setShowUpload(false);
+      await loadPhotos();
+    } else {
+      setError(`${successCount} van ${pendingFiles.length} geüpload`);
+      await loadPhotos();
     }
   };
 
@@ -591,8 +594,6 @@ export function Photos() {
             type="button"
             onClick={() => {
               setShowUpload(true);
-              setLocationName(null);
-              setCaption("");
             }}
             className="flex min-h-11 flex-1 items-center justify-center gap-2 rounded-xl bg-[#c9a227] text-sm font-bold text-[#0b1f3a]"
           >
@@ -665,11 +666,19 @@ export function Photos() {
           >
             <button
               type="button"
-              onClick={() => setShowUpload(false)}
+              onClick={() => {
+                pendingFiles.forEach(p => URL.revokeObjectURL(p.preview));
+                setPendingFiles([]);
+                setShowUpload(false);
+                setError("");
+              }}
               className="inline-tap flex min-h-11 items-center rounded-full bg-white/10 px-4 text-sm font-semibold"
             >
               ← Terug
             </button>
+            {pendingFiles.length > 0 && (
+              <span className="text-sm text-white/60">{pendingFiles.length} geselecteerd</span>
+            )}
           </div>
           <div
             className="min-h-0 flex-1 overflow-y-auto overscroll-contain px-4"
@@ -678,7 +687,7 @@ export function Photos() {
               paddingBottom: "max(10rem, env(safe-area-inset-bottom))",
             }}
           >
-            <h2 className="mt-2 text-xl font-bold">Foto uploaden</h2>
+            <h2 className="mt-2 text-xl font-bold">Foto's & video's uploaden</h2>
 
             <div className="mt-4 space-y-3">
               <div>
@@ -708,50 +717,109 @@ export function Photos() {
               />
 
               <div>
-                <p className="mb-2 text-sm font-semibold text-white/80">Welke dag?</p>
-                <select
-                  value={day}
-                  onChange={(e) => setDay(e.target.value)}
-                  className="min-h-11 w-full rounded-xl bg-white/10 px-4 text-base text-white"
-                >
-                  {DAYS.map((d) => (
-                    <option key={d.value} value={d.value} className="bg-[#0b1f3a]">
-                      {d.label}
-                    </option>
-                  ))}
-                </select>
-              </div>
-
-              <div>
-                <p className="mb-2 text-sm font-semibold text-white/80">Foto of video</p>
+                <p className="mb-2 text-sm font-semibold text-white/80">Selecteer foto's of video's</p>
                 <input
                   ref={fileRef}
                   type="file"
                   accept="image/*,video/*"
+                  multiple
                   onChange={handleFileSelect}
                   className="w-full text-sm text-white file:mr-3 file:rounded-lg file:border-0 file:bg-white/10 file:px-4 file:py-2 file:text-sm file:font-semibold file:text-white"
                 />
-                {loadingLocation ? (
-                  <p className="mt-1 text-xs text-[#c9a227]">📍 Locatie ophalen...</p>
-                ) : locationName ? (
-                  <p className="mt-1 text-xs text-[#c9a227]">📍 {locationName}</p>
-                ) : (
-                  <p className="mt-1 text-xs text-white/50">Kies uit camera of fotoalbum</p>
-                )}
+                <p className="mt-1 text-xs text-white/50">Je kunt meerdere bestanden tegelijk kiezen</p>
               </div>
 
-              <textarea
-                value={caption}
-                onChange={(e) => setCaption(e.target.value)}
-                placeholder="Beschrijving (optioneel)"
-                rows={2}
-                className="w-full rounded-xl bg-white/10 px-4 py-3 text-base text-white placeholder:text-white/40"
-              />
+              {/* Pending files list */}
+              {pendingFiles.length > 0 && (
+                <div className="space-y-3">
+                  <p className="text-sm font-semibold text-white/80">
+                    {pendingFiles.length} bestand{pendingFiles.length !== 1 ? "en" : ""} klaar:
+                  </p>
+                  {pendingFiles.map((pending, index) => (
+                    <div 
+                      key={index} 
+                      className={`rounded-xl bg-white/5 p-3 ${
+                        uploading && currentUploadIndex === index ? "ring-2 ring-[#c9a227]" : ""
+                      }`}
+                    >
+                      <div className="flex gap-3">
+                        <div className="relative h-16 w-16 shrink-0 overflow-hidden rounded-lg bg-black/30">
+                          {pending.isVideo ? (
+                            <div className="flex h-full w-full items-center justify-center bg-black/50 text-2xl">
+                              🎬
+                            </div>
+                          ) : (
+                            // eslint-disable-next-line @next/next/no-img-element
+                            <img
+                              src={pending.preview}
+                              alt=""
+                              className="h-full w-full object-cover"
+                            />
+                          )}
+                          {uploading && currentUploadIndex === index && (
+                            <div className="absolute inset-0 flex items-center justify-center bg-black/60">
+                              <span className="text-xs font-bold text-[#c9a227]">{uploadProgress}%</span>
+                            </div>
+                          )}
+                        </div>
+                        <div className="min-w-0 flex-1 space-y-2">
+                          <div className="flex items-start justify-between gap-2">
+                            <p className="truncate text-xs text-white/60">{pending.file.name}</p>
+                            {!uploading && (
+                              <button
+                                type="button"
+                                onClick={() => {
+                                  URL.revokeObjectURL(pending.preview);
+                                  setPendingFiles(prev => prev.filter((_, i) => i !== index));
+                                }}
+                                className="shrink-0 text-red-400 hover:text-red-300"
+                              >
+                                ✕
+                              </button>
+                            )}
+                          </div>
+                          <select
+                            value={pending.day}
+                            onChange={(e) => {
+                              setPendingFiles(prev => prev.map((p, i) => 
+                                i === index ? { ...p, day: e.target.value } : p
+                              ));
+                            }}
+                            disabled={uploading}
+                            className="min-h-8 w-full rounded-lg bg-white/10 px-2 text-sm text-white disabled:opacity-50"
+                          >
+                            {DAYS.map((d) => (
+                              <option key={d.value} value={d.value} className="bg-[#0b1f3a]">
+                                {d.label}
+                              </option>
+                            ))}
+                          </select>
+                          <input
+                            type="text"
+                            value={pending.caption}
+                            onChange={(e) => {
+                              setPendingFiles(prev => prev.map((p, i) => 
+                                i === index ? { ...p, caption: e.target.value } : p
+                              ));
+                            }}
+                            disabled={uploading}
+                            placeholder="Beschrijving..."
+                            className="min-h-8 w-full rounded-lg bg-white/10 px-2 text-sm text-white placeholder:text-white/40 disabled:opacity-50"
+                          />
+                        </div>
+                      </div>
+                    </div>
+                  ))}
+                </div>
+              )}
 
               {error && <p className="text-center text-sm text-red-300">{error}</p>}
 
               {uploading ? (
                 <div className="space-y-2">
+                  <p className="text-center text-sm text-white/70">
+                    Uploaden {currentUploadIndex + 1} van {pendingFiles.length}...
+                  </p>
                   <div className="relative h-12 w-full overflow-hidden rounded-xl bg-white/10">
                     <div
                       className="absolute inset-y-0 left-0 bg-[#c9a227] transition-all duration-300"
@@ -759,7 +827,7 @@ export function Photos() {
                     />
                     <div className="absolute inset-0 flex items-center justify-center">
                       <span className="text-sm font-bold text-white drop-shadow">
-                        {uploadProgress}% uploaden...
+                        {uploadProgress}%
                       </span>
                     </div>
                   </div>
@@ -767,11 +835,13 @@ export function Photos() {
               ) : (
                 <button
                   type="button"
-                  disabled={!who || !password}
+                  disabled={!who || !password || pendingFiles.length === 0}
                   onClick={handleUpload}
                   className="flex min-h-12 w-full items-center justify-center rounded-xl bg-[#c9a227] text-sm font-bold text-[#0b1f3a] disabled:opacity-50"
                 >
-                  Uploaden
+                  {pendingFiles.length === 0 
+                    ? "Selecteer eerst bestanden" 
+                    : `${pendingFiles.length} bestand${pendingFiles.length !== 1 ? "en" : ""} uploaden`}
                 </button>
               )}
             </div>
