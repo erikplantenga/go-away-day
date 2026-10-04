@@ -41,19 +41,43 @@ export function Photos() {
   const [caption, setCaption] = useState("");
   const [locationName, setLocationName] = useState<string | null>(null);
   const [loadingLocation, setLoadingLocation] = useState(false);
+  const [likedPhotos, setLikedPhotos] = useState<Set<string>>(new Set());
   const fileRef = useRef<HTMLInputElement>(null);
 
+  useEffect(() => {
+    try {
+      const stored = localStorage.getItem("likedPhotos");
+      if (stored) setLikedPhotos(new Set(JSON.parse(stored)));
+    } catch {}
+  }, []);
+
   const handleLike = async (photoId: string) => {
+    const isLiked = likedPhotos.has(photoId);
+    const op = isLiked ? "remove-like" : "add-like";
+    
     try {
       const res = await fetch("/api/photos", {
         method: "POST",
         headers: { "Content-Type": "application/json" },
-        body: JSON.stringify({ op: "toggle-like", photoId }),
+        body: JSON.stringify({ op, photoId }),
       });
       if (res.ok) {
         const data = await res.json();
         const newCount = data.likeCount as number;
-        // Update local state
+        
+        // Update liked state in localStorage
+        const newLiked = new Set(likedPhotos);
+        if (isLiked) {
+          newLiked.delete(photoId);
+        } else {
+          newLiked.add(photoId);
+        }
+        setLikedPhotos(newLiked);
+        try {
+          localStorage.setItem("likedPhotos", JSON.stringify([...newLiked]));
+        } catch {}
+        
+        // Update photo count in state
         setPhotos(prev => prev.map(p => {
           if (p.id !== photoId) return p;
           return { ...p, likeCount: newCount };
@@ -690,6 +714,7 @@ export function Photos() {
               <div className="mt-3">
                 <LikeButton
                   likeCount={viewPhoto.likeCount ?? 0}
+                  isLiked={likedPhotos.has(viewPhoto.id)}
                   onLike={() => handleLike(viewPhoto.id)}
                 />
               </div>
@@ -894,19 +919,27 @@ function PresentationModal({
 
 function LikeButton({
   likeCount,
+  isLiked,
   onLike,
 }: {
   likeCount: number;
+  isLiked: boolean;
   onLike: () => void;
 }) {
   return (
     <button
       type="button"
       onClick={onLike}
-      className="flex items-center gap-2 rounded-full bg-white/10 px-4 py-2 text-white transition-all hover:bg-white/20 active:scale-95"
+      className={`flex items-center gap-2 rounded-full px-4 py-2 transition-all active:scale-95 ${
+        isLiked 
+          ? "bg-red-500 text-white" 
+          : "bg-white/10 text-white hover:bg-white/20"
+      }`}
     >
-      <span className="text-xl">❤️</span>
-      <span className="font-semibold">{likeCount > 0 ? likeCount : "Like"}</span>
+      <span className="text-xl">{isLiked ? "❤️" : "🤍"}</span>
+      <span className="font-semibold">
+        {likeCount > 0 ? likeCount : ""} {isLiked ? "Liked" : "Like"}
+      </span>
     </button>
   );
 }

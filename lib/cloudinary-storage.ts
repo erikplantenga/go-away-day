@@ -130,7 +130,7 @@ export async function deletePhoto(id: string): Promise<boolean> {
   }
 }
 
-export async function togglePhotoLike(photoId: string): Promise<number | null> {
+export async function addPhotoLike(photoId: string): Promise<number | null> {
   const db = await firestore();
   if (!db) return null;
 
@@ -145,7 +145,27 @@ export async function togglePhotoLike(photoId: string): Promise<number | null> {
     await docRef.update({ likeCount: newCount });
     return newCount;
   } catch (e) {
-    console.error("togglePhotoLike error:", e);
+    console.error("addPhotoLike error:", e);
+    return null;
+  }
+}
+
+export async function removePhotoLike(photoId: string): Promise<number | null> {
+  const db = await firestore();
+  if (!db) return null;
+
+  try {
+    const docRef = db.collection("photos").doc(photoId);
+    const doc = await docRef.get();
+    if (!doc.exists) return null;
+
+    const data = doc.data() as PhotoMeta;
+    const newCount = Math.max(0, (data.likeCount || 0) - 1);
+
+    await docRef.update({ likeCount: newCount });
+    return newCount;
+  } catch (e) {
+    console.error("removePhotoLike error:", e);
     return null;
   }
 }

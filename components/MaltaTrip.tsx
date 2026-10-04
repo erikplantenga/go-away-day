@@ -618,14 +618,21 @@ function Dagplanning({ weather }: { weather: DayWeather[] }) {
         const open = openId === day.id;
         const w = weatherForDate(weather, day.date);
         const isToday = todayId === day.id;
+        const isPast = todayId ? day.date < todayId.replace("dag-", "2026-10-0") : false;
+        const checkPast = () => {
+          if (!todayId) return false;
+          const todayDate = MALTA_DAYS.find(d => d.id === todayId)?.date;
+          return todayDate ? day.date < todayDate : false;
+        };
+        const dayIsPast = checkPast();
         return (
-          <div key={day.id} className="overflow-hidden rounded-xl bg-white/5">
+          <div key={day.id} className={`overflow-hidden rounded-xl bg-white/5 ${dayIsPast ? "opacity-60" : ""}`}>
             <button
               type="button"
               onClick={() => setOpenId(open ? null : day.id)}
               className="flex w-full items-center gap-3 px-3 py-3 text-left"
             >
-              <span className="flex h-11 w-11 shrink-0 flex-col items-center justify-center rounded-xl bg-[#c9a227] text-[#0b1f3a]">
+              <span className={`flex h-11 w-11 shrink-0 flex-col items-center justify-center rounded-xl text-[#0b1f3a] ${dayIsPast ? "bg-white/40" : "bg-[#c9a227]"}`}>
                 <span className="text-[10px] leading-none uppercase opacity-80">
                   {day.weekday.slice(0, 2)}
                 </span>
@@ -633,14 +640,19 @@ function Dagplanning({ weather }: { weather: DayWeather[] }) {
               </span>
               <span className="min-w-0 flex-1">
                 <span className="flex items-center gap-2">
-                  <span className="text-sm font-semibold">{day.weekday}</span>
+                  <span className={`text-sm font-semibold ${dayIsPast ? "line-through" : ""}`}>{day.weekday}</span>
                   {isToday && (
                     <span className="rounded-full bg-[#c9a227] px-2 py-0.5 text-[10px] font-bold uppercase text-[#0b1f3a]">
                       Vandaag
                     </span>
                   )}
+                  {dayIsPast && (
+                    <span className="rounded-full bg-white/20 px-2 py-0.5 text-[10px] font-bold uppercase text-white/70">
+                      Gehad
+                    </span>
+                  )}
                 </span>
-                <span className="block truncate text-sm text-white/65">{day.title}</span>
+                <span className={`block truncate text-sm text-white/65 ${dayIsPast ? "line-through" : ""}`}>{day.title}</span>
                 {w && (
                   <span className="mt-0.5 block text-xs text-white/50">
                     {w.max}° / {w.min}° · {w.label}

@@ -6,7 +6,8 @@ import {
   signUpload,
   isCloudinaryConfigured,
   testCloudinary,
-  togglePhotoLike,
+  addPhotoLike,
+  removePhotoLike,
   type PhotoMeta,
 } from "@/lib/cloudinary-storage";
 
@@ -57,11 +58,19 @@ export async function POST(req: NextRequest) {
       const op = body.op as string;
 
       // Public like - no auth needed
-      if (op === "toggle-like") {
+      if (op === "add-like") {
         const photoId = body.photoId as string;
         if (!photoId) return NextResponse.json({ error: "Geen foto ID" }, { status: 400 });
-        const newCount = await togglePhotoLike(photoId);
+        const newCount = await addPhotoLike(photoId);
         if (newCount === null) return NextResponse.json({ error: "Like opslaan mislukt" }, { status: 500 });
+        return NextResponse.json({ success: true, likeCount: newCount });
+      }
+
+      if (op === "remove-like") {
+        const photoId = body.photoId as string;
+        if (!photoId) return NextResponse.json({ error: "Geen foto ID" }, { status: 400 });
+        const newCount = await removePhotoLike(photoId);
+        if (newCount === null) return NextResponse.json({ error: "Unlike mislukt" }, { status: 500 });
         return NextResponse.json({ success: true, likeCount: newCount });
       }
 
