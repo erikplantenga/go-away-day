@@ -618,7 +618,7 @@ export function Photos() {
         ) : filtered.length === 0 ? (
           <p className="py-8 text-center text-sm text-white/60">Nog geen foto's</p>
         ) : (
-          <div className="grid grid-cols-2 gap-2">
+          <div className="grid grid-cols-3 gap-1.5">
             {filtered.map((photo) => (
               <button
                 key={photo.id}
@@ -742,10 +742,10 @@ export function Photos() {
                         uploading && currentUploadIndex === index ? "ring-2 ring-[#c9a227]" : ""
                       }`}
                     >
-                      <div className="flex gap-3">
-                        <div className="relative h-16 w-16 shrink-0 overflow-hidden rounded-lg bg-black/30">
+                      <div className="flex gap-2">
+                        <div className="relative h-12 w-12 shrink-0 overflow-hidden rounded-lg bg-black/30">
                           {pending.isVideo ? (
-                            <div className="flex h-full w-full items-center justify-center bg-black/50 text-2xl">
+                            <div className="flex h-full w-full items-center justify-center bg-black/50 text-lg">
                               🎬
                             </div>
                           ) : (
@@ -758,7 +758,7 @@ export function Photos() {
                           )}
                           {uploading && currentUploadIndex === index && (
                             <div className="absolute inset-0 flex items-center justify-center bg-black/60">
-                              <span className="text-xs font-bold text-[#c9a227]">{uploadProgress}%</span>
+                              <span className="text-[10px] font-bold text-[#c9a227]">{uploadProgress}%</span>
                             </div>
                           )}
                         </div>
