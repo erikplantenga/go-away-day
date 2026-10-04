@@ -291,8 +291,7 @@ export function MpQuiz({ onOpenNews }: { onOpenNews?: () => void }) {
   useEffect(() => {
     if (!live || !board.championReady || championShown.current) return;
     championShown.current = true;
-    setChampion(true);
-    setBoot(false);
+    // Champion popup disabled - no automatic popup
   }, [live, board.championReady]);
 
   useEffect(() => {
