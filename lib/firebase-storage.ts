@@ -17,10 +17,16 @@ function getApp(): App | null {
   try {
     const key = JSON.parse(json);
     projectId = key.project_id;
+    
+    // Firebase Storage bucket kan .appspot.com of .firebasestorage.app zijn
+    // Gebruik FIREBASE_STORAGE_BUCKET env var of probeer .appspot.com (meest voorkomend)
+    const storageBucket = process.env.FIREBASE_STORAGE_BUCKET || 
+                          `${key.project_id}.appspot.com`;
+    
     if (getApps().length === 0) {
       app = initializeApp({
         credential: cert(key),
-        storageBucket: key.project_id + ".firebasestorage.app",
+        storageBucket,
       });
       return app;
     }
