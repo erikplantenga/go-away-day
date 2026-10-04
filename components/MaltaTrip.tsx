@@ -672,22 +672,38 @@ function Dagplanning({ weather }: { weather: DayWeather[] }) {
                   )}
                   {day.items.map((item, i) => {
                     const info = placeForItem(item);
+                    
+                    // Check if this item has passed
+                    const isItemPast = (() => {
+                      if (dayIsPast) return true;
+                      if (!isToday) return false;
+                      // Parse item time (e.g., "08:00", "12:30")
+                      const timeParts = item.time?.match(/(\d{1,2}):(\d{2})/);
+                      if (!timeParts) return false;
+                      const itemHour = parseInt(timeParts[1], 10);
+                      const itemMin = parseInt(timeParts[2], 10);
+                      const now = new Date();
+                      const nowMins = now.getHours() * 60 + now.getMinutes();
+                      const itemMins = itemHour * 60 + itemMin;
+                      return nowMins > itemMins;
+                    })();
+                    
                     const inner = (
                       <>
-                        <span className="w-[4.5rem] shrink-0 pt-0.5 text-xs font-semibold uppercase tracking-wide text-[#c9a227]">
+                        <span className={`w-[4.5rem] shrink-0 pt-0.5 text-xs font-semibold uppercase tracking-wide ${isItemPast ? "text-white/40" : "text-[#c9a227]"}`}>
                           {item.time}
                         </span>
                         <span className="min-w-0 flex-1">
-                          <span className="block text-sm font-medium">{item.text}</span>
+                          <span className={`block text-sm font-medium ${isItemPast ? "line-through text-white/50" : ""}`}>{item.text}</span>
                           {item.note && (
-                            <span className="mt-0.5 block text-sm text-white/65">{item.note}</span>
+                            <span className={`mt-0.5 block text-sm ${isItemPast ? "line-through text-white/40" : "text-white/65"}`}>{item.note}</span>
                           )}
-                          {info && (
+                          {info && !isItemPast && (
                             <span className="mt-1 block text-xs font-medium text-[#c9a227]">Tik voor info →</span>
                           )}
                         </span>
                         {info?.image && (
-                          <span className="relative h-12 w-16 shrink-0 overflow-hidden rounded-lg bg-black/30">
+                          <span className={`relative h-12 w-16 shrink-0 overflow-hidden rounded-lg bg-black/30 ${isItemPast ? "opacity-50" : ""}`}>
                             {/* eslint-disable-next-line @next/next/no-img-element */}
                             <img src={info.image} alt="" className="h-full w-full object-cover" />
                           </span>
@@ -696,7 +712,7 @@ function Dagplanning({ weather }: { weather: DayWeather[] }) {
                     );
                     const rowClass = `flex w-full gap-3 rounded-lg py-1.5 text-left ${
                       item.choice ? "bg-[#c9a227]/20 px-2 active:bg-[#c9a227]/30" : "active:bg-white/5"
-                    }`;
+                    } ${isItemPast ? "opacity-70" : ""}`;
                     return (
                       <li key={i}>
                         {info ? (
