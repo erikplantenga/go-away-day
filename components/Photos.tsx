@@ -38,6 +38,62 @@ export function Photos() {
   const [caption, setCaption] = useState("");
   const fileRef = useRef<HTMLInputElement>(null);
 
+  const compressImage = (file: File, maxSizeMB = 2): Promise<Blob> => {
+    return new Promise((resolve, reject) => {
+      const img = new Image();
+      img.onload = () => {
+        URL.revokeObjectURL(img.src);
+        
+        let { width, height } = img;
+        const maxDim = 2048;
+        
+        if (width > maxDim || height > maxDim) {
+          if (width > height) {
+            height = (height / width) * maxDim;
+            width = maxDim;
+          } else {
+            width = (width / height) * maxDim;
+            height = maxDim;
+          }
+        }
+        
+        const canvas = document.createElement("canvas");
+        canvas.width = width;
+        canvas.height = height;
+        const ctx = canvas.getContext("2d");
+        if (!ctx) {
+          reject(new Error("Canvas niet beschikbaar"));
+          return;
+        }
+        
+        ctx.drawImage(img, 0, 0, width, height);
+        
+        let quality = 0.85;
+        const tryCompress = () => {
+          canvas.toBlob(
+            (blob) => {
+              if (!blob) {
+                reject(new Error("Compressie mislukt"));
+                return;
+              }
+              if (blob.size > maxSizeMB * 1024 * 1024 && quality > 0.3) {
+                quality -= 0.1;
+                tryCompress();
+              } else {
+                resolve(blob);
+              }
+            },
+            "image/jpeg",
+            quality
+          );
+        };
+        tryCompress();
+      };
+      img.onerror = () => reject(new Error("Foto laden mislukt"));
+      img.src = URL.createObjectURL(file);
+    });
+  };
+
   const loadPhotos = async () => {
     try {
       const url = filter === "all" ? "/api/photos" : `/api/photos?filter=${filter}`;
@@ -62,7 +118,7 @@ export function Photos() {
     } catch {}
   }, []);
 
-  const handleUpload = () => {
+  const handleUpload = async () => {
     const file = fileRef.current?.files?.[0];
     if (!file) {
       setError("Selecteer eerst een foto");
@@ -85,13 +141,27 @@ export function Photos() {
     setUploadProgress(0);
     setError("");
 
+    let uploadFile: Blob = file;
+    
+    if (file.type.startsWith("image/") && file.size > 2 * 1024 * 1024) {
+      try {
+        setUploadProgress(5);
+        uploadFile = await compressImage(file, 2);
+        setUploadProgress(10);
+      } catch (e) {
+        setError("Foto comprimeren mislukt");
+        setUploading(false);
+        return;
+      }
+    }
+
     const formData = new FormData();
     formData.append("op", "upload");
     formData.append("who", who);
     formData.append("password", password);
     formData.append("day", day);
     formData.append("caption", caption);
-    formData.append("file", file);
+    formData.append("file", uploadFile, file.name);
 
     const xhr = new XMLHttpRequest();
     
