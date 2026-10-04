@@ -1,4 +1,6 @@
-import { createClient } from "@supabase/supabase-js";
+import { initializeApp, getApps } from "firebase/app";
+import { getStorage, ref, uploadBytes, getDownloadURL } from "firebase/storage";
+import { getFirestore, collection, doc, getDoc, setDoc } from "firebase/firestore";
 
 export type MediaUser = "erik" | "benno";
 
@@ -17,63 +19,29 @@ export interface MediaUploadEntry {
   user: MediaUser;
   fileName: string;
   fileType: string;
-  data: string;
+  url: string;
+  data?: string; // legacy base64 support
   uploadedAt: string;
   day?: TripDayId;
   caption?: string;
 }
 
-const STORAGE_KEY = "goAwayDayMedia";
+const STORAGE_KEY = "mediaUploads";
 
-function getSupabase() {
-  const url = process.env.NEXT_PUBLIC_SUPABASE_URL;
-  const key = process.env.NEXT_PUBLIC_SUPABASE_ANON_KEY;
-  if (!url || !key) return null;
-  return createClient(url, key);
-}
-
-async function loadFromSupabase(): Promise<MediaUploadEntry[]> {
-  const client = getSupabase();
-  if (!client) return [];
-  try {
-    const { data } = await client
-      .from("store")
-      .select("value")
-      .eq("key", STORAGE_KEY)
-      .single();
-    return (data?.value as MediaUploadEntry[]) ?? [];
-  } catch {
-    return [];
-  }
-}
-
-async function saveToSupabase(entries: MediaUploadEntry[]) {
-  const client = getSupabase();
-  if (!client) return;
-  await client.from("store").upsert(
-    { key: STORAGE_KEY, value: entries },
-    { onConflict: "key" }
-  );
-}
-
-function loadFromLocal(): MediaUploadEntry[] {
-  if (typeof window === "undefined") return [];
-  try {
-    const raw = localStorage.getItem(STORAGE_KEY);
-    return raw ? JSON.parse(raw) : [];
-  } catch {
-    return [];
-  }
-}
-
-function saveToLocal(entries: MediaUploadEntry[]) {
-  if (typeof window === "undefined") return;
-  try {
-    localStorage.setItem(STORAGE_KEY, JSON.stringify(entries));
-  } catch {
-    const trimmed = entries.slice(0, 10);
-    localStorage.setItem(STORAGE_KEY, JSON.stringify(trimmed));
-  }
+function getFirebaseApp() {
+  if (getApps().length > 0) return getApps()[0];
+  
+  const config = {
+    apiKey: process.env.NEXT_PUBLIC_FIREBASE_API_KEY,
+    authDomain: process.env.NEXT_PUBLIC_FIREBASE_AUTH_DOMAIN,
+    projectId: process.env.NEXT_PUBLIC_FIREBASE_PROJECT_ID,
+    storageBucket: process.env.NEXT_PUBLIC_FIREBASE_STORAGE_BUCKET,
+    messagingSenderId: process.env.NEXT_PUBLIC_FIREBASE_MESSAGING_SENDER_ID,
+    appId: process.env.NEXT_PUBLIC_FIREBASE_APP_ID,
+  };
+  
+  if (!config.projectId) return null;
+  return initializeApp(config);
 }
 
 export async function uploadMedia(
@@ -87,56 +55,63 @@ export async function uploadMedia(
 ): Promise<MediaUploadEntry> {
   options?.onProgress?.(10);
 
-  const resized = await resizeImage(file, 800);
-  
-  options?.onProgress?.(50);
+  const app = getFirebaseApp();
+  if (!app) throw new Error("Firebase niet geconfigureerd");
 
-  const base64 = await fileToBase64(resized);
-  
+  // Resize image
+  const resized = await resizeImage(file, 1200);
+  options?.onProgress?.(30);
+
+  // Upload to Firebase Storage
+  const storage = getStorage(app);
+  const timestamp = Date.now();
+  const safeFileName = file.name.replace(/[^a-zA-Z0-9.-]/g, "_");
+  const path = `uploads/${user}/${timestamp}_${safeFileName}`;
+  const storageRef = ref(storage, path);
+
+  await uploadBytes(storageRef, resized);
   options?.onProgress?.(70);
 
+  const url = await getDownloadURL(storageRef);
+  options?.onProgress?.(85);
+
   const entry: MediaUploadEntry = {
-    id: `${Date.now()}`,
+    id: `${timestamp}`,
     user,
     fileName: file.name,
-    fileType: resized.type,
-    data: base64,
+    fileType: file.type,
+    url,
     uploadedAt: new Date().toISOString(),
     day: options?.day,
     caption: options?.caption,
   };
 
+  // Save metadata to Firestore
+  const db = getFirestore(app);
+  const docRef = doc(db, "config", STORAGE_KEY);
   const existing = await getMediaUploads();
   existing.unshift(entry);
-  
-  // Probeer Supabase, anders lokaal
-  if (getSupabase()) {
-    await saveToSupabase(existing);
-  }
-  saveToLocal(existing);
+  await setDoc(docRef, { items: existing });
 
   options?.onProgress?.(100);
-
   return entry;
 }
 
 export async function getMediaUploads(): Promise<MediaUploadEntry[]> {
-  // Probeer Supabase eerst
-  const client = getSupabase();
-  if (client) {
-    const remote = await loadFromSupabase();
-    if (remote.length > 0) return remote;
+  try {
+    const app = getFirebaseApp();
+    if (!app) return [];
+    
+    const db = getFirestore(app);
+    const docRef = doc(db, "config", STORAGE_KEY);
+    const snap = await getDoc(docRef);
+    
+    if (!snap.exists()) return [];
+    const data = snap.data();
+    return (data?.items as MediaUploadEntry[]) ?? [];
+  } catch {
+    return [];
   }
-  return loadFromLocal();
-}
-
-function fileToBase64(file: File | Blob): Promise<string> {
-  return new Promise((resolve, reject) => {
-    const reader = new FileReader();
-    reader.onload = () => resolve(reader.result as string);
-    reader.onerror = reject;
-    reader.readAsDataURL(file);
-  });
 }
 
 async function resizeImage(file: File, maxSize: number): Promise<Blob> {
@@ -172,7 +147,7 @@ async function resizeImage(file: File, maxSize: number): Promise<Blob> {
       canvas.toBlob(
         (blob) => resolve(blob || file),
         "image/jpeg",
-        0.8
+        0.85
       );
     };
     img.onerror = () => resolve(file);

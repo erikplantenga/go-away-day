@@ -276,7 +276,7 @@ export function MediaUpload() {
             >
                 {upload.fileType.startsWith("video/") ? (
                   <video
-                    src={upload.data}
+                    src={upload.url || upload.data}
                     className="h-full w-full object-cover"
                     muted
                     playsInline
@@ -284,7 +284,7 @@ export function MediaUpload() {
                 ) : (
                   // eslint-disable-next-line @next/next/no-img-element
                   <img
-                    src={upload.data}
+                    src={upload.url || upload.data}
                     alt={upload.caption || upload.fileName}
                     className="h-full w-full object-cover"
                   />
@@ -395,7 +395,7 @@ function PresentationModal({
         {current.fileType.startsWith("video/") ? (
           <video
             key={current.id}
-            src={current.data}
+            src={current.url || current.data}
             className="max-h-full max-w-full object-contain"
             controls
             autoPlay
@@ -405,7 +405,7 @@ function PresentationModal({
           // eslint-disable-next-line @next/next/no-img-element
           <img
             key={current.id}
-            src={current.data}
+            src={current.url || current.data}
             alt={current.caption || current.fileName}
             className="max-h-full max-w-full object-contain"
           />
