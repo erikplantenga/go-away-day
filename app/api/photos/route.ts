@@ -1,5 +1,13 @@
 import { NextRequest, NextResponse } from "next/server";
-import { getPhotos, uploadPhoto, deletePhoto, isCloudinaryConfigured } from "@/lib/cloudinary-storage";
+import {
+  getPhotos,
+  savePhotoMeta,
+  deletePhoto,
+  signUpload,
+  isCloudinaryConfigured,
+  testCloudinary,
+  type PhotoMeta,
+} from "@/lib/cloudinary-storage";
 
 export const dynamic = "force-dynamic";
 
@@ -18,6 +26,12 @@ export async function GET(req: NextRequest) {
   }
 
   const { searchParams } = new URL(req.url);
+
+  if (searchParams.get("test") === "1") {
+    const result = await testCloudinary();
+    return NextResponse.json(result);
+  }
+
   const filter = searchParams.get("filter");
   const uploader = filter === "erik" || filter === "benno" ? filter : undefined;
 
@@ -33,57 +47,15 @@ export async function POST(req: NextRequest) {
     return NextResponse.json({ error: "Geen foto's op static export" }, { status: 503 });
   }
 
-  if (!isCloudinaryConfigured()) {
-    return NextResponse.json({ error: "Cloudinary niet geconfigureerd - voeg CLOUDINARY_URL toe in Vercel" }, { status: 503 });
-  }
-
   try {
-    const formData = await req.formData();
-    const op = formData.get("op") as string;
+    const contentType = req.headers.get("content-type") || "";
 
-    if (op === "upload") {
-      const who = formData.get("who") as string;
-      const password = formData.get("password") as string;
-      const day = formData.get("day") as string;
-      const caption = formData.get("caption") as string;
-      const file = formData.get("file") as File | null;
-
-      if (!who || !["erik", "benno"].includes(who)) {
-        return NextResponse.json({ error: "Wie ben je?" }, { status: 400 });
-      }
-      if (!checkPass(who, password)) {
-        return NextResponse.json({ error: "Verkeerd wachtwoord" }, { status: 401 });
-      }
-      if (!file) {
-        return NextResponse.json({ error: "Geen foto" }, { status: 400 });
-      }
-      if (!day) {
-        return NextResponse.json({ error: "Welke dag?" }, { status: 400 });
-      }
-
-      const buffer = Buffer.from(await file.arrayBuffer());
-      const contentType = file.type || "image/jpeg";
-
-      try {
-        const photo = await uploadPhoto(
-          buffer,
-          contentType,
-          who as "erik" | "benno",
-          day,
-          caption || "",
-        );
-        return NextResponse.json({ photo });
-      } catch (uploadErr) {
-        console.error("Upload error:", uploadErr);
-        const msg = uploadErr instanceof Error ? uploadErr.message : "Upload mislukt";
-        return NextResponse.json({ error: msg }, { status: 500 });
-      }
-    }
-
-    if (op === "delete") {
-      const who = formData.get("who") as string;
-      const password = formData.get("password") as string;
-      const id = formData.get("id") as string;
+    // JSON ops: sign / save / delete
+    if (contentType.includes("application/json")) {
+      const body = (await req.json()) as Record<string, unknown>;
+      const op = body.op as string;
+      const who = body.who as string;
+      const password = body.password as string;
 
       if (!who || !["erik", "benno"].includes(who)) {
         return NextResponse.json({ error: "Wie ben je?" }, { status: 400 });
@@ -91,19 +63,51 @@ export async function POST(req: NextRequest) {
       if (!checkPass(who, password)) {
         return NextResponse.json({ error: "Verkeerd wachtwoord" }, { status: 401 });
       }
-      if (!id) {
-        return NextResponse.json({ error: "Geen foto ID" }, { status: 400 });
+
+      if (op === "sign") {
+        if (!isCloudinaryConfigured()) {
+          const test = await testCloudinary();
+          return NextResponse.json(
+            { error: test.message || "Cloudinary niet geconfigureerd" },
+            { status: 503 },
+          );
+        }
+        const id = `${Date.now()}-${Math.random().toString(36).slice(2, 8)}`;
+        const signed = signUpload(id);
+        return NextResponse.json({ ...signed, who });
       }
 
-      const success = await deletePhoto(id);
-      if (!success) {
-        return NextResponse.json({ error: "Verwijderen mislukt" }, { status: 500 });
+      if (op === "save") {
+        const photo = body.photo as PhotoMeta | undefined;
+        if (!photo?.id || !photo.fullUrl || !photo.thumbUrl) {
+          return NextResponse.json({ error: "Foto-data incompleet" }, { status: 400 });
+        }
+        const meta: PhotoMeta = {
+          id: photo.id,
+          uploader: who as "erik" | "benno",
+          day: String(photo.day || ""),
+          caption: String(photo.caption || ""),
+          location: photo.location ? String(photo.location) : undefined,
+          uploadedAt: new Date().toISOString(),
+          thumbUrl: photo.thumbUrl,
+          fullUrl: photo.fullUrl,
+        };
+        await savePhotoMeta(meta);
+        return NextResponse.json({ photo: meta });
       }
 
-      return NextResponse.json({ success: true });
+      if (op === "delete") {
+        const id = body.id as string;
+        if (!id) return NextResponse.json({ error: "Geen foto ID" }, { status: 400 });
+        const success = await deletePhoto(id);
+        if (!success) return NextResponse.json({ error: "Verwijderen mislukt" }, { status: 500 });
+        return NextResponse.json({ success: true });
+      }
+
+      return NextResponse.json({ error: "Onbekende actie" }, { status: 400 });
     }
 
-    return NextResponse.json({ error: "Onbekende actie" }, { status: 400 });
+    return NextResponse.json({ error: "Gebruik JSON" }, { status: 400 });
   } catch (err) {
     console.error("Photo API error:", err);
     const msg = err instanceof Error ? err.message : "Onbekende fout";

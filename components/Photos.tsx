@@ -237,13 +237,12 @@ export function Photos() {
     });
   };
 
-  const loadPhotos = () => {
+  const loadPhotos = async () => {
     try {
-      const stored = JSON.parse(localStorage.getItem("maltaPhotos") || "[]") as PhotoMeta[];
-      const filtered = filter === "all" 
-        ? stored 
-        : stored.filter(p => p.uploader === filter);
-      setPhotos(filtered);
+      const url = filter === "all" ? "/api/photos" : `/api/photos?filter=${filter}`;
+      const res = await fetch(url);
+      const data = await res.json();
+      setPhotos(data.photos ?? []);
     } catch {
       setPhotos([]);
     } finally {
@@ -261,6 +260,15 @@ export function Photos() {
       if (saved === "erik" || saved === "benno") setWho(saved);
     } catch {}
   }, []);
+
+  useEffect(() => {
+    if (!showUpload && !viewPhoto) return;
+    const prev = document.body.style.overflow;
+    document.body.style.overflow = "hidden";
+    return () => {
+      document.body.style.overflow = prev;
+    };
+  }, [showUpload, viewPhoto]);
 
   const handleUpload = async () => {
     const file = fileRef.current?.files?.[0];
@@ -299,77 +307,103 @@ export function Photos() {
       }
     }
 
-    const formData = new FormData();
-    formData.append("op", "upload");
-    formData.append("who", who);
-    formData.append("password", password);
-    formData.append("day", day);
-    formData.append("caption", caption);
-    formData.append("file", uploadFile, file.name);
-
-    // Direct upload naar Cloudinary (unsigned)
-    const cloudName = "lfj4hm44";
-    const uploadPreset = "go_away_day_unsigned";
-    
-    const cloudinaryData = new FormData();
-    cloudinaryData.append("file", uploadFile);
-    cloudinaryData.append("upload_preset", uploadPreset);
-    cloudinaryData.append("folder", "go-away-day");
-    cloudinaryData.append("context", `uploader=${who}|day=${day}|caption=${caption || ""}|location=${locationName || ""}`);
-
-    const xhr = new XMLHttpRequest();
-    
-    xhr.upload.addEventListener("progress", (e) => {
-      if (e.lengthComputable) {
-        const pct = Math.round((e.loaded / e.total) * 100);
-        setUploadProgress(10 + Math.round(pct * 0.9)); // 10-100%
+    try {
+      // 1) Vraag handtekening aan bij onze server
+      setUploadProgress(8);
+      const signRes = await fetch("/api/photos", {
+        method: "POST",
+        headers: { "Content-Type": "application/json" },
+        body: JSON.stringify({ op: "sign", who, password }),
+      });
+      const signed = await signRes.json();
+      if (!signRes.ok) {
+        setError(signed.error || "Kon upload niet starten");
+        setUploading(false);
+        return;
       }
-    });
 
-    xhr.addEventListener("load", () => {
+      // 2) Upload direct naar Cloudinary
+      const cloudinaryData = new FormData();
+      cloudinaryData.append("file", uploadFile);
+      cloudinaryData.append("api_key", signed.apiKey);
+      cloudinaryData.append("timestamp", String(signed.timestamp));
+      cloudinaryData.append("signature", signed.signature);
+      cloudinaryData.append("folder", signed.folder);
+      cloudinaryData.append("public_id", signed.publicId);
+
+      await new Promise<void>((resolve, reject) => {
+        const xhr = new XMLHttpRequest();
+        xhr.upload.addEventListener("progress", (e) => {
+          if (e.lengthComputable) {
+            setUploadProgress(10 + Math.round((e.loaded / e.total) * 80));
+          }
+        });
+        xhr.addEventListener("load", async () => {
+          try {
+            const data = JSON.parse(xhr.responseText);
+            if (xhr.status < 200 || xhr.status >= 300 || !data.secure_url) {
+              setError(data.error?.message || "Upload naar Cloudinary mislukt");
+              reject(new Error("upload"));
+              return;
+            }
+
+            setUploadProgress(95);
+            const publicId = data.public_id as string;
+            const thumbUrl = data.secure_url.replace(
+              "/upload/",
+              "/upload/c_fill,w_400,h_400,q_auto,f_auto/",
+            );
+
+            // 3) Bewaar metadata in Firestore (gedeeld voor Erik & Benno)
+            const saveRes = await fetch("/api/photos", {
+              method: "POST",
+              headers: { "Content-Type": "application/json" },
+              body: JSON.stringify({
+                op: "save",
+                who,
+                password,
+                photo: {
+                  id: publicId.includes("/") ? publicId.split("/").pop() : publicId,
+                  day,
+                  caption: caption || "",
+                  location: locationName || "",
+                  thumbUrl,
+                  fullUrl: data.secure_url,
+                },
+              }),
+            });
+            const saved = await saveRes.json();
+            if (!saveRes.ok) {
+              setError(saved.error || "Foto geüpload, maar opslaan mislukt");
+              reject(new Error("save"));
+              return;
+            }
+
+            setUploadProgress(100);
+            setShowUpload(false);
+            setCaption("");
+            setLocationName(null);
+            setUploadProgress(0);
+            if (fileRef.current) fileRef.current.value = "";
+            await loadPhotos();
+            resolve();
+          } catch {
+            setError("Onverwachte fout: " + xhr.status);
+            reject(new Error("parse"));
+          }
+        });
+        xhr.addEventListener("error", () => {
+          setError("Geen verbinding met Cloudinary");
+          reject(new Error("network"));
+        });
+        xhr.open("POST", `https://api.cloudinary.com/v1_1/${signed.cloudName}/image/upload`);
+        xhr.send(cloudinaryData);
+      });
+    } catch {
+      // error already set
+    } finally {
       setUploading(false);
-      try {
-        const data = JSON.parse(xhr.responseText);
-        if (xhr.status >= 200 && xhr.status < 300 && data.secure_url) {
-          // Sla foto info op in localStorage
-          const photos = JSON.parse(localStorage.getItem("maltaPhotos") || "[]");
-          photos.unshift({
-            id: data.public_id,
-            uploader: who,
-            day,
-            caption: caption || "",
-            location: locationName || "",
-            uploadedAt: new Date().toISOString(),
-            thumbUrl: data.secure_url.replace("/upload/", "/upload/c_fill,w_400,h_400,q_auto,f_auto/"),
-            fullUrl: data.secure_url,
-          });
-          localStorage.setItem("maltaPhotos", JSON.stringify(photos));
-          
-          setShowUpload(false);
-          setCaption("");
-          setUploadProgress(0);
-          if (fileRef.current) fileRef.current.value = "";
-          loadPhotos();
-        } else {
-          setError(data.error?.message || "Upload mislukt");
-        }
-      } catch {
-        setError("Onverwachte fout: " + xhr.status);
-      }
-    });
-
-    xhr.addEventListener("error", () => {
-      setUploading(false);
-      setError("Geen verbinding");
-    });
-
-    xhr.addEventListener("abort", () => {
-      setUploading(false);
-      setError("Upload geannuleerd");
-    });
-
-    xhr.open("POST", `https://api.cloudinary.com/v1_1/${cloudName}/image/upload`);
-    xhr.send(cloudinaryData);
+    }
   };
 
   const dayLabel = (dateStr: string) => {
@@ -453,7 +487,13 @@ export function Photos() {
               ← Terug
             </button>
           </div>
-          <div className="min-h-0 flex-1 overflow-auto px-4 pb-[max(1rem,env(safe-area-inset-bottom))]">
+          <div
+            className="min-h-0 flex-1 overflow-y-auto overscroll-contain px-4"
+            style={{
+              WebkitOverflowScrolling: "touch",
+              paddingBottom: "max(10rem, env(safe-area-inset-bottom))",
+            }}
+          >
             <h2 className="mt-2 text-xl font-bold">Foto uploaden</h2>
 
             <div className="mt-4 space-y-3">

@@ -1,7 +1,9 @@
 /**
- * Cloudinary Storage voor foto-uploads.
- * Gebruikt CLOUDINARY_URL env var: cloudinary://api_key:api_secret@cloud_name
+ * Cloudinary voor foto's + Firestore voor de gedeelde lijst.
+ * Env: CLOUDINARY_URL=cloudinary://api_key:api_secret@cloud_name
  */
+
+import { createHash } from "crypto";
 
 export type PhotoMeta = {
   id: string;
@@ -15,12 +17,12 @@ export type PhotoMeta = {
 };
 
 function parseCloudinaryUrl(): { cloudName: string; apiKey: string; apiSecret: string } | null {
-  const url = process.env.CLOUDINARY_URL;
+  const url = process.env.CLOUDINARY_URL?.trim();
   if (!url) return null;
-  
-  const match = url.match(/cloudinary:\/\/([^:]+):([^@]+)@(.+)/);
+
+  const match = url.match(/^cloudinary:\/\/([^:]+):([^@]+)@([^/\s]+)/);
   if (!match) return null;
-  
+
   return {
     apiKey: match[1],
     apiSecret: match[2],
@@ -32,126 +34,61 @@ export function isCloudinaryConfigured(): boolean {
   return parseCloudinaryUrl() !== null;
 }
 
-export async function uploadPhoto(
-  buffer: Buffer,
-  contentType: string,
-  uploader: "erik" | "benno",
-  day: string,
-  caption: string,
-  location?: string,
-): Promise<PhotoMeta> {
-  const config = parseCloudinaryUrl();
-  if (!config) {
-    throw new Error("Cloudinary niet geconfigureerd");
-  }
+export function getCloudinaryConfig() {
+  return parseCloudinaryUrl();
+}
 
-  const id = `${Date.now()}-${Math.random().toString(36).slice(2, 8)}`;
+/** Signed params for browser direct upload */
+export function signUpload(publicId: string) {
+  const config = parseCloudinaryUrl();
+  if (!config) throw new Error("Cloudinary niet geconfigureerd");
+
   const timestamp = Math.floor(Date.now() / 1000);
-  
-  // Create signature for upload
-  const crypto = await import("crypto");
-  const paramsToSign = `folder=go-away-day&public_id=${id}&timestamp=${timestamp}`;
-  const signature = crypto
-    .createHash("sha1")
-    .update(paramsToSign + config.apiSecret)
+  const folder = "go-away-day";
+  const toSign = `folder=${folder}&public_id=${publicId}&timestamp=${timestamp}`;
+  const signature = createHash("sha1")
+    .update(toSign + config.apiSecret)
     .digest("hex");
 
-  // Upload to Cloudinary using base64
-  const base64Data = `data:${contentType};base64,${buffer.toString("base64")}`;
-  
-  const formData = new URLSearchParams();
-  formData.append("file", base64Data);
-  formData.append("public_id", id);
-  formData.append("folder", "go-away-day");
-  formData.append("timestamp", timestamp.toString());
-  formData.append("api_key", config.apiKey);
-  formData.append("signature", signature);
-
-  const uploadRes = await fetch(
-    `https://api.cloudinary.com/v1_1/${config.cloudName}/image/upload`,
-    { 
-      method: "POST", 
-      body: formData,
-      headers: { "Content-Type": "application/x-www-form-urlencoded" },
-    }
-  );
-
-  if (!uploadRes.ok) {
-    const err = await uploadRes.text();
-    throw new Error(`Upload mislukt: ${err}`);
-  }
-
-  const uploadData = await uploadRes.json();
-  const publicId = uploadData.public_id;
-
-  // Generate URLs with transformations
-  const baseUrl = `https://res.cloudinary.com/${config.cloudName}/image/upload`;
-  const thumbUrl = `${baseUrl}/c_fill,w_400,h_400,q_auto,f_auto/${publicId}`;
-  const fullUrl = `${baseUrl}/q_auto,f_auto/${publicId}`;
-
-  const meta: PhotoMeta = {
-    id,
-    uploader,
-    day,
-    caption,
-    location,
-    uploadedAt: new Date().toISOString(),
-    thumbUrl,
-    fullUrl,
+  return {
+    cloudName: config.cloudName,
+    apiKey: config.apiKey,
+    timestamp,
+    signature,
+    folder,
+    publicId,
   };
+}
 
-  // Store metadata in Firestore
-  try {
-    const { getFirestore } = await import("firebase-admin/firestore");
-    const { getApps, initializeApp, cert } = await import("firebase-admin/app");
-    
-    const json = process.env.FIREBASE_SERVICE_ACCOUNT_JSON;
-    if (json) {
-      const key = JSON.parse(json);
-      if (getApps().length === 0) {
-        initializeApp({ credential: cert(key) });
-      }
-      const db = getFirestore();
-      await db.collection("photos").doc(id).set(meta);
-      console.log("Photo saved to Firestore:", id);
-    } else {
-      console.log("No Firebase config, photo not saved to database");
-    }
-  } catch (e) {
-    console.error("Firestore save error:", e);
-    // Still return the meta - photo is in Cloudinary
+async function firestore() {
+  const json = process.env.FIREBASE_SERVICE_ACCOUNT_JSON;
+  if (!json) return null;
+
+  const { getApps, initializeApp, cert } = await import("firebase-admin/app");
+  const { getFirestore } = await import("firebase-admin/firestore");
+
+  const key = JSON.parse(json);
+  if (getApps().length === 0) {
+    initializeApp({ credential: cert(key) });
   }
+  return getFirestore();
+}
 
-  return meta;
+export async function savePhotoMeta(meta: PhotoMeta): Promise<void> {
+  const db = await firestore();
+  if (!db) throw new Error("Firestore niet geconfigureerd");
+  await db.collection("photos").doc(meta.id).set(meta);
 }
 
 export async function getPhotos(uploader?: "erik" | "benno"): Promise<PhotoMeta[]> {
+  const db = await firestore();
+  if (!db) return [];
+
   try {
-    const { getFirestore } = await import("firebase-admin/firestore");
-    const { getApps, initializeApp, cert } = await import("firebase-admin/app");
-    
-    const json = process.env.FIREBASE_SERVICE_ACCOUNT_JSON;
-    if (!json) {
-      console.log("No Firebase config, cannot get photos");
-      return [];
-    }
-    
-    const key = JSON.parse(json);
-    if (getApps().length === 0) {
-      initializeApp({ credential: cert(key) });
-    }
-    
-    const db = getFirestore();
-    
-    // Eerst checken of collectie bestaat
-    const photosRef = db.collection("photos");
-    let query: FirebaseFirestore.Query = photosRef.orderBy("uploadedAt", "desc");
-    if (uploader) {
-      query = query.where("uploader", "==", uploader);
-    }
-    const snap = await query.get();
-    console.log(`Found ${snap.docs.length} photos`);
-    return snap.docs.map((doc) => doc.data() as PhotoMeta);
+    const snap = await db.collection("photos").orderBy("uploadedAt", "desc").get();
+    let list = snap.docs.map((doc) => doc.data() as PhotoMeta);
+    if (uploader) list = list.filter((p) => p.uploader === uploader);
+    return list;
   } catch (e) {
     console.error("getPhotos error:", e);
     return [];
@@ -160,50 +97,63 @@ export async function getPhotos(uploader?: "erik" | "benno"): Promise<PhotoMeta[
 
 export async function deletePhoto(id: string): Promise<boolean> {
   const config = parseCloudinaryUrl();
-  if (!config) return false;
+  const db = await firestore();
+  if (!config || !db) return false;
 
   try {
-    // Delete from Cloudinary
     const timestamp = Math.floor(Date.now() / 1000);
-    const crypto = await import("crypto");
-    const paramsToSign = `public_id=go-away-day/${id}&timestamp=${timestamp}`;
-    const signature = crypto
-      .createHash("sha1")
-      .update(paramsToSign + config.apiSecret)
+    const publicId = id.includes("/") ? id : `go-away-day/${id}`;
+    const toSign = `public_id=${publicId}&timestamp=${timestamp}`;
+    const signature = createHash("sha1")
+      .update(toSign + config.apiSecret)
       .digest("hex");
 
-    const formData = new URLSearchParams();
-    formData.append("public_id", `go-away-day/${id}`);
-    formData.append("timestamp", timestamp.toString());
-    formData.append("api_key", config.apiKey);
-    formData.append("signature", signature);
+    const body = new URLSearchParams({
+      public_id: publicId,
+      timestamp: String(timestamp),
+      api_key: config.apiKey,
+      signature,
+    });
 
-    await fetch(
-      `https://api.cloudinary.com/v1_1/${config.cloudName}/image/destroy`,
-      { 
-        method: "POST", 
-        body: formData,
-        headers: { "Content-Type": "application/x-www-form-urlencoded" },
-      }
-    );
+    await fetch(`https://api.cloudinary.com/v1_1/${config.cloudName}/image/destroy`, {
+      method: "POST",
+      body,
+      headers: { "Content-Type": "application/x-www-form-urlencoded" },
+    });
 
-    // Delete from Firestore
-    const { getFirestore } = await import("firebase-admin/firestore");
-    const { getApps, initializeApp, cert } = await import("firebase-admin/app");
-    
-    const json = process.env.FIREBASE_SERVICE_ACCOUNT_JSON;
-    if (json) {
-      const key = JSON.parse(json);
-      if (getApps().length === 0) {
-        initializeApp({ credential: cert(key) });
-      }
-      const db = getFirestore();
-      await db.collection("photos").doc(id).delete();
-    }
-
+    await db.collection("photos").doc(id).delete();
     return true;
   } catch (e) {
     console.error("deletePhoto error:", e);
     return false;
+  }
+}
+
+export async function testCloudinary(): Promise<{ ok: boolean; message: string; cloudName?: string }> {
+  const config = parseCloudinaryUrl();
+  if (!config) {
+    return { ok: false, message: "CLOUDINARY_URL ontbreekt of is ongeldig" };
+  }
+
+  try {
+    const auth = Buffer.from(`${config.apiKey}:${config.apiSecret}`).toString("base64");
+    const res = await fetch(`https://api.cloudinary.com/v1_1/${config.cloudName}/resources/image?max_results=1`, {
+      headers: { Authorization: `Basic ${auth}` },
+    });
+    if (res.ok) {
+      return { ok: true, message: "Cloudinary werkt!", cloudName: config.cloudName };
+    }
+    const data = await res.json().catch(() => ({}));
+    return {
+      ok: false,
+      message: data?.error?.message || `Cloudinary fout (${res.status})`,
+      cloudName: config.cloudName,
+    };
+  } catch (e) {
+    return {
+      ok: false,
+      message: e instanceof Error ? e.message : "Verbinding mislukt",
+      cloudName: config.cloudName,
+    };
   }
 }
