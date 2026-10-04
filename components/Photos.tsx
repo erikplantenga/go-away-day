@@ -31,6 +31,8 @@ export function Photos() {
   const [showUpload, setShowUpload] = useState(false);
   const [viewPhoto, setViewPhoto] = useState<PhotoMeta | null>(null);
   const [error, setError] = useState("");
+  const [showPresentation, setShowPresentation] = useState(false);
+  const [presentationIndex, setPresentationIndex] = useState(0);
 
   const [who, setWho] = useState<"erik" | "benno" | "">("");
   const [password, setPassword] = useState("");
@@ -431,17 +433,31 @@ export function Photos() {
           ))}
         </div>
 
-        <button
-          type="button"
-          onClick={() => {
-            setShowUpload(true);
-            setLocationName(null);
-            setCaption("");
-          }}
-          className="flex min-h-11 w-full items-center justify-center gap-2 rounded-xl bg-[#c9a227] text-sm font-bold text-[#0b1f3a]"
-        >
-          <span className="text-lg">📷</span> Foto uploaden
-        </button>
+        <div className="flex gap-2">
+          <button
+            type="button"
+            onClick={() => {
+              setShowUpload(true);
+              setLocationName(null);
+              setCaption("");
+            }}
+            className="flex min-h-11 flex-1 items-center justify-center gap-2 rounded-xl bg-[#c9a227] text-sm font-bold text-[#0b1f3a]"
+          >
+            <span className="text-lg">📷</span> Upload
+          </button>
+          {filtered.length > 0 && (
+            <button
+              type="button"
+              onClick={() => {
+                setPresentationIndex(0);
+                setShowPresentation(true);
+              }}
+              className="flex min-h-11 items-center justify-center gap-2 rounded-xl bg-white px-4 text-sm font-bold text-[#0b1f3a]"
+            >
+              <span>▶</span> Presentatie
+            </button>
+          )}
+        </div>
 
         {loading ? (
           <p className="py-8 text-center text-sm text-white/60">Laden...</p>
@@ -638,6 +654,197 @@ export function Photos() {
           </div>
         </div>
       )}
+
+      {showPresentation && filtered.length > 0 && (
+        <PresentationModal
+          photos={filtered}
+          currentIndex={presentationIndex}
+          onIndexChange={setPresentationIndex}
+          onClose={() => setShowPresentation(false)}
+          dayLabel={dayLabel}
+        />
+      )}
     </>
+  );
+}
+
+function PresentationModal({
+  photos,
+  currentIndex,
+  onIndexChange,
+  onClose,
+  dayLabel,
+}: {
+  photos: PhotoMeta[];
+  currentIndex: number;
+  onIndexChange: (i: number) => void;
+  onClose: () => void;
+  dayLabel: (d: string) => string;
+}) {
+  const current = photos[currentIndex];
+  const [autoPlay, setAutoPlay] = useState(false);
+
+  const goNext = () => onIndexChange((currentIndex + 1) % photos.length);
+  const goPrev = () => onIndexChange((currentIndex - 1 + photos.length) % photos.length);
+
+  useEffect(() => {
+    const onKey = (e: KeyboardEvent) => {
+      if (e.key === "Escape") onClose();
+      if (e.key === "ArrowRight" || e.key === " ") goNext();
+      if (e.key === "ArrowLeft") goPrev();
+    };
+    window.addEventListener("keydown", onKey);
+    return () => window.removeEventListener("keydown", onKey);
+  }, [currentIndex, photos.length]);
+
+  useEffect(() => {
+    if (!autoPlay) return;
+    const timer = setInterval(goNext, 5000);
+    return () => clearInterval(timer);
+  }, [autoPlay, currentIndex, photos.length]);
+
+  useEffect(() => {
+    const prev = document.body.style.overflow;
+    document.body.style.overflow = "hidden";
+    return () => {
+      document.body.style.overflow = prev;
+    };
+  }, []);
+
+  if (!current) return null;
+
+  const dayFull: Record<string, string> = {
+    "2026-10-03": "Zaterdag 3 oktober",
+    "2026-10-04": "Zondag 4 oktober",
+    "2026-10-05": "Maandag 5 oktober",
+    "2026-10-06": "Dinsdag 6 oktober",
+    "2026-10-07": "Woensdag 7 oktober",
+  };
+
+  return (
+    <div
+      className="fixed inset-0 z-[100] flex flex-col bg-gradient-to-b from-[#0a1628] via-[#061018] to-[#030810]"
+      role="dialog"
+      aria-modal="true"
+    >
+      {/* Header */}
+      <div
+        className="flex shrink-0 items-center justify-between px-4"
+        style={{ paddingTop: "max(1rem, env(safe-area-inset-top))" }}
+      >
+        <div className="flex items-center gap-3">
+          <span className="text-2xl">🇲🇹</span>
+          <div>
+            <p className="text-xs font-semibold uppercase tracking-widest text-[#c9a227]">Malta 2026</p>
+            <p className="text-sm text-white/50">{currentIndex + 1} van {photos.length}</p>
+          </div>
+        </div>
+        <div className="flex items-center gap-2">
+          <button
+            type="button"
+            onClick={() => setAutoPlay(!autoPlay)}
+            className={`rounded-full px-4 py-2 text-xs font-semibold transition-all ${
+              autoPlay
+                ? "bg-[#c9a227] text-[#0b1f3a] shadow-lg shadow-[#c9a227]/30"
+                : "bg-white/10 text-white hover:bg-white/20"
+            }`}
+          >
+            {autoPlay ? "■ Stop" : "▶ Diashow"}
+          </button>
+          <button
+            type="button"
+            onClick={onClose}
+            className="flex h-10 w-10 items-center justify-center rounded-full bg-white/10 text-xl text-white hover:bg-white/20"
+            aria-label="Sluiten"
+          >
+            ×
+          </button>
+        </div>
+      </div>
+
+      {/* Media container */}
+      <div className="relative flex flex-1 items-center justify-center p-4">
+        {/* Navigation arrows */}
+        <button
+          type="button"
+          onClick={goPrev}
+          className="absolute left-0 top-0 z-10 flex h-full w-16 items-center justify-start pl-2 text-white/30 hover:text-white/70"
+          aria-label="Vorige"
+        >
+          <span className="text-3xl">‹</span>
+        </button>
+        <button
+          type="button"
+          onClick={goNext}
+          className="absolute right-0 top-0 z-10 flex h-full w-16 items-center justify-end pr-2 text-white/30 hover:text-white/70"
+          aria-label="Volgende"
+        >
+          <span className="text-3xl">›</span>
+        </button>
+
+        {/* Photo */}
+        <div className="relative max-h-full max-w-full overflow-hidden rounded-2xl shadow-2xl shadow-black/50">
+          {/* eslint-disable-next-line @next/next/no-img-element */}
+          <img
+            key={current.id}
+            src={current.fullUrl}
+            alt={current.caption || "Foto"}
+            className="max-h-[60vh] max-w-full object-contain"
+          />
+        </div>
+      </div>
+
+      {/* Info panel */}
+      <div
+        className="shrink-0 px-6 pb-6"
+        style={{ paddingBottom: "max(1.5rem, env(safe-area-inset-bottom))" }}
+      >
+        <div className="mx-auto max-w-lg rounded-2xl bg-white/5 p-5 backdrop-blur-sm">
+          <p className="text-xs font-semibold uppercase tracking-widest text-[#c9a227]">
+            {dayFull[current.day] || dayLabel(current.day)}
+          </p>
+          {current.caption ? (
+            <p className="mt-2 text-xl font-bold leading-tight text-white">
+              {current.caption}
+            </p>
+          ) : (
+            <p className="mt-2 text-lg text-white/50 italic">
+              Geen beschrijving
+            </p>
+          )}
+          <div className="mt-3 flex items-center gap-2">
+            <div className={`flex h-8 w-8 items-center justify-center rounded-full text-sm font-bold text-white ${
+              current.uploader === "erik" ? "bg-blue-500" : "bg-green-500"
+            }`}>
+              {current.uploader === "erik" ? "E" : "B"}
+            </div>
+            <div>
+              <p className="text-sm font-medium text-white">
+                {current.uploader === "erik" ? "Erik" : "Benno"}
+              </p>
+              <p className="text-xs text-white/50">Fotograaf</p>
+            </div>
+          </div>
+        </div>
+      </div>
+
+      {/* Progress dots */}
+      {photos.length <= 20 && (
+        <div className="absolute bottom-2 left-1/2 flex -translate-x-1/2 gap-1.5" style={{ paddingBottom: "env(safe-area-inset-bottom)" }}>
+          {photos.map((_, i) => (
+            <button
+              key={i}
+              type="button"
+              onClick={() => onIndexChange(i)}
+              className={`h-1.5 rounded-full transition-all ${
+                i === currentIndex
+                  ? "w-6 bg-[#c9a227]"
+                  : "w-1.5 bg-white/30 hover:bg-white/50"
+              }`}
+            />
+          ))}
+        </div>
+      )}
+    </div>
   );
 }
