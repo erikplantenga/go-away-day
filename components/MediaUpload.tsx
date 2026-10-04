@@ -411,12 +411,14 @@ function PresentationModal({
 }) {
   const current = uploads[currentIndex];
   const [autoPlay, setAutoPlay] = useState(false);
+  const [showInfo, setShowInfo] = useState(true);
 
   useEffect(() => {
     const onKey = (e: KeyboardEvent) => {
       if (e.key === "Escape") onClose();
       if (e.key === "ArrowRight" || e.key === " ") onNext();
       if (e.key === "ArrowLeft") onPrev();
+      if (e.key === "i") setShowInfo(v => !v);
     };
     window.addEventListener("keydown", onKey);
     return () => window.removeEventListener("keydown", onKey);
@@ -424,7 +426,7 @@ function PresentationModal({
 
   useEffect(() => {
     if (!autoPlay) return;
-    const timer = setInterval(onNext, 4000);
+    const timer = setInterval(onNext, 5000);
     return () => clearInterval(timer);
   }, [autoPlay, onNext]);
 
@@ -438,34 +440,48 @@ function PresentationModal({
 
   if (!current) return null;
 
+  const dayFull: Record<TripDayId, string> = {
+    "za-3": "Zaterdag 3 oktober",
+    "zo-4": "Zondag 4 oktober", 
+    "ma-5": "Maandag 5 oktober",
+    "di-6": "Dinsdag 6 oktober",
+    "wo-7": "Woensdag 7 oktober",
+  };
+
   return (
     <div
-      className="fixed inset-0 z-[100] flex flex-col bg-black"
+      className="fixed inset-0 z-[100] flex flex-col bg-gradient-to-b from-[#0a1628] via-[#061018] to-[#030810]"
       role="dialog"
       aria-modal="true"
     >
       {/* Header */}
       <div
-        className="flex shrink-0 items-center justify-between px-3"
-        style={{ paddingTop: "max(0.75rem, env(safe-area-inset-top))" }}
+        className="flex shrink-0 items-center justify-between px-4"
+        style={{ paddingTop: "max(1rem, env(safe-area-inset-top))" }}
       >
-        <div className="text-sm text-white/70">
-          {currentIndex + 1} / {uploads.length}
+        <div className="flex items-center gap-3">
+          <span className="text-2xl">🇲🇹</span>
+          <div>
+            <p className="text-xs font-semibold uppercase tracking-widest text-[#c9a227]">Malta 2026</p>
+            <p className="text-sm text-white/50">{currentIndex + 1} van {uploads.length}</p>
+          </div>
         </div>
         <div className="flex items-center gap-2">
           <button
             type="button"
             onClick={() => setAutoPlay(!autoPlay)}
-            className={`rounded-full px-3 py-1.5 text-xs font-semibold ${
-              autoPlay ? "bg-[#c9a227] text-[#0b1f3a]" : "bg-white/15 text-white"
+            className={`rounded-full px-4 py-2 text-xs font-semibold transition-all ${
+              autoPlay 
+                ? "bg-[#c9a227] text-[#0b1f3a] shadow-lg shadow-[#c9a227]/30" 
+                : "bg-white/10 text-white hover:bg-white/20"
             }`}
           >
-            {autoPlay ? "■ Stop" : "▶ Auto"}
+            {autoPlay ? "■ Stop" : "▶ Diashow"}
           </button>
           <button
             type="button"
             onClick={onClose}
-            className="flex h-10 w-10 items-center justify-center rounded-full bg-white/15 text-xl text-white"
+            className="flex h-10 w-10 items-center justify-center rounded-full bg-white/10 text-xl text-white hover:bg-white/20"
             aria-label="Sluiten"
           >
             ×
@@ -473,41 +489,106 @@ function PresentationModal({
         </div>
       </div>
 
-      {/* Media */}
-      <div className="flex flex-1 items-center justify-center px-2" onClick={onNext}>
-        {current.fileType.startsWith("video/") ? (
-          <video
-            key={current.id}
-            src={current.url || current.data}
-            className="max-h-full max-w-full object-contain"
-            controls
-            autoPlay
-            playsInline
-          />
-        ) : (
-          // eslint-disable-next-line @next/next/no-img-element
-          <img
-            key={current.id}
-            src={current.url || current.data}
-            alt={current.caption || current.fileName}
-            className="max-h-full max-w-full object-contain"
-          />
-        )}
+      {/* Media container */}
+      <div className="relative flex flex-1 items-center justify-center p-4">
+        {/* Navigation areas */}
+        <button
+          type="button"
+          onClick={(e) => { e.stopPropagation(); onPrev(); }}
+          className="absolute left-0 top-0 z-10 flex h-full w-16 items-center justify-start pl-2 text-white/30 hover:text-white/70"
+          aria-label="Vorige"
+        >
+          <span className="text-3xl">‹</span>
+        </button>
+        <button
+          type="button"
+          onClick={(e) => { e.stopPropagation(); onNext(); }}
+          className="absolute right-0 top-0 z-10 flex h-full w-16 items-center justify-end pr-2 text-white/30 hover:text-white/70"
+          aria-label="Volgende"
+        >
+          <span className="text-3xl">›</span>
+        </button>
+
+        {/* Media */}
+        <div className="relative max-h-full max-w-full overflow-hidden rounded-2xl shadow-2xl shadow-black/50">
+          {current.fileType.startsWith("video/") ? (
+            <video
+              key={current.id}
+              src={current.url || current.data}
+              className="max-h-[65vh] max-w-full object-contain"
+              controls
+              autoPlay
+              playsInline
+            />
+          ) : (
+            // eslint-disable-next-line @next/next/no-img-element
+            <img
+              key={current.id}
+              src={current.url || current.data}
+              alt={current.caption || current.fileName}
+              className="max-h-[65vh] max-w-full object-contain"
+            />
+          )}
+        </div>
       </div>
 
-      {/* Info */}
-      <div
-        className="shrink-0 px-4 pb-4 text-center"
-        style={{ paddingBottom: "max(1rem, env(safe-area-inset-bottom))" }}
-      >
-        {current.caption && (
-          <p className="text-base font-semibold text-white">{current.caption}</p>
-        )}
-        <p className="text-sm text-white/60">
-          {current.day ? TRIP_DAY_LABELS[current.day] + " · " : ""}
-          {current.user === "benno" ? "Benno" : "Erik"}
-        </p>
-      </div>
+      {/* Info panel */}
+      {showInfo && (
+        <div
+          className="shrink-0 px-6 pb-6"
+          style={{ paddingBottom: "max(1.5rem, env(safe-area-inset-bottom))" }}
+        >
+          <div className="mx-auto max-w-lg rounded-2xl bg-white/5 p-5 backdrop-blur-sm">
+            {current.day && (
+              <p className="text-xs font-semibold uppercase tracking-widest text-[#c9a227]">
+                {dayFull[current.day]}
+              </p>
+            )}
+            {current.caption ? (
+              <p className="mt-2 text-xl font-bold leading-tight text-white">
+                {current.caption}
+              </p>
+            ) : (
+              <p className="mt-2 text-lg text-white/50 italic">
+                Geen beschrijving
+              </p>
+            )}
+            <div className="mt-3 flex items-center gap-2">
+              <div className={`h-8 w-8 rounded-full ${current.user === "erik" ? "bg-blue-500" : "bg-green-500"} flex items-center justify-center text-sm font-bold text-white`}>
+                {current.user === "erik" ? "E" : "B"}
+              </div>
+              <div>
+                <p className="text-sm font-medium text-white">
+                  {current.user === "erik" ? "Erik" : "Benno"}
+                </p>
+                <p className="text-xs text-white/50">Fotograaf</p>
+              </div>
+            </div>
+          </div>
+        </div>
+      )}
+
+      {/* Progress dots */}
+      {uploads.length <= 20 && (
+        <div className="absolute bottom-2 left-1/2 flex -translate-x-1/2 gap-1.5" style={{ paddingBottom: "env(safe-area-inset-bottom)" }}>
+          {uploads.map((_, i) => (
+            <button
+              key={i}
+              type="button"
+              onClick={() => {
+                const diff = i - currentIndex;
+                if (diff > 0) for (let j = 0; j < diff; j++) onNext();
+                else for (let j = 0; j < -diff; j++) onPrev();
+              }}
+              className={`h-1.5 rounded-full transition-all ${
+                i === currentIndex 
+                  ? "w-6 bg-[#c9a227]" 
+                  : "w-1.5 bg-white/30 hover:bg-white/50"
+              }`}
+            />
+          ))}
+        </div>
+      )}
     </div>
   );
 }
