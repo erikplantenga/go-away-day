@@ -288,11 +288,13 @@ export function MpQuiz({ onOpenNews }: { onOpenNews?: () => void }) {
     }
   }, [now, sheet, screen, board.open]);
 
+  // Champion popup is shown manually via the Eindstand button, not automatically
   useEffect(() => {
     if (!live || !board.championReady || championShown.current) return;
     championShown.current = true;
-    setChampion(true);
-    setBoot(false);
+    // Don't auto-show champion popup - user can see it via Eindstand
+    // setChampion(true);
+    // setBoot(false);
   }, [live, board.championReady]);
 
   useEffect(() => {
