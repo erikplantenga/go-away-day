@@ -6,6 +6,7 @@ import {
   signUpload,
   isCloudinaryConfigured,
   testCloudinary,
+  setPhotoLike,
   type PhotoMeta,
 } from "@/lib/cloudinary-storage";
 
@@ -101,6 +102,15 @@ export async function POST(req: NextRequest) {
         if (!id) return NextResponse.json({ error: "Geen foto ID" }, { status: 400 });
         const success = await deletePhoto(id);
         if (!success) return NextResponse.json({ error: "Verwijderen mislukt" }, { status: 500 });
+        return NextResponse.json({ success: true });
+      }
+
+      if (op === "like") {
+        const photoId = body.photoId as string;
+        const liked = body.liked as boolean | null;
+        if (!photoId) return NextResponse.json({ error: "Geen foto ID" }, { status: 400 });
+        const success = await setPhotoLike(photoId, who as "erik" | "benno", liked);
+        if (!success) return NextResponse.json({ error: "Like opslaan mislukt" }, { status: 500 });
         return NextResponse.json({ success: true });
       }
 

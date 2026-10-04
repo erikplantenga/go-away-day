@@ -14,6 +14,7 @@ export type PhotoMeta = {
   thumbUrl: string;
   fullUrl: string;
   location?: string;
+  likes?: { erik?: boolean; benno?: boolean };
 };
 
 function parseCloudinaryUrl(): { cloudName: string; apiKey: string; apiSecret: string } | null {
@@ -125,6 +126,36 @@ export async function deletePhoto(id: string): Promise<boolean> {
     return true;
   } catch (e) {
     console.error("deletePhoto error:", e);
+    return false;
+  }
+}
+
+export async function setPhotoLike(
+  photoId: string,
+  user: "erik" | "benno",
+  liked: boolean | null
+): Promise<boolean> {
+  const db = await firestore();
+  if (!db) return false;
+
+  try {
+    const docRef = db.collection("photos").doc(photoId);
+    const doc = await docRef.get();
+    if (!doc.exists) return false;
+
+    const data = doc.data() as PhotoMeta;
+    const likes = data.likes || {};
+    
+    if (liked === null) {
+      delete likes[user];
+    } else {
+      likes[user] = liked;
+    }
+
+    await docRef.update({ likes });
+    return true;
+  } catch (e) {
+    console.error("setPhotoLike error:", e);
     return false;
   }
 }

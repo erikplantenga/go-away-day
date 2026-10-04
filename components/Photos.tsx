@@ -10,6 +10,7 @@ type PhotoMeta = {
   uploadedAt: string;
   thumbUrl: string;
   fullUrl: string;
+  likes?: { erik?: boolean; benno?: boolean };
 };
 
 const DAYS = [
@@ -41,6 +42,47 @@ export function Photos() {
   const [locationName, setLocationName] = useState<string | null>(null);
   const [loadingLocation, setLoadingLocation] = useState(false);
   const fileRef = useRef<HTMLInputElement>(null);
+
+  const handleLike = async (photoId: string, liked: boolean | null) => {
+    if (!who || !password) {
+      setError("Log eerst in om te liken");
+      return;
+    }
+    try {
+      const res = await fetch("/api/photos", {
+        method: "POST",
+        headers: { "Content-Type": "application/json" },
+        body: JSON.stringify({ op: "like", who, password, photoId, liked }),
+      });
+      if (res.ok) {
+        // Update local state
+        setPhotos(prev => prev.map(p => {
+          if (p.id !== photoId) return p;
+          const likes = { ...p.likes };
+          if (liked === null) {
+            delete likes[who as "erik" | "benno"];
+          } else {
+            likes[who as "erik" | "benno"] = liked;
+          }
+          return { ...p, likes };
+        }));
+        if (viewPhoto?.id === photoId) {
+          setViewPhoto(prev => {
+            if (!prev) return prev;
+            const likes = { ...prev.likes };
+            if (liked === null) {
+              delete likes[who as "erik" | "benno"];
+            } else {
+              likes[who as "erik" | "benno"] = liked;
+            }
+            return { ...prev, likes };
+          });
+        }
+      }
+    } catch {
+      // Silent fail
+    }
+  };
 
   const readExifLocation = async (file: File): Promise<{ lat: number; lng: number } | null> => {
     return new Promise((resolve) => {
@@ -480,8 +522,20 @@ export function Photos() {
                   loading="lazy"
                 />
                 <div className="absolute inset-x-0 bottom-0 bg-gradient-to-t from-black/80 to-transparent px-2 pb-2 pt-6">
-                  <p className="text-xs font-semibold text-white">{photo.uploader === "erik" ? "Erik" : "Benno"}</p>
-                  <p className="truncate text-xs text-white/70">{dayLabel(photo.day)}</p>
+                  <div className="flex items-center justify-between">
+                    <div>
+                      <p className="text-xs font-semibold text-white">{photo.uploader === "erik" ? "Erik" : "Benno"}</p>
+                      <p className="truncate text-xs text-white/70">{dayLabel(photo.day)}</p>
+                    </div>
+                    {(photo.likes?.erik !== undefined || photo.likes?.benno !== undefined) && (
+                      <div className="flex gap-0.5 text-sm">
+                        {photo.likes?.erik === true && <span>👍</span>}
+                        {photo.likes?.erik === false && <span>👎</span>}
+                        {photo.likes?.benno === true && <span>👍</span>}
+                        {photo.likes?.benno === false && <span>👎</span>}
+                      </div>
+                    )}
+                  </div>
                 </div>
               </button>
             ))}
@@ -650,6 +704,16 @@ export function Photos() {
               {viewPhoto.caption && (
                 <p className="mt-1 text-sm text-white/80">{viewPhoto.caption}</p>
               )}
+              
+              {/* Like/Dislike buttons */}
+              <div className="mt-3 flex items-center gap-3">
+                <LikeButtons
+                  likes={viewPhoto.likes}
+                  currentUser={who || null}
+                  onLike={(liked) => handleLike(viewPhoto.id, liked)}
+                />
+                <LikeSummary likes={viewPhoto.likes} />
+              </div>
             </div>
           </div>
         </div>
@@ -844,6 +908,75 @@ function PresentationModal({
             />
           ))}
         </div>
+      )}
+    </div>
+  );
+}
+
+function LikeButtons({
+  likes,
+  currentUser,
+  onLike,
+}: {
+  likes?: { erik?: boolean; benno?: boolean };
+  currentUser: "erik" | "benno" | null;
+  onLike: (liked: boolean | null) => void;
+}) {
+  if (!currentUser) {
+    return (
+      <p className="text-xs text-white/40">Log in om te liken</p>
+    );
+  }
+
+  const myLike = likes?.[currentUser];
+
+  return (
+    <div className="flex gap-2">
+      <button
+        type="button"
+        onClick={() => onLike(myLike === true ? null : true)}
+        className={`flex h-10 w-10 items-center justify-center rounded-full text-lg transition-all ${
+          myLike === true
+            ? "bg-green-500 text-white scale-110"
+            : "bg-white/10 text-white/60 hover:bg-white/20"
+        }`}
+      >
+        👍
+      </button>
+      <button
+        type="button"
+        onClick={() => onLike(myLike === false ? null : false)}
+        className={`flex h-10 w-10 items-center justify-center rounded-full text-lg transition-all ${
+          myLike === false
+            ? "bg-red-500 text-white scale-110"
+            : "bg-white/10 text-white/60 hover:bg-white/20"
+        }`}
+      >
+        👎
+      </button>
+    </div>
+  );
+}
+
+function LikeSummary({ likes }: { likes?: { erik?: boolean; benno?: boolean } }) {
+  if (!likes) return null;
+  
+  const erikLike = likes.erik;
+  const bennoLike = likes.benno;
+  
+  if (erikLike === undefined && bennoLike === undefined) return null;
+
+  return (
+    <div className="flex items-center gap-2 text-sm">
+      {erikLike !== undefined && (
+        <span className={erikLike ? "text-green-400" : "text-red-400"}>
+          Erik {erikLike ? "👍" : "👎"}
+        </span>
+      )}
+      {bennoLike !== undefined && (
+        <span className={bennoLike ? "text-green-400" : "text-red-400"}>
+          Benno {bennoLike ? "👍" : "👎"}
+        </span>
       )}
     </div>
   );
