@@ -11,6 +11,7 @@ type PhotoMeta = {
   thumbUrl: string;
   fullUrl: string;
   likeCount?: number;
+  isVideo?: boolean;
 };
 
 const DAYS = [
@@ -42,6 +43,13 @@ export function Photos() {
   const [locationName, setLocationName] = useState<string | null>(null);
   const [loadingLocation, setLoadingLocation] = useState(false);
   const [likedPhotos, setLikedPhotos] = useState<Set<string>>(new Set());
+  const [showDeleteConfirm, setShowDeleteConfirm] = useState(false);
+  const [deleting, setDeleting] = useState(false);
+  const [editMode, setEditMode] = useState(false);
+  const [editDay, setEditDay] = useState("");
+  const [editCaption, setEditCaption] = useState("");
+  const [saving, setSaving] = useState(false);
+  const [touchStart, setTouchStart] = useState<number | null>(null);
   const fileRef = useRef<HTMLInputElement>(null);
 
   useEffect(() => {
@@ -50,6 +58,101 @@ export function Photos() {
       if (stored) setLikedPhotos(new Set(JSON.parse(stored)));
     } catch {}
   }, []);
+
+  const filtered = photos;
+  const viewPhotoIndex = viewPhoto ? filtered.findIndex(p => p.id === viewPhoto.id) : -1;
+
+  const goToPrevPhoto = () => {
+    if (viewPhotoIndex > 0) {
+      setViewPhoto(filtered[viewPhotoIndex - 1]);
+    } else if (filtered.length > 0) {
+      setViewPhoto(filtered[filtered.length - 1]);
+    }
+  };
+
+  const goToNextPhoto = () => {
+    if (viewPhotoIndex < filtered.length - 1) {
+      setViewPhoto(filtered[viewPhotoIndex + 1]);
+    } else if (filtered.length > 0) {
+      setViewPhoto(filtered[0]);
+    }
+  };
+
+  const handleTouchStart = (e: React.TouchEvent) => {
+    setTouchStart(e.touches[0].clientX);
+  };
+
+  const handleTouchEnd = (e: React.TouchEvent) => {
+    if (touchStart === null) return;
+    const diff = e.changedTouches[0].clientX - touchStart;
+    if (Math.abs(diff) > 50) {
+      if (diff > 0) goToPrevPhoto();
+      else goToNextPhoto();
+    }
+    setTouchStart(null);
+  };
+
+  const handleDelete = async () => {
+    if (!viewPhoto || !who || !password) return;
+    setDeleting(true);
+    try {
+      const res = await fetch("/api/photos", {
+        method: "POST",
+        headers: { "Content-Type": "application/json" },
+        body: JSON.stringify({ op: "delete", id: viewPhoto.id, who, password }),
+      });
+      if (res.ok) {
+        setPhotos(prev => prev.filter(p => p.id !== viewPhoto.id));
+        setViewPhoto(null);
+        setShowDeleteConfirm(false);
+      } else {
+        const data = await res.json();
+        setError(data.error || "Verwijderen mislukt");
+      }
+    } catch {
+      setError("Verwijderen mislukt");
+    } finally {
+      setDeleting(false);
+    }
+  };
+
+  const handleEdit = () => {
+    if (!viewPhoto) return;
+    setEditDay(viewPhoto.day);
+    setEditCaption(viewPhoto.caption);
+    setEditMode(true);
+  };
+
+  const handleSaveEdit = async () => {
+    if (!viewPhoto || !who || !password) return;
+    setSaving(true);
+    try {
+      const res = await fetch("/api/photos", {
+        method: "POST",
+        headers: { "Content-Type": "application/json" },
+        body: JSON.stringify({
+          op: "update",
+          id: viewPhoto.id,
+          who,
+          password,
+          updates: { day: editDay, caption: editCaption },
+        }),
+      });
+      if (res.ok) {
+        const updated = { ...viewPhoto, day: editDay, caption: editCaption };
+        setPhotos(prev => prev.map(p => p.id === viewPhoto.id ? updated : p));
+        setViewPhoto(updated);
+        setEditMode(false);
+      } else {
+        const data = await res.json();
+        setError(data.error || "Opslaan mislukt");
+      }
+    } catch {
+      setError("Opslaan mislukt");
+    } finally {
+      setSaving(false);
+    }
+  };
 
   const handleLike = async (photoId: string) => {
     const isLiked = likedPhotos.has(photoId);
@@ -324,7 +427,7 @@ export function Photos() {
   const handleUpload = async () => {
     const file = fileRef.current?.files?.[0];
     if (!file) {
-      setError("Selecteer eerst een foto");
+      setError("Selecteer eerst een foto of video");
       return;
     }
     if (!who) {
@@ -340,18 +443,20 @@ export function Photos() {
       return;
     }
 
+    const isVideo = file.type.startsWith("video/");
+    
     setUploading(true);
     setUploadProgress(0);
     setError("");
 
     let uploadFile: Blob = file;
     
-    if (file.type.startsWith("image/") && file.size > 2 * 1024 * 1024) {
+    if (!isVideo && file.size > 2 * 1024 * 1024) {
       try {
         setUploadProgress(5);
         uploadFile = await compressImage(file, 2);
         setUploadProgress(10);
-      } catch (e) {
+      } catch {
         setError("Foto comprimeren mislukt");
         setUploading(false);
         return;
@@ -364,7 +469,7 @@ export function Photos() {
       const signRes = await fetch("/api/photos", {
         method: "POST",
         headers: { "Content-Type": "application/json" },
-        body: JSON.stringify({ op: "sign", who, password }),
+        body: JSON.stringify({ op: isVideo ? "sign-video" : "sign", who, password }),
       });
       const signed = await signRes.json();
       if (!signRes.ok) {
@@ -400,10 +505,9 @@ export function Photos() {
 
             setUploadProgress(95);
             const publicId = data.public_id as string;
-            const thumbUrl = data.secure_url.replace(
-              "/upload/",
-              "/upload/c_fill,w_400,h_400,q_auto,f_auto/",
-            );
+            const thumbUrl = isVideo
+              ? data.secure_url.replace("/upload/", "/upload/c_fill,w_400,h_400,q_auto,f_jpg,so_0/")
+              : data.secure_url.replace("/upload/", "/upload/c_fill,w_400,h_400,q_auto,f_auto/");
 
             // 3) Bewaar metadata in Firestore (gedeeld voor Erik & Benno)
             const saveRes = await fetch("/api/photos", {
@@ -420,12 +524,13 @@ export function Photos() {
                   location: locationName || "",
                   thumbUrl,
                   fullUrl: data.secure_url,
+                  isVideo,
                 },
               }),
             });
             const saved = await saveRes.json();
             if (!saveRes.ok) {
-              setError(saved.error || "Foto geüpload, maar opslaan mislukt");
+              setError(saved.error || (isVideo ? "Video" : "Foto") + " geüpload, maar opslaan mislukt");
               reject(new Error("save"));
               return;
             }
@@ -447,7 +552,8 @@ export function Photos() {
           setError("Geen verbinding met Cloudinary");
           reject(new Error("network"));
         });
-        xhr.open("POST", `https://api.cloudinary.com/v1_1/${signed.cloudName}/image/upload`);
+        const resourceType = isVideo ? "video" : "image";
+        xhr.open("POST", `https://api.cloudinary.com/v1_1/${signed.cloudName}/${resourceType}/upload`);
         xhr.send(cloudinaryData);
       });
     } catch {
@@ -461,8 +567,6 @@ export function Photos() {
     const found = DAYS.find((d) => d.value === dateStr);
     return found?.label ?? dateStr;
   };
-
-  const filtered = photos;
 
   return (
     <>
@@ -528,6 +632,11 @@ export function Photos() {
                   className="h-full w-full object-cover transition-transform group-active:scale-[0.98]"
                   loading="lazy"
                 />
+                {photo.isVideo && (
+                  <div className="absolute left-2 top-2 flex h-8 w-8 items-center justify-center rounded-full bg-black/60 text-white">
+                    ▶
+                  </div>
+                )}
                 <div className="absolute inset-x-0 bottom-0 bg-gradient-to-t from-black/80 to-transparent px-2 pb-2 pt-6">
                   <div className="flex items-center justify-between">
                     <div>
@@ -614,11 +723,11 @@ export function Photos() {
               </div>
 
               <div>
-                <p className="mb-2 text-sm font-semibold text-white/80">Foto</p>
+                <p className="mb-2 text-sm font-semibold text-white/80">Foto of video</p>
                 <input
                   ref={fileRef}
                   type="file"
-                  accept="image/*"
+                  accept="image/*,video/*"
                   onChange={handleFileSelect}
                   className="w-full text-sm text-white file:mr-3 file:rounded-lg file:border-0 file:bg-white/10 file:px-4 file:py-2 file:text-sm file:font-semibold file:text-white"
                 />
@@ -671,55 +780,253 @@ export function Photos() {
       )}
 
       {viewPhoto && (
-        <div className="fixed inset-0 z-[90] flex flex-col bg-black" role="dialog" aria-modal="true">
+        <div 
+          className="fixed inset-0 z-[90] flex flex-col bg-black" 
+          role="dialog" 
+          aria-modal="true"
+          onTouchStart={handleTouchStart}
+          onTouchEnd={handleTouchEnd}
+        >
           <div
             className="flex shrink-0 items-center justify-between gap-2 px-3 pb-2"
             style={{ paddingTop: "max(0.75rem, env(safe-area-inset-top))" }}
           >
             <button
               type="button"
-              onClick={() => setViewPhoto(null)}
+              onClick={() => { setViewPhoto(null); setEditMode(false); setShowDeleteConfirm(false); }}
               className="inline-tap flex min-h-11 items-center rounded-full bg-white/15 px-4 text-sm font-semibold text-white"
             >
               ← Terug
             </button>
-            <a
-              href={viewPhoto.fullUrl}
-              download={`malta-${viewPhoto.day}-${viewPhoto.id}.jpg`}
-              target="_blank"
-              rel="noopener noreferrer"
-              className="inline-tap flex min-h-11 items-center rounded-full bg-[#c9a227] px-4 text-sm font-bold text-[#0b1f3a]"
-            >
-              ⬇ Download HD
-            </a>
-          </div>
-          <div className="flex min-h-0 flex-1 flex-col">
-            <div className="flex flex-1 items-center justify-center px-2">
-              {/* eslint-disable-next-line @next/next/no-img-element */}
-              <img
-                src={viewPhoto.fullUrl}
-                alt={viewPhoto.caption || "Foto"}
-                className="max-h-full max-w-full object-contain"
-              />
+            <div className="flex gap-2">
+              <button
+                type="button"
+                onClick={handleEdit}
+                className="inline-tap flex min-h-11 items-center rounded-full bg-white/15 px-3 text-sm font-semibold text-white"
+              >
+                ✏️
+              </button>
+              <button
+                type="button"
+                onClick={() => setShowDeleteConfirm(true)}
+                className="inline-tap flex min-h-11 items-center rounded-full bg-red-500/80 px-3 text-sm font-semibold text-white"
+              >
+                🗑️
+              </button>
             </div>
+          </div>
+          
+          <div className="flex min-h-0 flex-1 flex-col relative">
+            {/* Navigation arrows */}
+            {filtered.length > 1 && (
+              <>
+                <button
+                  type="button"
+                  onClick={goToPrevPhoto}
+                  className="absolute left-0 top-1/2 z-10 -translate-y-1/2 p-4 text-3xl text-white/40 active:text-white"
+                >
+                  ‹
+                </button>
+                <button
+                  type="button"
+                  onClick={goToNextPhoto}
+                  className="absolute right-0 top-1/2 z-10 -translate-y-1/2 p-4 text-3xl text-white/40 active:text-white"
+                >
+                  ›
+                </button>
+              </>
+            )}
+            
+            <div className="flex flex-1 items-center justify-center px-10">
+              {viewPhoto.isVideo ? (
+                <video
+                  src={viewPhoto.fullUrl}
+                  controls
+                  playsInline
+                  className="max-h-full max-w-full object-contain"
+                />
+              ) : (
+                // eslint-disable-next-line @next/next/no-img-element
+                <img
+                  src={viewPhoto.fullUrl}
+                  alt={viewPhoto.caption || "Foto"}
+                  className="max-h-full max-w-full object-contain"
+                />
+              )}
+            </div>
+            
             <div className="shrink-0 px-4 pb-[max(1rem,env(safe-area-inset-bottom))] pt-3">
+              {filtered.length > 1 && (
+                <p className="mb-2 text-center text-xs text-white/50">
+                  {viewPhotoIndex + 1} / {filtered.length} · Swipe voor volgende
+                </p>
+              )}
               <p className="text-sm font-semibold text-white">
                 {viewPhoto.uploader === "erik" ? "Erik" : "Benno"} · {dayLabel(viewPhoto.day)}
+                {viewPhoto.isVideo && <span className="ml-2">🎬</span>}
               </p>
               {viewPhoto.caption && (
                 <p className="mt-1 text-sm text-white/80">{viewPhoto.caption}</p>
               )}
               
-              {/* Like button */}
-              <div className="mt-3">
+              <div className="mt-3 flex gap-2">
                 <LikeButton
                   likeCount={viewPhoto.likeCount ?? 0}
                   isLiked={likedPhotos.has(viewPhoto.id)}
                   onLike={() => handleLike(viewPhoto.id)}
                 />
+                <a
+                  href={viewPhoto.fullUrl}
+                  download={`malta-${viewPhoto.day}-${viewPhoto.id}${viewPhoto.isVideo ? ".mp4" : ".jpg"}`}
+                  target="_blank"
+                  rel="noopener noreferrer"
+                  className="inline-tap flex min-h-11 items-center rounded-full bg-[#c9a227] px-4 text-sm font-bold text-[#0b1f3a]"
+                >
+                  ⬇ Download
+                </a>
               </div>
             </div>
           </div>
+
+          {/* Edit Modal */}
+          {editMode && (
+            <div className="absolute inset-0 z-[95] flex items-center justify-center bg-black/80 p-4">
+              <div className="w-full max-w-sm rounded-2xl bg-[#0b1f3a] p-5">
+                <h3 className="text-lg font-bold text-white">Bewerken</h3>
+                
+                <div className="mt-4 space-y-3">
+                  <div>
+                    <p className="mb-1 text-sm text-white/70">Wie ben je?</p>
+                    <div className="grid grid-cols-2 gap-2">
+                      {(["erik", "benno"] as const).map((id) => (
+                        <button
+                          key={id}
+                          type="button"
+                          onClick={() => setWho(id)}
+                          className={`rounded-lg px-3 py-2 text-sm font-bold ${
+                            who === id ? "bg-[#c9a227] text-[#0b1f3a]" : "bg-white/10 text-white"
+                          }`}
+                        >
+                          {id === "erik" ? "Erik" : "Benno"}
+                        </button>
+                      ))}
+                    </div>
+                  </div>
+                  
+                  <input
+                    type="password"
+                    value={password}
+                    onChange={(e) => setPassword(e.target.value)}
+                    placeholder="Wachtwoord"
+                    className="min-h-10 w-full rounded-lg bg-white/10 px-3 text-white placeholder:text-white/40"
+                  />
+                  
+                  <div>
+                    <p className="mb-1 text-sm text-white/70">Dag</p>
+                    <select
+                      value={editDay}
+                      onChange={(e) => setEditDay(e.target.value)}
+                      className="min-h-10 w-full rounded-lg bg-white/10 px-3 text-white"
+                    >
+                      {DAYS.map((d) => (
+                        <option key={d.value} value={d.value} className="bg-[#0b1f3a]">
+                          {d.label}
+                        </option>
+                      ))}
+                    </select>
+                  </div>
+                  
+                  <div>
+                    <p className="mb-1 text-sm text-white/70">Beschrijving</p>
+                    <textarea
+                      value={editCaption}
+                      onChange={(e) => setEditCaption(e.target.value)}
+                      rows={2}
+                      className="w-full rounded-lg bg-white/10 px-3 py-2 text-white placeholder:text-white/40"
+                    />
+                  </div>
+                  
+                  {error && <p className="text-sm text-red-400">{error}</p>}
+                  
+                  <div className="flex gap-2 pt-2">
+                    <button
+                      type="button"
+                      onClick={() => { setEditMode(false); setError(""); }}
+                      className="flex-1 rounded-lg bg-white/10 py-2 text-sm font-semibold text-white"
+                    >
+                      Annuleren
+                    </button>
+                    <button
+                      type="button"
+                      onClick={handleSaveEdit}
+                      disabled={saving || !who || !password}
+                      className="flex-1 rounded-lg bg-[#c9a227] py-2 text-sm font-bold text-[#0b1f3a] disabled:opacity-50"
+                    >
+                      {saving ? "Opslaan..." : "Opslaan"}
+                    </button>
+                  </div>
+                </div>
+              </div>
+            </div>
+          )}
+
+          {/* Delete Confirmation */}
+          {showDeleteConfirm && (
+            <div className="absolute inset-0 z-[95] flex items-center justify-center bg-black/80 p-4">
+              <div className="w-full max-w-sm rounded-2xl bg-[#0b1f3a] p-5 text-center">
+                <p className="text-4xl">🗑️</p>
+                <h3 className="mt-3 text-lg font-bold text-white">Weet je het zeker?</h3>
+                <p className="mt-2 text-sm text-white/70">
+                  Deze {viewPhoto.isVideo ? "video" : "foto"} wordt permanent verwijderd.
+                </p>
+                
+                <div className="mt-4 space-y-3">
+                  <div className="grid grid-cols-2 gap-2">
+                    {(["erik", "benno"] as const).map((id) => (
+                      <button
+                        key={id}
+                        type="button"
+                        onClick={() => setWho(id)}
+                        className={`rounded-lg px-3 py-2 text-sm font-bold ${
+                          who === id ? "bg-[#c9a227] text-[#0b1f3a]" : "bg-white/10 text-white"
+                        }`}
+                      >
+                        {id === "erik" ? "Erik" : "Benno"}
+                      </button>
+                    ))}
+                  </div>
+                  
+                  <input
+                    type="password"
+                    value={password}
+                    onChange={(e) => setPassword(e.target.value)}
+                    placeholder="Wachtwoord"
+                    className="min-h-10 w-full rounded-lg bg-white/10 px-3 text-white placeholder:text-white/40"
+                  />
+                  
+                  {error && <p className="text-sm text-red-400">{error}</p>}
+                </div>
+                
+                <div className="mt-4 flex gap-2">
+                  <button
+                    type="button"
+                    onClick={() => { setShowDeleteConfirm(false); setError(""); }}
+                    className="flex-1 rounded-lg bg-white/10 py-3 text-sm font-semibold text-white"
+                  >
+                    Annuleren
+                  </button>
+                  <button
+                    type="button"
+                    onClick={handleDelete}
+                    disabled={deleting || !who || !password}
+                    className="flex-1 rounded-lg bg-red-500 py-3 text-sm font-bold text-white disabled:opacity-50"
+                  >
+                    {deleting ? "Verwijderen..." : "Verwijderen"}
+                  </button>
+                </div>
+              </div>
+            </div>
+          )}
         </div>
       )}
 

@@ -2,6 +2,7 @@ import { NextRequest, NextResponse } from "next/server";
 import {
   getPhotos,
   savePhotoMeta,
+  updatePhotoMeta,
   deletePhoto,
   signUpload,
   isCloudinaryConfigured,
@@ -115,6 +116,9 @@ export async function POST(req: NextRequest) {
         if (photo.location) {
           meta.location = String(photo.location);
         }
+        if (photo.isVideo) {
+          meta.isVideo = true;
+        }
         await savePhotoMeta(meta);
         return NextResponse.json({ photo: meta });
       }
@@ -125,6 +129,29 @@ export async function POST(req: NextRequest) {
         const success = await deletePhoto(id);
         if (!success) return NextResponse.json({ error: "Verwijderen mislukt" }, { status: 500 });
         return NextResponse.json({ success: true });
+      }
+
+      if (op === "update") {
+        const id = body.id as string;
+        const updates = body.updates as { day?: string; caption?: string } | undefined;
+        if (!id) return NextResponse.json({ error: "Geen foto ID" }, { status: 400 });
+        if (!updates) return NextResponse.json({ error: "Geen updates" }, { status: 400 });
+        const success = await updatePhotoMeta(id, updates);
+        if (!success) return NextResponse.json({ error: "Bijwerken mislukt" }, { status: 500 });
+        return NextResponse.json({ success: true });
+      }
+
+      if (op === "sign-video") {
+        if (!isCloudinaryConfigured()) {
+          const test = await testCloudinary();
+          return NextResponse.json(
+            { error: test.message || "Cloudinary niet geconfigureerd" },
+            { status: 503 },
+          );
+        }
+        const id = `${Date.now()}-${Math.random().toString(36).slice(2, 8)}`;
+        const signed = signUpload(id, "video");
+        return NextResponse.json({ ...signed, who });
       }
 
       return NextResponse.json({ error: "Onbekende actie" }, { status: 400 });

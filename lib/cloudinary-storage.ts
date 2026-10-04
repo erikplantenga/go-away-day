@@ -15,6 +15,7 @@ export type PhotoMeta = {
   fullUrl: string;
   location?: string;
   likeCount?: number;
+  isVideo?: boolean;
 };
 
 function parseCloudinaryUrl(): { cloudName: string; apiKey: string; apiSecret: string } | null {
@@ -40,7 +41,7 @@ export function getCloudinaryConfig() {
 }
 
 /** Signed params for browser direct upload */
-export function signUpload(publicId: string) {
+export function signUpload(publicId: string, resourceType: "image" | "video" = "image") {
   const config = parseCloudinaryUrl();
   if (!config) throw new Error("Cloudinary niet geconfigureerd");
 
@@ -58,6 +59,7 @@ export function signUpload(publicId: string) {
     signature,
     folder,
     publicId,
+    resourceType,
   };
 }
 
@@ -79,6 +81,32 @@ export async function savePhotoMeta(meta: PhotoMeta): Promise<void> {
   const db = await firestore();
   if (!db) throw new Error("Firestore niet geconfigureerd");
   await db.collection("photos").doc(meta.id).set(meta);
+}
+
+export async function updatePhotoMeta(
+  id: string,
+  updates: { day?: string; caption?: string }
+): Promise<boolean> {
+  const db = await firestore();
+  if (!db) return false;
+
+  try {
+    const docRef = db.collection("photos").doc(id);
+    const doc = await docRef.get();
+    if (!doc.exists) return false;
+
+    const updateData: Record<string, string> = {};
+    if (updates.day !== undefined) updateData.day = updates.day;
+    if (updates.caption !== undefined) updateData.caption = updates.caption;
+
+    if (Object.keys(updateData).length > 0) {
+      await docRef.update(updateData);
+    }
+    return true;
+  } catch (e) {
+    console.error("updatePhotoMeta error:", e);
+    return false;
+  }
 }
 
 export async function getPhotos(uploader?: "erik" | "benno"): Promise<PhotoMeta[]> {
