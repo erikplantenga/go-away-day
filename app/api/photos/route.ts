@@ -1,5 +1,5 @@
 import { NextRequest, NextResponse } from "next/server";
-import { getPhotos, uploadPhoto, deletePhoto, isStorageConfigured } from "@/lib/firebase-storage";
+import { getPhotos, uploadPhoto, deletePhoto, isCloudinaryConfigured } from "@/lib/cloudinary-storage";
 
 export const dynamic = "force-dynamic";
 
@@ -24,7 +24,7 @@ export async function GET(req: NextRequest) {
   const photos = await getPhotos(uploader);
   return NextResponse.json({
     photos,
-    storageReady: isStorageConfigured(),
+    storageReady: isCloudinaryConfigured(),
   });
 }
 
@@ -33,8 +33,8 @@ export async function POST(req: NextRequest) {
     return NextResponse.json({ error: "Geen foto's op static export" }, { status: 503 });
   }
 
-  if (!isStorageConfigured()) {
-    return NextResponse.json({ error: "Storage niet geconfigureerd" }, { status: 503 });
+  if (!isCloudinaryConfigured()) {
+    return NextResponse.json({ error: "Cloudinary niet geconfigureerd - voeg CLOUDINARY_URL toe in Vercel" }, { status: 503 });
   }
 
   try {
