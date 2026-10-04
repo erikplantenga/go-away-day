@@ -20,7 +20,8 @@ export interface MediaUploadEntry {
   fileName: string;
   fileType: string;
   url: string;
-  data?: string; // legacy base64 support
+  hdUrl?: string;
+  data?: string;
   uploadedAt: string;
   day?: TripDayId;
   caption?: string;
@@ -53,26 +54,30 @@ export async function uploadMedia(
     onProgress?: (progress: number) => void;
   }
 ): Promise<MediaUploadEntry> {
-  options?.onProgress?.(10);
+  options?.onProgress?.(5);
 
   const app = getFirebaseApp();
   if (!app) throw new Error("Firebase niet geconfigureerd");
 
-  // Resize image
-  const resized = await resizeImage(file, 1200);
-  options?.onProgress?.(30);
-
-  // Upload to Firebase Storage
   const storage = getStorage(app);
   const timestamp = Date.now();
   const safeFileName = file.name.replace(/[^a-zA-Z0-9.-]/g, "_");
-  const path = `uploads/${user}/${timestamp}_${safeFileName}`;
-  const storageRef = ref(storage, path);
+  const basePath = `uploads/${user}/${timestamp}`;
 
-  await uploadBytes(storageRef, resized);
-  options?.onProgress?.(70);
+  // Upload HD origineel
+  options?.onProgress?.(10);
+  const hdRef = ref(storage, `${basePath}_hd_${safeFileName}`);
+  await uploadBytes(hdRef, file);
+  const hdUrl = await getDownloadURL(hdRef);
+  
+  options?.onProgress?.(50);
 
-  const url = await getDownloadURL(storageRef);
+  // Upload preview (kleinere versie voor snelle weergave)
+  const preview = await resizeImage(file, 800);
+  const previewRef = ref(storage, `${basePath}_preview_${safeFileName}`);
+  await uploadBytes(previewRef, preview);
+  const url = await getDownloadURL(previewRef);
+
   options?.onProgress?.(85);
 
   const entry: MediaUploadEntry = {
@@ -81,6 +86,7 @@ export async function uploadMedia(
     fileName: file.name,
     fileType: file.type,
     url,
+    hdUrl,
     uploadedAt: new Date().toISOString(),
     day: options?.day,
     caption: options?.caption,
@@ -147,7 +153,7 @@ async function resizeImage(file: File, maxSize: number): Promise<Blob> {
       canvas.toBlob(
         (blob) => resolve(blob || file),
         "image/jpeg",
-        0.85
+        0.75
       );
     };
     img.onerror = () => resolve(file);

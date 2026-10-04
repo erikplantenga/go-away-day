@@ -22,6 +22,8 @@ export function MediaUpload() {
   const [showOptions, setShowOptions] = useState(false);
   const [day, setDay] = useState<TripDayId | null>(null);
   const [caption, setCaption] = useState("");
+  const [filter, setFilter] = useState<MediaUser | "all">("all");
+  const [pendingFiles, setPendingFiles] = useState<File[]>([]);
   const fileInputRef = useRef<HTMLInputElement>(null);
 
   useEffect(() => {
@@ -30,9 +32,19 @@ export function MediaUpload() {
       .catch(() => {});
   }, []);
 
-  const handleFileSelect = async (e: React.ChangeEvent<HTMLInputElement>) => {
+  const filteredUploads = filter === "all" 
+    ? uploads 
+    : uploads.filter(u => u.user === filter);
+
+  const handleFileSelect = (e: React.ChangeEvent<HTMLInputElement>) => {
     const files = e.target.files;
-    if (!files || files.length === 0 || !user) return;
+    if (!files || files.length === 0) return;
+    setPendingFiles(Array.from(files));
+    setShowOptions(true);
+  };
+
+  const handleUpload = async () => {
+    if (pendingFiles.length === 0 || !user) return;
 
     setUploading(true);
     setError(null);
@@ -40,13 +52,13 @@ export function MediaUpload() {
     setProgress(0);
 
     try {
-      for (let i = 0; i < files.length; i++) {
-        const file = files[i];
+      for (let i = 0; i < pendingFiles.length; i++) {
+        const file = pendingFiles[i];
         const newEntry = await uploadMedia(file, user, {
           day: day ?? undefined,
           caption: caption.trim() || undefined,
           onProgress: (p) => {
-            const overallProgress = ((i + p / 100) / files.length) * 100;
+            const overallProgress = ((i + p / 100) / pendingFiles.length) * 100;
             setProgress(overallProgress);
           },
         });
@@ -55,35 +67,42 @@ export function MediaUpload() {
       setSuccess(true);
       setCaption("");
       setDay(null);
+      setPendingFiles([]);
       setShowOptions(false);
+      if (fileInputRef.current) fileInputRef.current.value = "";
       setTimeout(() => setSuccess(false), 3000);
     } catch (err) {
       setError(err instanceof Error ? err.message : "Upload mislukt");
     } finally {
       setUploading(false);
       setProgress(0);
-      if (fileInputRef.current) {
-        fileInputRef.current.value = "";
-      }
     }
+  };
+
+  const cancelUpload = () => {
+    setPendingFiles([]);
+    setShowOptions(false);
+    setCaption("");
+    setDay(null);
+    if (fileInputRef.current) fileInputRef.current.value = "";
   };
 
   const triggerFileInput = () => {
     fileInputRef.current?.click();
   };
 
-  const startPresentation = () => {
-    if (uploads.length === 0) return;
-    setPresentationIndex(0);
+  const startPresentation = (startIndex = 0) => {
+    if (filteredUploads.length === 0) return;
+    setPresentationIndex(startIndex);
     setShowPresentation(true);
   };
 
   const nextSlide = () => {
-    setPresentationIndex((i) => (i + 1) % uploads.length);
+    setPresentationIndex((i) => (i + 1) % filteredUploads.length);
   };
 
   const prevSlide = () => {
-    setPresentationIndex((i) => (i - 1 + uploads.length) % uploads.length);
+    setPresentationIndex((i) => (i - 1 + filteredUploads.length) % filteredUploads.length);
   };
 
   const closePresentation = () => {
@@ -92,10 +111,9 @@ export function MediaUpload() {
 
   return (
     <div className="space-y-3 pb-4">
-      {/* Presentatie Modal */}
-      {showPresentation && uploads.length > 0 && (
+      {showPresentation && filteredUploads.length > 0 && (
         <PresentationModal
-          uploads={uploads}
+          uploads={filteredUploads}
           currentIndex={presentationIndex}
           onNext={nextSlide}
           onPrev={prevSlide}
@@ -103,7 +121,7 @@ export function MediaUpload() {
         />
       )}
 
-      {/* Wie ben je + Upload */}
+      {/* Upload sectie */}
       <div className="rounded-xl bg-white/5 p-4">
         <p className="text-sm font-semibold text-[#c9a227]">Wie ben je?</p>
         <div className="mt-3 flex gap-3">
@@ -142,39 +160,25 @@ export function MediaUpload() {
               className="hidden"
             />
 
-            <button
-              type="button"
-              onClick={triggerFileInput}
-              disabled={uploading}
-              className="mt-4 flex w-full items-center justify-center gap-2 rounded-xl bg-[#c9a227] py-3 text-sm font-bold text-[#0b1f3a] transition-all active:scale-[0.98] disabled:opacity-50"
-            >
-              <svg
-                className="h-5 w-5"
-                fill="none"
-                viewBox="0 0 24 24"
-                stroke="currentColor"
-                strokeWidth={2}
+            {pendingFiles.length === 0 ? (
+              <button
+                type="button"
+                onClick={triggerFileInput}
+                disabled={uploading}
+                className="mt-4 flex w-full items-center justify-center gap-2 rounded-xl bg-[#c9a227] py-3 text-sm font-bold text-[#0b1f3a] transition-all active:scale-[0.98] disabled:opacity-50"
               >
-                <path
-                  strokeLinecap="round"
-                  strokeLinejoin="round"
-                  d="M4 16l4.586-4.586a2 2 0 012.828 0L16 16m-2-2l1.586-1.586a2 2 0 012.828 0L20 14m-6-6h.01M6 20h12a2 2 0 002-2V6a2 2 0 00-2-2H6a2 2 0 00-2 2v12a2 2 0 002 2z"
-                />
-              </svg>
-              {uploading ? "Bezig..." : "Upload foto's"}
-            </button>
+                <svg className="h-5 w-5" fill="none" viewBox="0 0 24 24" stroke="currentColor" strokeWidth={2}>
+                  <path strokeLinecap="round" strokeLinejoin="round" d="M4 16l4.586-4.586a2 2 0 012.828 0L16 16m-2-2l1.586-1.586a2 2 0 012.828 0L20 14m-6-6h.01M6 20h12a2 2 0 002-2V6a2 2 0 00-2-2H6a2 2 0 00-2 2v12a2 2 0 002 2z" />
+                </svg>
+                Selecteer foto&apos;s
+              </button>
+            ) : (
+              <div className="mt-4 space-y-3">
+                <p className="text-sm text-white/70">
+                  {pendingFiles.length} bestand{pendingFiles.length > 1 ? "en" : ""} geselecteerd
+                </p>
 
-            {/* Optionele extra's - ingeklapt */}
-            <button
-              type="button"
-              onClick={() => setShowOptions(!showOptions)}
-              className="mt-2 w-full text-center text-xs text-white/50"
-            >
-              {showOptions ? "Minder opties ▲" : "Dag of naam toevoegen ▼"}
-            </button>
-
-            {showOptions && (
-              <div className="mt-3 space-y-3 border-t border-white/10 pt-3">
+                {/* Dag selectie */}
                 <div>
                   <p className="text-xs text-white/60">Welke dag?</p>
                   <div className="mt-2 flex flex-wrap gap-1.5">
@@ -194,6 +198,8 @@ export function MediaUpload() {
                     ))}
                   </div>
                 </div>
+
+                {/* Naam */}
                 <div>
                   <p className="text-xs text-white/60">Naam (optioneel)</p>
                   <input
@@ -203,6 +209,26 @@ export function MediaUpload() {
                     placeholder="Bijv. Sunset Blue Lagoon"
                     className="mt-1 w-full rounded-lg bg-white/10 px-3 py-2 text-sm text-white placeholder-white/40 outline-none"
                   />
+                </div>
+
+                {/* Knoppen */}
+                <div className="flex gap-2">
+                  <button
+                    type="button"
+                    onClick={cancelUpload}
+                    disabled={uploading}
+                    className="flex-1 rounded-xl bg-white/10 py-3 text-sm font-semibold text-white"
+                  >
+                    Annuleer
+                  </button>
+                  <button
+                    type="button"
+                    onClick={handleUpload}
+                    disabled={uploading}
+                    className="flex-1 rounded-xl bg-[#c9a227] py-3 text-sm font-bold text-[#0b1f3a] disabled:opacity-50"
+                  >
+                    {uploading ? "Bezig..." : "Opslaan"}
+                  </button>
                 </div>
               </div>
             )}
@@ -226,84 +252,80 @@ export function MediaUpload() {
 
             {success && (
               <p className="mt-3 rounded-lg bg-green-500/20 p-2 text-center text-sm text-green-300">
-                Gelukt!
+                Opgeslagen!
               </p>
             )}
           </>
         )}
       </div>
 
-      {/* Presentatie knop */}
+      {/* Filter en presentatie */}
       {uploads.length > 0 && (
-        <button
-          type="button"
-          onClick={startPresentation}
-          className="flex w-full items-center justify-center gap-2 rounded-xl bg-white py-3 text-sm font-bold text-[#0b1f3a] transition-all active:scale-[0.98]"
-        >
-          <svg
-            className="h-5 w-5"
-            fill="none"
-            viewBox="0 0 24 24"
-            stroke="currentColor"
-            strokeWidth={2}
+        <div className="flex items-center gap-2">
+          <div className="flex flex-1 rounded-lg bg-white/5 p-1">
+            {(["all", "benno", "erik"] as const).map((f) => (
+              <button
+                key={f}
+                type="button"
+                onClick={() => setFilter(f)}
+                className={`flex-1 rounded-md py-1.5 text-xs font-medium transition-all ${
+                  filter === f
+                    ? "bg-[#c9a227] text-[#0b1f3a]"
+                    : "text-white/70"
+                }`}
+              >
+                {f === "all" ? "Alles" : f === "benno" ? "Benno" : "Erik"}
+              </button>
+            ))}
+          </div>
+          <button
+            type="button"
+            onClick={() => startPresentation(0)}
+            className="flex items-center gap-1.5 rounded-lg bg-white px-3 py-2 text-xs font-bold text-[#0b1f3a]"
           >
-            <path
-              strokeLinecap="round"
-              strokeLinejoin="round"
-              d="M14.752 11.168l-3.197-2.132A1 1 0 0010 9.87v4.263a1 1 0 001.555.832l3.197-2.132a1 1 0 000-1.664z"
-            />
-            <path
-              strokeLinecap="round"
-              strokeLinejoin="round"
-              d="M21 12a9 9 0 11-18 0 9 9 0 0118 0z"
-            />
-          </svg>
-          Presentatie ({uploads.length})
-        </button>
+            <span>▶</span>
+            <span>{filteredUploads.length}</span>
+          </button>
+        </div>
       )}
 
-      {/* Grid met uploads */}
-      {uploads.length > 0 && (
+      {/* Grid */}
+      {filteredUploads.length > 0 && (
         <div className="grid grid-cols-3 gap-1.5">
-          {uploads.slice(0, 12).map((upload, i) => (
+          {filteredUploads.slice(0, 15).map((upload, i) => (
             <div
               key={upload.id || i}
               className="relative aspect-square overflow-hidden rounded-lg bg-black/30"
-              onClick={() => {
-                setPresentationIndex(i);
-                setShowPresentation(true);
-              }}
+              onClick={() => startPresentation(i)}
             >
-                {upload.fileType.startsWith("video/") ? (
-                  <video
-                    src={upload.url || upload.data}
-                    className="h-full w-full object-cover"
-                    muted
-                    playsInline
-                  />
-                ) : (
-                  // eslint-disable-next-line @next/next/no-img-element
-                  <img
-                    src={upload.url || upload.data}
-                    alt={upload.caption || upload.fileName}
-                    className="h-full w-full object-cover"
-                  />
-                )}
+              {upload.fileType.startsWith("video/") ? (
+                <video
+                  src={upload.url || upload.data}
+                  className="h-full w-full object-cover"
+                  muted
+                  playsInline
+                />
+              ) : (
+                // eslint-disable-next-line @next/next/no-img-element
+                <img
+                  src={upload.url || upload.data}
+                  alt={upload.caption || upload.fileName}
+                  className="h-full w-full object-cover"
+                />
+              )}
               <span className="absolute left-1 top-1 rounded bg-black/60 px-1 py-0.5 text-[9px] font-bold text-white">
                 {upload.user === "benno" ? "B" : "E"}
               </span>
               {upload.fileType.startsWith("video/") && (
-                <span className="absolute right-1 top-1 text-xs text-white drop-shadow">
-                  ▶
-                </span>
+                <span className="absolute right-1 top-1 text-xs text-white drop-shadow">▶</span>
               )}
             </div>
           ))}
         </div>
       )}
-      {uploads.length > 12 && (
+      {filteredUploads.length > 15 && (
         <p className="text-center text-xs text-white/50">
-          +{uploads.length - 12} meer
+          +{filteredUploads.length - 15} meer
         </p>
       )}
     </div>
@@ -388,10 +410,7 @@ function PresentationModal({
       </div>
 
       {/* Media */}
-      <div
-        className="flex flex-1 items-center justify-center px-2"
-        onClick={onNext}
-      >
+      <div className="flex flex-1 items-center justify-center px-2" onClick={onNext}>
         {current.fileType.startsWith("video/") ? (
           <video
             key={current.id}
