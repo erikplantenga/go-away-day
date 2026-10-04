@@ -237,12 +237,13 @@ export function Photos() {
     });
   };
 
-  const loadPhotos = async () => {
+  const loadPhotos = () => {
     try {
-      const url = filter === "all" ? "/api/photos" : `/api/photos?filter=${filter}`;
-      const res = await fetch(url);
-      const data = await res.json();
-      setPhotos(data.photos ?? []);
+      const stored = JSON.parse(localStorage.getItem("maltaPhotos") || "[]") as PhotoMeta[];
+      const filtered = filter === "all" 
+        ? stored 
+        : stored.filter(p => p.uploader === filter);
+      setPhotos(filtered);
     } catch {
       setPhotos([]);
     } finally {
@@ -306,12 +307,22 @@ export function Photos() {
     formData.append("caption", caption);
     formData.append("file", uploadFile, file.name);
 
+    // Direct upload naar Cloudinary (unsigned)
+    const cloudName = "lfj4hm44";
+    const uploadPreset = "go_away_day_unsigned";
+    
+    const cloudinaryData = new FormData();
+    cloudinaryData.append("file", uploadFile);
+    cloudinaryData.append("upload_preset", uploadPreset);
+    cloudinaryData.append("folder", "go-away-day");
+    cloudinaryData.append("context", `uploader=${who}|day=${day}|caption=${caption || ""}|location=${locationName || ""}`);
+
     const xhr = new XMLHttpRequest();
     
     xhr.upload.addEventListener("progress", (e) => {
       if (e.lengthComputable) {
         const pct = Math.round((e.loaded / e.total) * 100);
-        setUploadProgress(pct);
+        setUploadProgress(10 + Math.round(pct * 0.9)); // 10-100%
       }
     });
 
@@ -319,14 +330,28 @@ export function Photos() {
       setUploading(false);
       try {
         const data = JSON.parse(xhr.responseText);
-        if (xhr.status >= 200 && xhr.status < 300 && data.photo) {
+        if (xhr.status >= 200 && xhr.status < 300 && data.secure_url) {
+          // Sla foto info op in localStorage
+          const photos = JSON.parse(localStorage.getItem("maltaPhotos") || "[]");
+          photos.unshift({
+            id: data.public_id,
+            uploader: who,
+            day,
+            caption: caption || "",
+            location: locationName || "",
+            uploadedAt: new Date().toISOString(),
+            thumbUrl: data.secure_url.replace("/upload/", "/upload/c_fill,w_400,h_400,q_auto,f_auto/"),
+            fullUrl: data.secure_url,
+          });
+          localStorage.setItem("maltaPhotos", JSON.stringify(photos));
+          
           setShowUpload(false);
           setCaption("");
           setUploadProgress(0);
           if (fileRef.current) fileRef.current.value = "";
           loadPhotos();
         } else {
-          setError(data.error || "Upload mislukt");
+          setError(data.error?.message || "Upload mislukt");
         }
       } catch {
         setError("Onverwachte fout: " + xhr.status);
@@ -335,7 +360,7 @@ export function Photos() {
 
     xhr.addEventListener("error", () => {
       setUploading(false);
-      setError("Geen verbinding met server");
+      setError("Geen verbinding");
     });
 
     xhr.addEventListener("abort", () => {
@@ -343,8 +368,8 @@ export function Photos() {
       setError("Upload geannuleerd");
     });
 
-    xhr.open("POST", "/api/photos");
-    xhr.send(formData);
+    xhr.open("POST", `https://api.cloudinary.com/v1_1/${cloudName}/image/upload`);
+    xhr.send(cloudinaryData);
   };
 
   const dayLabel = (dateStr: string) => {
