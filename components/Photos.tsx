@@ -36,7 +36,150 @@ export function Photos() {
   const [password, setPassword] = useState("");
   const [day, setDay] = useState(DAYS[1].value);
   const [caption, setCaption] = useState("");
+  const [locationName, setLocationName] = useState<string | null>(null);
+  const [loadingLocation, setLoadingLocation] = useState(false);
   const fileRef = useRef<HTMLInputElement>(null);
+
+  const readExifLocation = async (file: File): Promise<{ lat: number; lng: number } | null> => {
+    return new Promise((resolve) => {
+      const reader = new FileReader();
+      reader.onload = (e) => {
+        const view = new DataView(e.target?.result as ArrayBuffer);
+        if (view.getUint16(0, false) !== 0xFFD8) {
+          resolve(null);
+          return;
+        }
+        
+        let offset = 2;
+        while (offset < view.byteLength) {
+          if (view.getUint16(offset, false) === 0xFFE1) {
+            const exifData = parseExif(view, offset + 4);
+            resolve(exifData);
+            return;
+          }
+          offset += 2 + view.getUint16(offset + 2, false);
+        }
+        resolve(null);
+      };
+      reader.onerror = () => resolve(null);
+      reader.readAsArrayBuffer(file.slice(0, 128 * 1024));
+    });
+  };
+
+  const parseExif = (view: DataView, start: number): { lat: number; lng: number } | null => {
+    try {
+      const exifMarker = String.fromCharCode(
+        view.getUint8(start), view.getUint8(start + 1),
+        view.getUint8(start + 2), view.getUint8(start + 3)
+      );
+      if (exifMarker !== "Exif") return null;
+
+      const tiffStart = start + 6;
+      const littleEndian = view.getUint16(tiffStart, false) === 0x4949;
+      const ifdOffset = view.getUint32(tiffStart + 4, littleEndian);
+      
+      const findGPS = (ifdStart: number): { lat: number; lng: number } | null => {
+        const entries = view.getUint16(ifdStart, littleEndian);
+        for (let i = 0; i < entries; i++) {
+          const entryOffset = ifdStart + 2 + i * 12;
+          const tag = view.getUint16(entryOffset, littleEndian);
+          if (tag === 0x8825) {
+            const gpsOffset = view.getUint32(entryOffset + 8, littleEndian);
+            return parseGPSIFD(tiffStart + gpsOffset, littleEndian, view, tiffStart);
+          }
+        }
+        return null;
+      };
+
+      return findGPS(tiffStart + ifdOffset);
+    } catch {
+      return null;
+    }
+  };
+
+  const parseGPSIFD = (
+    ifdStart: number,
+    littleEndian: boolean,
+    view: DataView,
+    tiffStart: number
+  ): { lat: number; lng: number } | null => {
+    try {
+      const entries = view.getUint16(ifdStart, littleEndian);
+      let lat = 0, lng = 0, latRef = "N", lngRef = "E";
+
+      for (let i = 0; i < entries; i++) {
+        const entryOffset = ifdStart + 2 + i * 12;
+        const tag = view.getUint16(entryOffset, littleEndian);
+        const valueOffset = view.getUint32(entryOffset + 8, littleEndian);
+
+        if (tag === 1) latRef = String.fromCharCode(view.getUint8(entryOffset + 8));
+        if (tag === 3) lngRef = String.fromCharCode(view.getUint8(entryOffset + 8));
+        if (tag === 2 || tag === 4) {
+          const offset = tiffStart + valueOffset;
+          const d = view.getUint32(offset, littleEndian) / view.getUint32(offset + 4, littleEndian);
+          const m = view.getUint32(offset + 8, littleEndian) / view.getUint32(offset + 12, littleEndian);
+          const s = view.getUint32(offset + 16, littleEndian) / view.getUint32(offset + 20, littleEndian);
+          const decimal = d + m / 60 + s / 3600;
+          if (tag === 2) lat = decimal;
+          if (tag === 4) lng = decimal;
+        }
+      }
+
+      if (lat && lng) {
+        return {
+          lat: latRef === "S" ? -lat : lat,
+          lng: lngRef === "W" ? -lng : lng,
+        };
+      }
+      return null;
+    } catch {
+      return null;
+    }
+  };
+
+  const reverseGeocode = async (lat: number, lng: number): Promise<string | null> => {
+    try {
+      const res = await fetch(
+        `https://nominatim.openstreetmap.org/reverse?lat=${lat}&lon=${lng}&format=json&zoom=16`,
+        { headers: { "Accept-Language": "nl" } }
+      );
+      const data = await res.json();
+      const addr = data.address || {};
+      const place = addr.tourism || addr.amenity || addr.building || addr.leisure || 
+                    addr.historic || addr.shop || addr.neighbourhood || addr.suburb || 
+                    addr.village || addr.town || addr.city || "";
+      const area = addr.suburb || addr.neighbourhood || addr.village || addr.town || addr.city || "";
+      if (place && place !== area) return `${place}, ${area}`;
+      return place || area || data.display_name?.split(",")[0] || null;
+    } catch {
+      return null;
+    }
+  };
+
+  const handleFileSelect = async () => {
+    const file = fileRef.current?.files?.[0];
+    if (!file) return;
+
+    setLoadingLocation(true);
+    setLocationName(null);
+
+    try {
+      const coords = await readExifLocation(file);
+      if (coords) {
+        const name = await reverseGeocode(coords.lat, coords.lng);
+        if (name) {
+          setLocationName(name);
+          if (!caption) {
+            setCaption(name);
+          }
+        }
+      }
+    } catch {
+      // No location found, that's ok
+    } finally {
+      setLoadingLocation(false);
+    }
+  };
 
   const compressImage = (file: File, maxSizeMB = 2): Promise<Blob> => {
     return new Promise((resolve, reject) => {
@@ -231,7 +374,11 @@ export function Photos() {
 
         <button
           type="button"
-          onClick={() => setShowUpload(true)}
+          onClick={() => {
+            setShowUpload(true);
+            setLocationName(null);
+            setCaption("");
+          }}
           className="flex min-h-11 w-full items-center justify-center gap-2 rounded-xl bg-[#c9a227] text-sm font-bold text-[#0b1f3a]"
         >
           <span className="text-lg">📷</span> Foto uploaden
@@ -332,9 +479,16 @@ export function Photos() {
                   ref={fileRef}
                   type="file"
                   accept="image/*"
+                  onChange={handleFileSelect}
                   className="w-full text-sm text-white file:mr-3 file:rounded-lg file:border-0 file:bg-white/10 file:px-4 file:py-2 file:text-sm file:font-semibold file:text-white"
                 />
-                <p className="mt-1 text-xs text-white/50">Kies uit camera of fotoalbum</p>
+                {loadingLocation ? (
+                  <p className="mt-1 text-xs text-[#c9a227]">📍 Locatie ophalen...</p>
+                ) : locationName ? (
+                  <p className="mt-1 text-xs text-[#c9a227]">📍 {locationName}</p>
+                ) : (
+                  <p className="mt-1 text-xs text-white/50">Kies uit camera of fotoalbum</p>
+                )}
               </div>
 
               <textarea
