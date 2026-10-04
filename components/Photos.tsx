@@ -10,7 +10,7 @@ type PhotoMeta = {
   uploadedAt: string;
   thumbUrl: string;
   fullUrl: string;
-  likes?: { erik?: boolean; benno?: boolean };
+  likeCount?: number;
 };
 
 const DAYS = [
@@ -43,36 +43,23 @@ export function Photos() {
   const [loadingLocation, setLoadingLocation] = useState(false);
   const fileRef = useRef<HTMLInputElement>(null);
 
-  const handleLike = async (photoId: string, liked: boolean | null, user: "erik" | "benno") => {
+  const handleLike = async (photoId: string) => {
     try {
       const res = await fetch("/api/photos", {
         method: "POST",
         headers: { "Content-Type": "application/json" },
-        body: JSON.stringify({ op: "like-public", user, photoId, liked }),
+        body: JSON.stringify({ op: "toggle-like", photoId }),
       });
       if (res.ok) {
+        const data = await res.json();
+        const newCount = data.likeCount as number;
         // Update local state
         setPhotos(prev => prev.map(p => {
           if (p.id !== photoId) return p;
-          const likes = { ...p.likes };
-          if (liked === null) {
-            delete likes[user];
-          } else {
-            likes[user] = liked;
-          }
-          return { ...p, likes };
+          return { ...p, likeCount: newCount };
         }));
         if (viewPhoto?.id === photoId) {
-          setViewPhoto(prev => {
-            if (!prev) return prev;
-            const likes = { ...prev.likes };
-            if (liked === null) {
-              delete likes[user];
-            } else {
-              likes[user] = liked;
-            }
-            return { ...prev, likes };
-          });
+          setViewPhoto(prev => prev ? { ...prev, likeCount: newCount } : prev);
         }
       }
     } catch {
@@ -523,12 +510,10 @@ export function Photos() {
                       <p className="text-xs font-semibold text-white">{photo.uploader === "erik" ? "Erik" : "Benno"}</p>
                       <p className="truncate text-xs text-white/70">{dayLabel(photo.day)}</p>
                     </div>
-                    {(photo.likes?.erik !== undefined || photo.likes?.benno !== undefined) && (
-                      <div className="flex gap-0.5 text-sm">
-                        {photo.likes?.erik === true && <span>👍</span>}
-                        {photo.likes?.erik === false && <span>👎</span>}
-                        {photo.likes?.benno === true && <span>👍</span>}
-                        {photo.likes?.benno === false && <span>👎</span>}
+                    {(photo.likeCount ?? 0) > 0 && (
+                      <div className="flex items-center gap-1 text-sm">
+                        <span>❤️</span>
+                        <span className="text-white font-medium">{photo.likeCount}</span>
                       </div>
                     )}
                   </div>
@@ -701,11 +686,11 @@ export function Photos() {
                 <p className="mt-1 text-sm text-white/80">{viewPhoto.caption}</p>
               )}
               
-              {/* Like/Dislike buttons */}
+              {/* Like button */}
               <div className="mt-3">
-                <LikeButtons
-                  likes={viewPhoto.likes}
-                  onLike={(liked, user) => handleLike(viewPhoto.id, liked, user)}
+                <LikeButton
+                  likeCount={viewPhoto.likeCount ?? 0}
+                  onLike={() => handleLike(viewPhoto.id)}
                 />
               </div>
             </div>
@@ -907,101 +892,21 @@ function PresentationModal({
   );
 }
 
-function LikeButtons({
-  likes,
+function LikeButton({
+  likeCount,
   onLike,
 }: {
-  likes?: { erik?: boolean; benno?: boolean };
-  onLike: (liked: boolean | null, user: "erik" | "benno") => void;
+  likeCount: number;
+  onLike: () => void;
 }) {
-  const erikLike = likes?.erik;
-  const bennoLike = likes?.benno;
-
   return (
-    <div className="space-y-3">
-      <p className="text-xs font-semibold text-white/60">Wat vind je ervan?</p>
-      
-      {/* Erik row */}
-      <div className="flex items-center gap-3">
-        <span className="w-14 text-sm font-medium text-white">Erik</span>
-        <div className="flex gap-2">
-          <button
-            type="button"
-            onClick={() => onLike(erikLike === true ? null : true, "erik")}
-            className={`flex h-10 w-10 items-center justify-center rounded-full text-lg transition-all ${
-              erikLike === true
-                ? "bg-green-500 text-white scale-110"
-                : "bg-white/10 text-white/60 hover:bg-white/20"
-            }`}
-          >
-            👍
-          </button>
-          <button
-            type="button"
-            onClick={() => onLike(erikLike === false ? null : false, "erik")}
-            className={`flex h-10 w-10 items-center justify-center rounded-full text-lg transition-all ${
-              erikLike === false
-                ? "bg-red-500 text-white scale-110"
-                : "bg-white/10 text-white/60 hover:bg-white/20"
-            }`}
-          >
-            👎
-          </button>
-        </div>
-      </div>
-
-      {/* Benno row */}
-      <div className="flex items-center gap-3">
-        <span className="w-14 text-sm font-medium text-white">Benno</span>
-        <div className="flex gap-2">
-          <button
-            type="button"
-            onClick={() => onLike(bennoLike === true ? null : true, "benno")}
-            className={`flex h-10 w-10 items-center justify-center rounded-full text-lg transition-all ${
-              bennoLike === true
-                ? "bg-green-500 text-white scale-110"
-                : "bg-white/10 text-white/60 hover:bg-white/20"
-            }`}
-          >
-            👍
-          </button>
-          <button
-            type="button"
-            onClick={() => onLike(bennoLike === false ? null : false, "benno")}
-            className={`flex h-10 w-10 items-center justify-center rounded-full text-lg transition-all ${
-              bennoLike === false
-                ? "bg-red-500 text-white scale-110"
-                : "bg-white/10 text-white/60 hover:bg-white/20"
-            }`}
-          >
-            👎
-          </button>
-        </div>
-      </div>
-    </div>
-  );
-}
-
-function LikeSummary({ likes }: { likes?: { erik?: boolean; benno?: boolean } }) {
-  if (!likes) return null;
-  
-  const erikLike = likes.erik;
-  const bennoLike = likes.benno;
-  
-  if (erikLike === undefined && bennoLike === undefined) return null;
-
-  return (
-    <div className="flex items-center gap-2 text-sm">
-      {erikLike !== undefined && (
-        <span className={erikLike ? "text-green-400" : "text-red-400"}>
-          Erik {erikLike ? "👍" : "👎"}
-        </span>
-      )}
-      {bennoLike !== undefined && (
-        <span className={bennoLike ? "text-green-400" : "text-red-400"}>
-          Benno {bennoLike ? "👍" : "👎"}
-        </span>
-      )}
-    </div>
+    <button
+      type="button"
+      onClick={onLike}
+      className="flex items-center gap-2 rounded-full bg-white/10 px-4 py-2 text-white transition-all hover:bg-white/20 active:scale-95"
+    >
+      <span className="text-xl">❤️</span>
+      <span className="font-semibold">{likeCount > 0 ? likeCount : "Like"}</span>
+    </button>
   );
 }
