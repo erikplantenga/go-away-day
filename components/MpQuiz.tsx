@@ -128,7 +128,7 @@ export function MpQuiz({ onOpenNews }: { onOpenNews?: () => void }) {
   const [lastSpinPoints, setLastSpinPoints] = useState<number | null>(null);
   const [testRound, setTestRound] = useState(false);
   const [party, setParty] = useState(false);
-  const [boot, setBoot] = useState(true);
+  const [boot, setBoot] = useState(false);
   const [champion, setChampion] = useState(false);
   const championShown = useRef(false);
   const pendingChampion = useRef(false);
@@ -291,8 +291,7 @@ export function MpQuiz({ onOpenNews }: { onOpenNews?: () => void }) {
   useEffect(() => {
     if (!live || !board.championReady || championShown.current) return;
     championShown.current = true;
-    setChampion(true);
-    setBoot(false);
+    // Champion popup disabled - no automatic popup
   }, [live, board.championReady]);
 
   useEffect(() => {

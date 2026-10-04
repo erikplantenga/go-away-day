@@ -16,8 +16,9 @@ import { ESTIMATED_WEATHER, fetchTripWeather, weatherForDate, type DayWeather } 
 import { PLACE_INFO, placeForItem, type PlaceInfo } from "@/lib/maltaPlaces";
 import { FLIGHTS, HOTEL, MALTA_DAYS, PASSENGERS, type Flight } from "@/lib/maltaTrip";
 import { SEED_BRIEFING, fetchDailyBriefing, type DailyBriefing } from "@/lib/maltaUpdates";
+import { MediaUpload } from "@/components/MediaUpload";
 
-type SectionId = "updates" | "planning" | "dagen" | "vluchten" | "hotel" | "weer" | "handig";
+type SectionId = "updates" | "planning" | "dagen" | "vluchten" | "upload" | "hotel" | "weer" | "handig";
 
 export function MaltaTrip() {
   const [open, setOpen] = useState<SectionId | null>(null);
@@ -55,6 +56,15 @@ export function MaltaTrip() {
 
   return (
     <div className="space-y-2">
+      <Accordion
+        open={open === "upload"}
+        onToggle={() => toggle("upload")}
+        title="Beeldmateriaal"
+        hint="Foto's en video's uploaden"
+      >
+        <MediaUpload />
+      </Accordion>
+
       <MpQuiz onOpenNews={openNews} />
 
       <LiveCams />
