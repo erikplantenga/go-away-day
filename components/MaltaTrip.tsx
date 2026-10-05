@@ -541,7 +541,33 @@ function Dagplanning({ weather }: { weather: DayWeather[] }) {
   const [place, setPlace] = useState<PlaceInfo | null>(null);
   const [extrasDay, setExtrasDay] = useState<(typeof MALTA_DAYS)[number] | null>(null);
   const [todayId, setTodayId] = useState<string | null>(null);
+  const [doneItems, setDoneItems] = useState<Set<string>>(new Set());
+  const [currentTime, setCurrentTime] = useState<number>(0);
   useLockBody(!!extrasDay);
+
+  useEffect(() => {
+    // Load done items from localStorage
+    try {
+      const saved = localStorage.getItem("maltaDoneItems");
+      if (saved) setDoneItems(new Set(JSON.parse(saved)));
+    } catch {}
+  }, []);
+
+  const toggleDone = (dayId: string, itemIndex: number) => {
+    const key = `${dayId}-${itemIndex}`;
+    setDoneItems(prev => {
+      const next = new Set(prev);
+      if (next.has(key)) {
+        next.delete(key);
+      } else {
+        next.add(key);
+      }
+      try {
+        localStorage.setItem("maltaDoneItems", JSON.stringify([...next]));
+      } catch {}
+      return next;
+    });
+  };
 
   useEffect(() => {
     if (!extrasDay || place) return;
@@ -556,6 +582,14 @@ function Dagplanning({ weather }: { weather: DayWeather[] }) {
     const now = new Date();
     const iso = `${now.getFullYear()}-${String(now.getMonth() + 1).padStart(2, "0")}-${String(now.getDate()).padStart(2, "0")}`;
     setTodayId(MALTA_DAYS.find((d) => d.date === iso)?.id ?? null);
+    setCurrentTime(now.getHours() * 60 + now.getMinutes());
+    
+    // Update current time every minute
+    const interval = setInterval(() => {
+      const n = new Date();
+      setCurrentTime(n.getHours() * 60 + n.getMinutes());
+    }, 60000);
+    return () => clearInterval(interval);
   }, []);
 
   return (
@@ -672,25 +706,44 @@ function Dagplanning({ weather }: { weather: DayWeather[] }) {
                   )}
                   {day.items.map((item, i) => {
                     const info = placeForItem(item);
+                    const doneKey = `${day.id}-${i}`;
+                    const isManuallyDone = doneItems.has(doneKey);
                     
-                    // Check if this item has passed
-                    const isItemPast = (() => {
+                    // Check if this item has passed (next item has started)
+                    const isAutoPast = (() => {
                       if (dayIsPast) return true;
                       if (!isToday) return false;
-                      // Parse item time (e.g., "08:00", "12:30")
-                      const timeParts = item.time?.match(/(\d{1,2}):(\d{2})/);
+                      // Get NEXT item's time
+                      const nextItem = day.items[i + 1];
+                      if (!nextItem?.time) {
+                        // Last item of the day - check if day is over (after 23:00)
+                        return currentTime >= 23 * 60;
+                      }
+                      const timeParts = nextItem.time.match(/(\d{1,2}):(\d{2})/);
                       if (!timeParts) return false;
-                      const itemHour = parseInt(timeParts[1], 10);
-                      const itemMin = parseInt(timeParts[2], 10);
-                      const now = new Date();
-                      const nowMins = now.getHours() * 60 + now.getMinutes();
-                      const itemMins = itemHour * 60 + itemMin;
-                      return nowMins > itemMins;
+                      const nextMins = parseInt(timeParts[1], 10) * 60 + parseInt(timeParts[2], 10);
+                      return currentTime >= nextMins;
                     })();
+                    
+                    const isItemPast = isManuallyDone || isAutoPast;
                     
                     const inner = (
                       <>
-                        <span className={`w-[4.5rem] shrink-0 pt-0.5 text-xs font-semibold uppercase tracking-wide ${isItemPast ? "text-white/40" : "text-[#c9a227]"}`}>
+                        <button
+                          type="button"
+                          onClick={(e) => {
+                            e.stopPropagation();
+                            toggleDone(day.id, i);
+                          }}
+                          className={`flex h-6 w-6 shrink-0 items-center justify-center rounded-md border-2 text-xs ${
+                            isItemPast
+                              ? "border-green-500 bg-green-500 text-white"
+                              : "border-white/30 text-transparent hover:border-white/50"
+                          }`}
+                        >
+                          ✓
+                        </button>
+                        <span className={`w-[3.5rem] shrink-0 pt-0.5 text-xs font-semibold uppercase tracking-wide ${isItemPast ? "text-white/40" : "text-[#c9a227]"}`}>
                           {item.time}
                         </span>
                         <span className="min-w-0 flex-1">
@@ -710,7 +763,7 @@ function Dagplanning({ weather }: { weather: DayWeather[] }) {
                         )}
                       </>
                     );
-                    const rowClass = `flex w-full gap-3 rounded-lg py-1.5 text-left ${
+                    const rowClass = `flex w-full items-start gap-2 rounded-lg py-1.5 text-left ${
                       item.choice ? "bg-[#c9a227]/20 px-2 active:bg-[#c9a227]/30" : "active:bg-white/5"
                     } ${isItemPast ? "opacity-70" : ""}`;
                     return (

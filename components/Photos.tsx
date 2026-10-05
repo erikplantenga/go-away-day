@@ -22,6 +22,13 @@ const DAYS = [
   { value: "2026-10-07", label: "Dinsdag 7 okt" },
 ];
 
+function getTodayValue(): string {
+  const now = new Date();
+  const iso = `${now.getFullYear()}-${String(now.getMonth() + 1).padStart(2, "0")}-${String(now.getDate()).padStart(2, "0")}`;
+  const found = DAYS.find(d => d.value === iso);
+  return found?.value ?? DAYS[2].value; // Default to Sunday if not found
+}
+
 type Filter = "all" | "erik" | "benno";
 
 export function Photos() {
@@ -322,9 +329,24 @@ export function Photos() {
     if (!files || files.length === 0) return;
 
     const newPending: PendingFile[] = [];
+    let skippedDuplicates = 0;
     
     for (let i = 0; i < files.length; i++) {
       const file = files[i];
+      
+      // Check for duplicates: same name already in pending or already uploaded
+      const isDuplicatePending = pendingFiles.some(p => 
+        p.file.name === file.name && p.file.size === file.size
+      );
+      const isDuplicateUploaded = photos.some(p => 
+        p.id.includes(file.name.replace(/\.[^.]+$/, "").replace(/[^a-zA-Z0-9]/g, ""))
+      );
+      
+      if (isDuplicatePending) {
+        skippedDuplicates++;
+        continue;
+      }
+      
       const isVideo = file.type.startsWith("video/");
       const preview = URL.createObjectURL(file);
       
@@ -343,10 +365,14 @@ export function Photos() {
       newPending.push({
         file,
         preview,
-        day: DAYS[1].value,
+        day: getTodayValue(),
         caption,
         isVideo,
       });
+    }
+    
+    if (skippedDuplicates > 0) {
+      setError(`${skippedDuplicates} dubbele bestand${skippedDuplicates > 1 ? "en" : ""} overgeslagen`);
     }
     
     setPendingFiles(prev => [...prev, ...newPending]);
@@ -598,6 +624,17 @@ export function Photos() {
             className="flex min-h-11 flex-1 items-center justify-center gap-2 rounded-xl bg-[#c9a227] text-sm font-bold text-[#0b1f3a]"
           >
             <span className="text-lg">📷</span> Upload
+          </button>
+          <button
+            type="button"
+            onClick={() => {
+              setLoading(true);
+              loadPhotos();
+            }}
+            className="flex min-h-11 w-11 items-center justify-center rounded-xl bg-white/10 text-lg"
+            title="Ververs"
+          >
+            🔄
           </button>
           {filtered.length > 0 && (
             <button
