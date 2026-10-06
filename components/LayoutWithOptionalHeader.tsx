@@ -40,15 +40,21 @@ export function LayoutWithOptionalHeader({
   const [showEndPopup, setShowEndPopup] = useState(false);
 
   useEffect(() => {
-    const seen = localStorage.getItem("maltaEndPopupSeen");
-    if (!seen) {
-      setShowEndPopup(true);
+    // Show popup until Oct 7, 2026 at 13:00
+    const hideAfter = new Date("2026-10-07T13:00:00").getTime();
+    const now = Date.now();
+    
+    if (now < hideAfter) {
+      const dismissed = sessionStorage.getItem("maltaEndPopupDismissed");
+      if (!dismissed) {
+        setShowEndPopup(true);
+      }
     }
   }, []);
 
   const closePopup = () => {
     setShowEndPopup(false);
-    localStorage.setItem("maltaEndPopupSeen", "true");
+    sessionStorage.setItem("maltaEndPopupDismissed", "true");
   };
 
   if (
