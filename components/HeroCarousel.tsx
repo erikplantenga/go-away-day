@@ -90,22 +90,10 @@ export function HeroCarousel() {
         ) : (
           <div className="grid grid-cols-2 gap-3">
             <div className="text-center">
-              {returnCheckInOpen ? (
-                <>
-                  <p className="mp-checkin-open text-sm font-black uppercase tracking-[0.12em] text-[#c9a227] sm:text-base">
-                    Incheck is open
-                  </p>
-                  <p className="mt-0.5 text-[11px] text-white/65">6 okt · 07:25</p>
-                </>
-              ) : (
-                <>
-                  <p className="text-[11px] font-semibold uppercase tracking-[0.18em] text-white/70">Tot check-in</p>
-                  <p className="mt-0.5 text-sm font-bold tabular-nums tracking-wide text-white sm:text-base">
-                    {returnCheckInLeft ?? "—"}
-                  </p>
-                  <p className="text-[11px] text-white/65">6 okt · 07:25</p>
-                </>
-              )}
+              <p className="text-sm font-black uppercase tracking-[0.12em] text-green-400 sm:text-base">
+                ✓ Ingecheckt!
+              </p>
+              <p className="mt-0.5 text-[11px] text-white/65">6 okt · 07:25</p>
             </div>
             <div className="text-center">
               <p className="text-[11px] font-semibold uppercase tracking-[0.18em] text-white/70">Tot terugreis</p>
