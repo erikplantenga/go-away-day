@@ -15,11 +15,11 @@ type PhotoMeta = {
 };
 
 const DAYS = [
-  { value: "2026-10-03", label: "Vrijdag 3 okt" },
-  { value: "2026-10-04", label: "Zaterdag 4 okt" },
-  { value: "2026-10-05", label: "Zondag 5 okt" },
-  { value: "2026-10-06", label: "Maandag 6 okt" },
-  { value: "2026-10-07", label: "Dinsdag 7 okt" },
+  { value: "2026-10-03", label: "Zaterdag 3 okt" },
+  { value: "2026-10-04", label: "Zondag 4 okt" },
+  { value: "2026-10-05", label: "Maandag 5 okt" },
+  { value: "2026-10-06", label: "Dinsdag 6 okt" },
+  { value: "2026-10-07", label: "Woensdag 7 okt" },
 ];
 
 function getTodayValue(): string {
