@@ -9,6 +9,8 @@ import {
   testCloudinary,
   addPhotoLike,
   removePhotoLike,
+  findDuplicates,
+  photoExistsByUrl,
   type PhotoMeta,
 } from "@/lib/cloudinary-storage";
 
@@ -32,6 +34,11 @@ export async function GET(req: NextRequest) {
 
   if (searchParams.get("test") === "1") {
     const result = await testCloudinary();
+    return NextResponse.json(result);
+  }
+
+  if (searchParams.get("duplicates") === "1") {
+    const result = await findDuplicates();
     return NextResponse.json(result);
   }
 
@@ -104,6 +111,13 @@ export async function POST(req: NextRequest) {
         if (!photo?.id || !photo.fullUrl || !photo.thumbUrl) {
           return NextResponse.json({ error: "Foto-data incompleet" }, { status: 400 });
         }
+        
+        // Check for duplicate
+        const exists = await photoExistsByUrl(photo.fullUrl);
+        if (exists) {
+          return NextResponse.json({ error: "Deze foto bestaat al" }, { status: 409 });
+        }
+        
         const meta: PhotoMeta = {
           id: photo.id,
           uploader: who as "erik" | "benno",

@@ -129,6 +129,43 @@ export async function getPhotos(uploader?: "erik" | "benno"): Promise<PhotoMeta[
   }
 }
 
+export async function findDuplicates(): Promise<{ duplicates: PhotoMeta[][]; total: number }> {
+  const db = await firestore();
+  if (!db) return { duplicates: [], total: 0 };
+
+  try {
+    const snap = await db.collection("photos").get();
+    const list = snap.docs.map((doc) => doc.data() as PhotoMeta);
+    
+    // Group by fullUrl to find duplicates
+    const byUrl = new Map<string, PhotoMeta[]>();
+    for (const photo of list) {
+      const existing = byUrl.get(photo.fullUrl) || [];
+      existing.push(photo);
+      byUrl.set(photo.fullUrl, existing);
+    }
+    
+    const duplicates = [...byUrl.values()].filter(group => group.length > 1);
+    return { duplicates, total: list.length };
+  } catch (e) {
+    console.error("findDuplicates error:", e);
+    return { duplicates: [], total: 0 };
+  }
+}
+
+export async function photoExistsByUrl(fullUrl: string): Promise<boolean> {
+  const db = await firestore();
+  if (!db) return false;
+
+  try {
+    const snap = await db.collection("photos").where("fullUrl", "==", fullUrl).limit(1).get();
+    return !snap.empty;
+  } catch (e) {
+    console.error("photoExistsByUrl error:", e);
+    return false;
+  }
+}
+
 export async function deletePhoto(id: string): Promise<boolean> {
   const config = parseCloudinaryUrl();
   const db = await firestore();
