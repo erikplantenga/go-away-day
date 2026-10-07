@@ -397,7 +397,7 @@ function TypewriterLine({ text, onComplete, startDelay = 0 }: { text: string; on
 }
 
 export default function GlobeScene() {
-  const [phase, setPhase] = useState("loading");
+  const [phase, setPhase] = useState("waiting"); // Start with waiting for tap
   const [showReveal, setShowReveal] = useState(false);
   const [currentLine, setCurrentLine] = useState(0);
   
@@ -411,6 +411,12 @@ export default function GlobeScene() {
     "> STATUS: READY_",
   ];
 
+  const handleStartBoot = useCallback(() => {
+    if (phase !== "waiting") return;
+    initAudio(); // Initialize audio with user gesture
+    setPhase("loading");
+  }, [phase]);
+
   const handleLineComplete = useCallback(() => {
     if (currentLine < bootLines.length - 1) {
       setTimeout(() => setCurrentLine(prev => prev + 1), 300);
@@ -421,7 +427,6 @@ export default function GlobeScene() {
 
   const handleTap = useCallback(() => {
     if (phase !== "idle") return;
-    initAudio();
     playSpinSound();
     setPhase("spinning");
   }, [phase]);
@@ -439,18 +444,38 @@ export default function GlobeScene() {
       <MatrixRain />
       <div style={{ position: "fixed", inset: 0, zIndex: 100, pointerEvents: "none", opacity: 0.1, background: "repeating-linear-gradient(0deg,rgba(0,0,0,.15) 0px,rgba(0,0,0,.15) 1px,transparent 1px,transparent 2px)" }} />
 
-      {/* Loading - boot sequence */}
+      {/* Waiting for tap to start */}
+      {phase === "waiting" && (
+        <div 
+          onClick={handleStartBoot}
+          style={{ 
+            position: "absolute", inset: 0, zIndex: 50, 
+            display: "flex", flexDirection: "column", alignItems: "center", justifyContent: "center", 
+            background: "#000", cursor: "pointer",
+          }}
+        >
+          <div style={{ 
+            color: "#00ff41", 
+            fontFamily: "monospace", 
+            fontSize: "clamp(1.2rem, 5vw, 2rem)",
+            textShadow: "0 0 10px #00ff41, 0 0 20px #00ff41",
+            animation: "pulse 1.5s ease-in-out infinite",
+          }}>
+            {"> TAP TO BEGIN_"}
+          </div>
+        </div>
+      )}
+
+      {/* Loading - boot sequence (one line at a time) */}
       {phase === "loading" && (
         <div style={{ position: "absolute", inset: 0, zIndex: 50, display: "flex", alignItems: "center", justifyContent: "center", background: "#000", padding: "2rem" }}>
           <div style={{ fontFamily: "monospace", width: "100%", maxWidth: "340px" }}>
-            {bootLines.slice(0, currentLine + 1).map((line, i) => (
-              <TypewriterLine 
-                key={i} 
-                text={line} 
-                onComplete={i === currentLine ? handleLineComplete : undefined}
-                startDelay={i === 0 ? 500 : 0}
-              />
-            ))}
+            <TypewriterLine 
+              key={currentLine}
+              text={bootLines[currentLine]} 
+              onComplete={handleLineComplete}
+              startDelay={100}
+            />
           </div>
         </div>
       )}
