@@ -67,6 +67,8 @@ export function Photos() {
   const [currentUploadIndex, setCurrentUploadIndex] = useState(-1);
   const [downloading, setDownloading] = useState(false);
   const [downloadProgress, setDownloadProgress] = useState({ current: 0, total: 0 });
+  const [showDownloadModal, setShowDownloadModal] = useState(false);
+  const [downloadFilter, setDownloadFilter] = useState<"all" | "erik" | "benno">("all");
   const fileRef = useRef<HTMLInputElement>(null);
 
   useEffect(() => {
@@ -172,18 +174,22 @@ export function Photos() {
   };
 
   const handleDownloadAll = async () => {
-    if (filtered.length === 0) return;
+    const toDownload = downloadFilter === "all" 
+      ? photos 
+      : photos.filter(p => p.uploader === downloadFilter);
+    
+    if (toDownload.length === 0) return;
     
     setDownloading(true);
-    setDownloadProgress({ current: 0, total: filtered.length });
+    setDownloadProgress({ current: 0, total: toDownload.length });
     
     try {
       const zip = new JSZip();
       const folder = zip.folder("malta-2026-fotos");
       
-      for (let i = 0; i < filtered.length; i++) {
-        const photo = filtered[i];
-        setDownloadProgress({ current: i + 1, total: filtered.length });
+      for (let i = 0; i < toDownload.length; i++) {
+        const photo = toDownload[i];
+        setDownloadProgress({ current: i + 1, total: toDownload.length });
         
         try {
           const response = await fetch(photo.fullUrl);
@@ -200,12 +206,13 @@ export function Photos() {
       const url = URL.createObjectURL(content);
       const a = document.createElement("a");
       a.href = url;
-      const filterLabel = filter === "all" ? "alle" : filter;
+      const filterLabel = downloadFilter === "all" ? "alle" : downloadFilter;
       a.download = `malta-2026-${filterLabel}-fotos.zip`;
       document.body.appendChild(a);
       a.click();
       document.body.removeChild(a);
       URL.revokeObjectURL(url);
+      setShowDownloadModal(false);
     } catch (err) {
       setError("Download mislukt");
     } finally {
@@ -682,7 +689,7 @@ export function Photos() {
           >
             🔄
           </button>
-          {filtered.length > 0 && (
+          {photos.length > 0 && (
             <>
               <button
                 type="button"
@@ -690,21 +697,18 @@ export function Photos() {
                   setPresentationIndex(0);
                   setShowPresentation(true);
                 }}
-                className="flex min-h-11 items-center justify-center gap-2 rounded-xl bg-white px-4 text-sm font-bold text-[#0b1f3a]"
+                className="flex min-h-11 w-11 items-center justify-center rounded-xl bg-white/10 text-lg"
+                title="Presentatie"
               >
-                <span>▶</span>
+                ▶️
               </button>
               <button
                 type="button"
-                onClick={handleDownloadAll}
-                disabled={downloading}
-                className="flex min-h-11 items-center justify-center gap-1 rounded-xl bg-white/10 px-3 text-sm font-bold text-white disabled:opacity-50"
+                onClick={() => setShowDownloadModal(true)}
+                className="flex min-h-11 w-11 items-center justify-center rounded-xl bg-white/10 text-lg"
+                title="Download"
               >
-                {downloading ? (
-                  <span className="text-xs">{downloadProgress.current}/{downloadProgress.total}</span>
-                ) : (
-                  <>⬇ Alles</>
-                )}
+                ⬇️
               </button>
             </>
           )}
@@ -1205,6 +1209,77 @@ export function Photos() {
           onClose={() => setShowPresentation(false)}
           dayLabel={dayLabel}
         />
+      )}
+
+      {showDownloadModal && (
+        <div className="fixed inset-0 z-[95] flex items-center justify-center bg-black/80 p-4">
+          <div className="w-full max-w-sm rounded-2xl bg-[#0b1f3a] p-5">
+            <h3 className="text-xl font-bold text-white">Download foto's</h3>
+            <p className="mt-2 text-sm text-white/70">
+              Welke foto's wil je downloaden?
+            </p>
+            
+            <div className="mt-4 space-y-2">
+              {(["all", "erik", "benno"] as const).map((opt) => {
+                const count = opt === "all" 
+                  ? photos.length 
+                  : photos.filter(p => p.uploader === opt).length;
+                const label = opt === "all" ? "Alle foto's" : opt === "erik" ? "Alleen Erik" : "Alleen Benno";
+                return (
+                  <button
+                    key={opt}
+                    type="button"
+                    onClick={() => setDownloadFilter(opt)}
+                    className={`flex w-full items-center justify-between rounded-xl px-4 py-3 text-left ${
+                      downloadFilter === opt 
+                        ? "bg-[#c9a227] text-[#0b1f3a]" 
+                        : "bg-white/10 text-white"
+                    }`}
+                  >
+                    <span className="font-semibold">{label}</span>
+                    <span className={`text-sm ${downloadFilter === opt ? "text-[#0b1f3a]/70" : "text-white/50"}`}>
+                      {count} items
+                    </span>
+                  </button>
+                );
+              })}
+            </div>
+
+            {downloading ? (
+              <div className="mt-5">
+                <div className="relative h-12 w-full overflow-hidden rounded-xl bg-white/10">
+                  <div
+                    className="absolute inset-y-0 left-0 bg-[#c9a227] transition-all duration-300"
+                    style={{ width: `${(downloadProgress.current / downloadProgress.total) * 100}%` }}
+                  />
+                  <div className="absolute inset-0 flex items-center justify-center">
+                    <span className="text-sm font-bold text-white drop-shadow">
+                      {downloadProgress.current} / {downloadProgress.total}
+                    </span>
+                  </div>
+                </div>
+                <p className="mt-2 text-center text-xs text-white/50">Bestanden worden verzameld...</p>
+              </div>
+            ) : (
+              <div className="mt-5 flex gap-2">
+                <button
+                  type="button"
+                  onClick={() => setShowDownloadModal(false)}
+                  className="flex-1 rounded-xl bg-white/10 py-3 text-sm font-semibold text-white"
+                >
+                  Annuleren
+                </button>
+                <button
+                  type="button"
+                  onClick={handleDownloadAll}
+                  className="flex-1 rounded-xl bg-[#c9a227] py-3 text-sm font-bold text-[#0b1f3a]"
+                >
+                  ⬇️ Download
+                </button>
+              </div>
+            )}
+          </div>
+        </div>
       )}
     </>
   );
