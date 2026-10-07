@@ -215,7 +215,7 @@ function Globe({ phase, onPhaseChange }: { phase: string; onPhaseChange: (p: str
     }
     
     if (phase === "spinning") {
-      // Fast spin for 6.5s, then hand off to slowdown
+      // Fast spin ~8.5s, then hand off to slowdown
       animRef.current.spinElapsed += delta;
       animRef.current.spinSpeed = Math.min(animRef.current.spinSpeed + delta * 4, 4.5);
       animRef.current.spinAngle += delta * animRef.current.spinSpeed;
@@ -225,7 +225,7 @@ function Globe({ phase, onPhaseChange }: { phase: string; onPhaseChange: (p: str
       camera.position.copy(dir.multiplyScalar(baseCam));
       camera.lookAt(0, 0, 0);
       
-      if (animRef.current.spinElapsed >= 6.5 && !animRef.current.phaseLocked) {
+      if (animRef.current.spinElapsed >= 8.5 && !animRef.current.phaseLocked) {
         animRef.current.phaseLocked = true;
         onPhaseChange("flying");
       }
@@ -239,18 +239,21 @@ function Globe({ phase, onPhaseChange }: { phase: string; onPhaseChange: (p: str
         animRef.current.progress = 0;
       }
 
-      // Slowdown ~7.5s: keep spinning while decelerating into the target
-      animRef.current.progress = Math.min(animRef.current.progress + delta / 7.5, 1);
+      // Slowdown / zoom ~10s with more side-to-side sway
+      animRef.current.progress = Math.min(animRef.current.progress + delta / 10, 1);
       const p = animRef.current.progress;
-      const spinFade = Math.pow(1 - p, 2.8); // still fast early, almost frozen at the end
+      const spinFade = Math.pow(1 - p, 2.5); // still fast early, almost frozen at the end
       const aimP = easeInOutCubic(p);
       const zoomP = 1 - Math.pow(1 - p, 2.4); // most zoom happens late → tension
+      // Heen-en-weer while locking on (fades out near the end)
+      const sway = Math.sin(p * Math.PI * 5) * 0.55 * Math.pow(1 - p, 1.2);
+      const swayY = Math.cos(p * Math.PI * 3.2) * 0.22 * Math.pow(1 - p, 1.1);
 
       animRef.current.spinAngle += delta * animRef.current.spinSpeed * spinFade;
-      const qY = new THREE.Quaternion().setFromAxisAngle(new THREE.Vector3(0, 1, 0), animRef.current.spinAngle);
+      const qY = new THREE.Quaternion().setFromAxisAngle(new THREE.Vector3(0, 1, 0), animRef.current.spinAngle + sway);
       const qX = new THREE.Quaternion().setFromAxisAngle(
         new THREE.Vector3(1, 0, 0),
-        Math.sin(t * 2.2) * 0.25 * spinFade
+        Math.sin(t * 2.2) * 0.25 * spinFade + swayY
       );
       const orbitDir = startDir.clone().applyQuaternion(qY).applyQuaternion(qX).normalize();
       const dir = orbitDir.clone().lerp(endDir, aimP).normalize();
@@ -259,7 +262,7 @@ function Globe({ phase, onPhaseChange }: { phase: string; onPhaseChange: (p: str
       camera.lookAt(0, 0, 0);
 
       // Soften rumble as we slow, but keep it until the end
-      if (Math.floor(p * 20) !== Math.floor((p - delta / 7.5) * 20)) {
+      if (Math.floor(p * 20) !== Math.floor((p - delta / 10) * 20)) {
         setSpinSoundLevel(0.12 * (0.35 + 0.65 * spinFade), 0.25);
       }
       
