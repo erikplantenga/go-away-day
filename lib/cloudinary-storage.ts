@@ -114,9 +114,14 @@ export async function getPhotos(uploader?: "erik" | "benno"): Promise<PhotoMeta[
   if (!db) return [];
 
   try {
-    const snap = await db.collection("photos").orderBy("uploadedAt", "desc").get();
+    const snap = await db.collection("photos").get();
     let list = snap.docs.map((doc) => doc.data() as PhotoMeta);
     if (uploader) list = list.filter((p) => p.uploader === uploader);
+    // Sort by day (newest first), then by uploadedAt within same day
+    list.sort((a, b) => {
+      if (a.day !== b.day) return b.day.localeCompare(a.day);
+      return b.uploadedAt.localeCompare(a.uploadedAt);
+    });
     return list;
   } catch (e) {
     console.error("getPhotos error:", e);
