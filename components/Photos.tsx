@@ -1,6 +1,7 @@
 "use client";
 
 import { useEffect, useState, useRef } from "react";
+import JSZip from "jszip";
 
 type PhotoMeta = {
   id: string;
@@ -64,6 +65,8 @@ export function Photos() {
   };
   const [pendingFiles, setPendingFiles] = useState<PendingFile[]>([]);
   const [currentUploadIndex, setCurrentUploadIndex] = useState(-1);
+  const [downloading, setDownloading] = useState(false);
+  const [downloadProgress, setDownloadProgress] = useState({ current: 0, total: 0 });
   const fileRef = useRef<HTMLInputElement>(null);
 
   useEffect(() => {
@@ -165,6 +168,49 @@ export function Photos() {
       setError("Opslaan mislukt");
     } finally {
       setSaving(false);
+    }
+  };
+
+  const handleDownloadAll = async () => {
+    if (filtered.length === 0) return;
+    
+    setDownloading(true);
+    setDownloadProgress({ current: 0, total: filtered.length });
+    
+    try {
+      const zip = new JSZip();
+      const folder = zip.folder("malta-2026-fotos");
+      
+      for (let i = 0; i < filtered.length; i++) {
+        const photo = filtered[i];
+        setDownloadProgress({ current: i + 1, total: filtered.length });
+        
+        try {
+          const response = await fetch(photo.fullUrl);
+          const blob = await response.blob();
+          const ext = photo.isVideo ? "mp4" : "jpg";
+          const name = `${photo.day}_${photo.uploader}_${photo.id}.${ext}`;
+          folder?.file(name, blob);
+        } catch {
+          console.error(`Failed to download ${photo.id}`);
+        }
+      }
+      
+      const content = await zip.generateAsync({ type: "blob" });
+      const url = URL.createObjectURL(content);
+      const a = document.createElement("a");
+      a.href = url;
+      const filterLabel = filter === "all" ? "alle" : filter;
+      a.download = `malta-2026-${filterLabel}-fotos.zip`;
+      document.body.appendChild(a);
+      a.click();
+      document.body.removeChild(a);
+      URL.revokeObjectURL(url);
+    } catch (err) {
+      setError("Download mislukt");
+    } finally {
+      setDownloading(false);
+      setDownloadProgress({ current: 0, total: 0 });
     }
   };
 
@@ -637,16 +683,30 @@ export function Photos() {
             🔄
           </button>
           {filtered.length > 0 && (
-            <button
-              type="button"
-              onClick={() => {
-                setPresentationIndex(0);
-                setShowPresentation(true);
-              }}
-              className="flex min-h-11 items-center justify-center gap-2 rounded-xl bg-white px-4 text-sm font-bold text-[#0b1f3a]"
-            >
-              <span>▶</span> Presentatie
-            </button>
+            <>
+              <button
+                type="button"
+                onClick={() => {
+                  setPresentationIndex(0);
+                  setShowPresentation(true);
+                }}
+                className="flex min-h-11 items-center justify-center gap-2 rounded-xl bg-white px-4 text-sm font-bold text-[#0b1f3a]"
+              >
+                <span>▶</span>
+              </button>
+              <button
+                type="button"
+                onClick={handleDownloadAll}
+                disabled={downloading}
+                className="flex min-h-11 items-center justify-center gap-1 rounded-xl bg-white/10 px-3 text-sm font-bold text-white disabled:opacity-50"
+              >
+                {downloading ? (
+                  <span className="text-xs">{downloadProgress.current}/{downloadProgress.total}</span>
+                ) : (
+                  <>⬇ Alles</>
+                )}
+              </button>
+            </>
           )}
         </div>
 
