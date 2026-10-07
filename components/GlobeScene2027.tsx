@@ -352,78 +352,70 @@ function FlickeringQuestionMarks() {
   );
 }
 
-function TypewriterLine({ text, onComplete, startDelay = 0 }: { text: string; onComplete?: () => void; startDelay?: number }) {
-  const [displayed, setDisplayed] = useState("");
-  const [started, setStarted] = useState(false);
-  
-  useEffect(() => {
-    const startTimer = setTimeout(() => setStarted(true), startDelay);
-    return () => clearTimeout(startTimer);
-  }, [startDelay]);
-  
-  useEffect(() => {
-    if (!started) return;
-    
-    let i = 0;
-    const interval = setInterval(() => {
-      if (i < text.length) {
-        setDisplayed(text.slice(0, i + 1));
-        if (text[i] !== " ") playTypeSound();
-        i++;
-      } else {
-        clearInterval(interval);
-        onComplete?.();
-      }
-    }, 35); // Snelheid per karakter
-    
-    return () => clearInterval(interval);
-  }, [text, started, onComplete]);
-  
-  return (
-    <div style={{ 
-      color: "#00ff41", 
-      fontSize: "clamp(0.75rem, 3vw, 0.95rem)", 
-      marginBottom: "0.5rem",
-      textShadow: "0 0 10px #00ff41",
-      minHeight: "1.3em",
-      fontFamily: "monospace",
-    }}>
-      {displayed}
-      {started && displayed.length < text.length && (
-        <span style={{ animation: "blink 0.5s infinite" }}>▋</span>
-      )}
-    </div>
-  );
-}
+const BOOT_LINES = [
+  "> BOOT SEQUENCE INITIATED...",
+  "> LOADING EARTH_TEXTURE.dat",
+  "> INITIALIZING 3D_RENDERER...",
+  "> GPS_MODULE: SYNCHRONIZED",
+  "> DECRYPTING COORDINATES...",
+  "> DESTINATION: UNKNOWN",
+  "> STATUS: READY_",
+];
 
 export default function GlobeScene() {
-  const [phase, setPhase] = useState("waiting"); // Start with waiting for tap
+  const [phase, setPhase] = useState("waiting");
   const [showReveal, setShowReveal] = useState(false);
-  const [currentLine, setCurrentLine] = useState(0);
-  
-  const bootLines = [
-    "> BOOT SEQUENCE INITIATED...",
-    "> LOADING EARTH_TEXTURE.dat",
-    "> INITIALIZING 3D_RENDERER...",
-    "> GPS_MODULE: SYNCHRONIZED",
-    "> DECRYPTING COORDINATES...",
-    "> DESTINATION: [CLASSIFIED]",
-    "> STATUS: READY_",
-  ];
+  const [bootText, setBootText] = useState("");
+  const [bootTyping, setBootTyping] = useState(false);
+
+  // Single-line boot typewriter — never overlaps
+  useEffect(() => {
+    if (phase !== "loading") return;
+
+    let cancelled = false;
+    let lineIndex = 0;
+    let charIndex = 0;
+    let timer: ReturnType<typeof setTimeout>;
+
+    const clear = () => clearTimeout(timer);
+
+    const typeChar = () => {
+      if (cancelled) return;
+      const line = BOOT_LINES[lineIndex];
+      if (charIndex < line.length) {
+        setBootText(line.slice(0, charIndex + 1));
+        setBootTyping(true);
+        if (line[charIndex] !== " ") playTypeSound();
+        charIndex++;
+        timer = setTimeout(typeChar, 45);
+      } else {
+        setBootTyping(false);
+        timer = setTimeout(() => {
+          if (cancelled) return;
+          lineIndex++;
+          if (lineIndex < BOOT_LINES.length) {
+            charIndex = 0;
+            setBootText("");
+            timer = setTimeout(typeChar, 250);
+          } else {
+            timer = setTimeout(() => {
+              if (!cancelled) setPhase("idle");
+            }, 700);
+          }
+        }, 450);
+      }
+    };
+
+    timer = setTimeout(typeChar, 300);
+    return () => { cancelled = true; clear(); };
+  }, [phase]);
 
   const handleStartBoot = useCallback(() => {
     if (phase !== "waiting") return;
-    initAudio(); // Initialize audio with user gesture
+    initAudio();
+    setBootText("");
     setPhase("loading");
   }, [phase]);
-
-  const handleLineComplete = useCallback(() => {
-    if (currentLine < bootLines.length - 1) {
-      setTimeout(() => setCurrentLine(prev => prev + 1), 300);
-    } else {
-      setTimeout(() => setPhase("idle"), 800);
-    }
-  }, [currentLine, bootLines.length]);
 
   const handleTap = useCallback(() => {
     if (phase !== "idle") return;
@@ -466,22 +458,26 @@ export default function GlobeScene() {
         </div>
       )}
 
-      {/* Loading - boot sequence (one line at a time) */}
+      {/* Loading - boot sequence (exactly one line at a time) */}
       {phase === "loading" && (
         <div style={{ position: "absolute", inset: 0, zIndex: 50, display: "flex", alignItems: "center", justifyContent: "center", background: "#000", padding: "2rem" }}>
-          <div style={{ fontFamily: "monospace", width: "100%", maxWidth: "340px" }}>
-            <TypewriterLine 
-              key={currentLine}
-              text={bootLines[currentLine]} 
-              onComplete={handleLineComplete}
-              startDelay={100}
-            />
+          <div style={{
+            fontFamily: "monospace",
+            width: "100%",
+            maxWidth: "340px",
+            color: "#00ff41",
+            fontSize: "clamp(0.75rem, 3vw, 0.95rem)",
+            textShadow: "0 0 10px #00ff41",
+            minHeight: "1.3em",
+          }}>
+            {bootText}
+            {bootTyping && <span style={{ animation: "blink 0.5s infinite" }}>▋</span>}
           </div>
         </div>
       )}
 
       {/* Header */}
-      <div style={{ position: "relative", zIndex: 10, textAlign: "center", paddingTop: "max(env(safe-area-inset-top),1rem)", flexShrink: 0, opacity: phase === "loading" ? 0 : 1, transition: "opacity .5s" }}>
+      <div style={{ position: "relative", zIndex: 10, textAlign: "center", paddingTop: "max(env(safe-area-inset-top),1rem)", flexShrink: 0, opacity: phase === "loading" || phase === "waiting" ? 0 : 1, transition: "opacity .5s" }}>
         <h1 style={{ fontSize: "clamp(1.4rem,6vw,2.5rem)", fontWeight: 700, fontFamily: "monospace", color: "#00ff41", textShadow: "0 0 10px #00ff41,0 0 25px #00ff41", margin: 0, lineHeight: 1.1 }}>
           <GlitchText text="GO_AWAY_DAY" />
         </h1>
@@ -530,13 +526,10 @@ export default function GlobeScene() {
           opacity: showReveal ? 1 : 0, transition: "opacity .6s", flexShrink: 0,
         }}>
           <div style={{ fontSize: "clamp(.6rem,2.5vw,.8rem)", color: "#00ff41", letterSpacing: ".3em", fontFamily: "monospace", marginBottom: ".3rem", textShadow: "0 0 8px #00ff41" }}>
-            {">>"} DESTINATION_LOCKED
+            {">>"} COORDINATES_LOCKED
           </div>
-          <div style={{ fontSize: "clamp(2.5rem,15vw,5rem)", fontWeight: 900, fontFamily: "monospace", color: "#ff0040", textShadow: "0 0 15px #ff0040,0 0 30px #ff0040,0 0 45px #ff0040", lineHeight: 1, animation: "glow 2s infinite" }}>
-            <GlitchText text="???" />
-          </div>
-          <div style={{ marginTop: ".4rem", fontSize: "clamp(.6rem,2.5vw,.8rem)", color: "#ff0040", fontFamily: "monospace", textShadow: "0 0 8px #ff0040", animation: "blink 1s infinite" }}>
-            [CLASSIFIED]
+          <div style={{ fontSize: "clamp(1.4rem,7vw,2.5rem)", fontWeight: 900, fontFamily: "monospace", color: "#ff0040", textShadow: "0 0 15px #ff0040,0 0 30px #ff0040,0 0 45px #ff0040", lineHeight: 1.1, animation: "glow 2s infinite" }}>
+            <GlitchText text="DESTINATION UNKNOWN" />
           </div>
           
           {/* Back to 2026 button */}
