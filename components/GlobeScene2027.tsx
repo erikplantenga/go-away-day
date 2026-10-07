@@ -160,6 +160,10 @@ async function playLockSound() {
 
 // Pre-recorded female voice — reliable on iOS (speechSynthesis often fails after delays)
 let voiceAudio: HTMLAudioElement | null = null;
+let unlockAudio: HTMLAudioElement | null = null;
+// Tiny silent wav — unlock only, never play the voice clip on boot
+const SILENT_WAV =
+  "data:audio/wav;base64,UklGRiQAAABXQVZFZm10IBAAAAABAAEARKwAAIhYAQACABAAZGF0YQAAAAA=";
 
 function getVoiceAudio() {
   if (typeof window === "undefined") return null;
@@ -170,24 +174,25 @@ function getVoiceAudio() {
   return voiceAudio;
 }
 
-/** Call from a user tap so iOS allows later playback */
+/** Call from a user tap so iOS allows later playback (silent — no voice yet) */
 async function unlockVoiceAudio() {
-  const audio = getVoiceAudio();
-  if (!audio) return;
+  if (typeof window === "undefined") return;
   try {
-    audio.muted = true;
-    audio.currentTime = 0;
-    await audio.play();
-    audio.pause();
-    audio.currentTime = 0;
-    audio.muted = false;
+    if (!unlockAudio) unlockAudio = new Audio(SILENT_WAV);
+    unlockAudio.volume = 0.01;
+    await unlockAudio.play();
+    unlockAudio.pause();
+    unlockAudio.currentTime = 0;
   } catch {}
+  // Preload the real clip without playing it
+  getVoiceAudio()?.load();
 }
 
 async function speakDestinationUnknown() {
   const audio = getVoiceAudio();
   if (!audio) return;
   try {
+    audio.pause();
     audio.muted = false;
     audio.volume = 1;
     audio.currentTime = 0;
