@@ -20,7 +20,7 @@ function EndOfTripPopup({ onClose }: { onClose: () => void }) {
           Stay tuned voor de volgende trip!
         </p>
         <p className="mt-3 text-sm text-white/70">
-          PS: Vergeet niet om elkaars foto's te liken! ❤️
+          PS: Vergeet niet om onze foto's te liken! ❤️
         </p>
         <button
           type="button"
