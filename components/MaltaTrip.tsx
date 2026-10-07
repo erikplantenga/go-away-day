@@ -136,6 +136,22 @@ export function MaltaTrip() {
       >
         <Updates briefing={briefing} />
       </Accordion>
+
+      {/* Sneak Preview 2027 */}
+      <a
+        href="https://temporary-turbo-krypton-77jdzre.vercel.app"
+        target="_blank"
+        rel="noopener noreferrer"
+        className="block overflow-hidden rounded-2xl bg-[#0b1f3a]/90 text-white transition-colors duration-300 active:scale-[0.99]"
+      >
+        <div className="flex w-full items-center gap-3 px-4 py-3.5 text-left">
+          <span className="min-w-0 flex-1">
+            <span className="block text-base font-semibold">Sneak Preview 2027</span>
+            <span className="block truncate text-sm text-white/65">Waar gaan we volgend jaar naartoe?</span>
+          </span>
+          <span className="text-lg text-[#c9a227]" aria-hidden>→</span>
+        </div>
+      </a>
     </div>
   );
 }
