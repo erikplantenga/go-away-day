@@ -334,42 +334,46 @@ function playTypeSound() {
   if (!ctx || ctx.state === "suspended") return;
   try {
     const now = ctx.currentTime;
+    const sr = ctx.sampleRate;
 
-    // Key-strike noise (typewriter click)
-    const dur = 0.045;
-    const buffer = ctx.createBuffer(1, Math.floor(ctx.sampleRate * dur), ctx.sampleRate);
-    const data = buffer.getChannelData(0);
-    for (let i = 0; i < data.length; i++) {
-      const env = Math.pow(1 - i / data.length, 3);
-      data[i] = (Math.random() * 2 - 1) * env;
+    // Soft plastic/keyboard "tik" — short filtered noise, low & dull
+    const nDur = 0.028;
+    const nBuf = ctx.createBuffer(1, Math.floor(sr * nDur), sr);
+    const nData = nBuf.getChannelData(0);
+    for (let i = 0; i < nData.length; i++) {
+      nData[i] = (Math.random() * 2 - 1) * Math.pow(1 - i / nData.length, 4);
     }
     const noise = ctx.createBufferSource();
-    noise.buffer = buffer;
-    const noiseFilter = ctx.createBiquadFilter();
-    noiseFilter.type = "bandpass";
-    noiseFilter.frequency.value = 1800 + Math.random() * 1200;
-    noiseFilter.Q.value = 1.2;
-    const noiseGain = ctx.createGain();
-    noiseGain.gain.setValueAtTime(0.35, now);
-    noiseGain.gain.exponentialRampToValueAtTime(0.001, now + dur);
-    noise.connect(noiseFilter);
-    noiseFilter.connect(noiseGain);
-    noiseGain.connect(ctx.destination);
+    noise.buffer = nBuf;
+    const hp = ctx.createBiquadFilter();
+    hp.type = "highpass";
+    hp.frequency.value = 400;
+    const lp = ctx.createBiquadFilter();
+    lp.type = "lowpass";
+    lp.frequency.value = 1200 + Math.random() * 400;
+    lp.Q.value = 0.7;
+    const nGain = ctx.createGain();
+    nGain.gain.setValueAtTime(0.55, now);
+    nGain.gain.exponentialRampToValueAtTime(0.001, now + nDur);
+    noise.connect(hp);
+    hp.connect(lp);
+    lp.connect(nGain);
+    nGain.connect(ctx.destination);
     noise.start(now);
-    noise.stop(now + dur);
+    noise.stop(now + nDur);
 
-    // Soft mechanical thump
-    const thump = ctx.createOscillator();
-    const thumpGain = ctx.createGain();
-    thump.type = "triangle";
-    thump.frequency.setValueAtTime(140 + Math.random() * 40, now);
-    thump.frequency.exponentialRampToValueAtTime(60, now + 0.05);
-    thumpGain.gain.setValueAtTime(0.12, now);
-    thumpGain.gain.exponentialRampToValueAtTime(0.001, now + 0.06);
-    thump.connect(thumpGain);
-    thumpGain.connect(ctx.destination);
-    thump.start(now);
-    thump.stop(now + 0.07);
+    // Key bottom-out thud (low, short)
+    const thud = ctx.createOscillator();
+    const thudGain = ctx.createGain();
+    thud.type = "sine";
+    thud.frequency.setValueAtTime(90 + Math.random() * 25, now);
+    thud.frequency.exponentialRampToValueAtTime(45, now + 0.04);
+    thudGain.gain.setValueAtTime(0.22, now);
+    thudGain.gain.exponentialRampToValueAtTime(0.001, now + 0.05);
+    thud.connect(thudGain);
+    thudGain.connect(ctx.destination);
+    thud.start(now);
+    thud.stop(now + 0.055);
   } catch {}
 }
 
@@ -439,7 +443,6 @@ function FlickeringQuestionMarks() {
 const BOOT_LINES = [
   "> BOOT SEQUENCE INITIATED...",
   "> LOADING EARTH_TEXTURE.dat",
-  "> GPS_MODULE: SYNCHRONIZED",
   "> DESTINATION: UNKNOWN",
   "> STATUS: READY_",
 ];
@@ -451,7 +454,7 @@ export default function GlobeScene() {
   const [bootCurrent, setBootCurrent] = useState("");
   const [bootTyping, setBootTyping] = useState(false);
 
-  // 5 lines stay on screen, ~8s total, slower typing + typewriter clicks
+  // 4 lines × ~2.5s ≈ 10s total — paced per line
   useEffect(() => {
     if (phase !== "loading") return;
 
@@ -460,36 +463,44 @@ export default function GlobeScene() {
     let charIndex = 0;
     let timer: ReturnType<typeof setTimeout>;
     const done: string[] = [];
+    const LINE_MS = 2500;
 
-    const typeChar = () => {
+    const typeLine = () => {
       if (cancelled) return;
       const line = BOOT_LINES[lineIndex];
-      if (charIndex < line.length) {
-        setBootCurrent(line.slice(0, charIndex + 1));
-        setBootTyping(true);
-        if (line[charIndex] !== " ") playTypeSound();
-        charIndex++;
-        // Slight human variation in typing speed
-        const delay = line[charIndex - 1] === " " ? 90 : 48 + Math.floor(Math.random() * 28);
-        timer = setTimeout(typeChar, delay);
-      } else {
-        done.push(line);
-        setBootLines([...done]);
-        setBootCurrent("");
-        setBootTyping(false);
-        lineIndex++;
-        if (lineIndex < BOOT_LINES.length) {
-          charIndex = 0;
-          timer = setTimeout(typeChar, 280);
+      const chars = [...line];
+      // Leave ~200ms pause at end of each line
+      const charDelay = Math.max(55, Math.floor((LINE_MS - 200) / chars.length));
+      charIndex = 0;
+
+      const typeChar = () => {
+        if (cancelled) return;
+        if (charIndex < chars.length) {
+          setBootCurrent(line.slice(0, charIndex + 1));
+          setBootTyping(true);
+          if (chars[charIndex] !== " ") playTypeSound();
+          charIndex++;
+          timer = setTimeout(typeChar, charDelay);
         } else {
-          timer = setTimeout(() => {
-            if (!cancelled) setPhase("idle");
-          }, 450);
+          done.push(line);
+          setBootLines([...done]);
+          setBootCurrent("");
+          setBootTyping(false);
+          lineIndex++;
+          if (lineIndex < BOOT_LINES.length) {
+            timer = setTimeout(typeLine, 200);
+          } else {
+            timer = setTimeout(() => {
+              if (!cancelled) setPhase("idle");
+            }, 300);
+          }
         }
-      }
+      };
+
+      typeChar();
     };
 
-    timer = setTimeout(typeChar, 200);
+    timer = setTimeout(typeLine, 150);
     return () => { cancelled = true; clearTimeout(timer); };
   }, [phase]);
 
