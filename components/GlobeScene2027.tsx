@@ -174,6 +174,7 @@ function Globe({ phase, onPhaseChange }: { phase: string; onPhaseChange: (p: str
     progress: 0,
     spinAngle: 0,
     spinSpeed: 0.8,
+    spinElapsed: 0,
     flyStarted: false,
     phaseLocked: false,
     startCamDir: new THREE.Vector3(),
@@ -195,6 +196,7 @@ function Globe({ phase, onPhaseChange }: { phase: string; onPhaseChange: (p: str
     animRef.current.phaseLocked = false;
     if (phase === "spinning") {
       animRef.current.spinSpeed = 1.2;
+      animRef.current.spinElapsed = 0;
       animRef.current.progress = 0;
       animRef.current.flyStarted = false;
     }
@@ -213,7 +215,9 @@ function Globe({ phase, onPhaseChange }: { phase: string; onPhaseChange: (p: str
     }
     
     if (phase === "spinning") {
-      animRef.current.spinSpeed = Math.min(animRef.current.spinSpeed + delta * 1.8, 4.5);
+      // Fast spin for 6.5s, then hand off to slowdown
+      animRef.current.spinElapsed += delta;
+      animRef.current.spinSpeed = Math.min(animRef.current.spinSpeed + delta * 4, 4.5);
       animRef.current.spinAngle += delta * animRef.current.spinSpeed;
       const qY = new THREE.Quaternion().setFromAxisAngle(new THREE.Vector3(0, 1, 0), animRef.current.spinAngle);
       const qX = new THREE.Quaternion().setFromAxisAngle(new THREE.Vector3(1, 0, 0), Math.sin(t * 2.2) * 0.25);
@@ -221,7 +225,7 @@ function Globe({ phase, onPhaseChange }: { phase: string; onPhaseChange: (p: str
       camera.position.copy(dir.multiplyScalar(baseCam));
       camera.lookAt(0, 0, 0);
       
-      if (animRef.current.spinSpeed >= 4.5 && !animRef.current.phaseLocked) {
+      if (animRef.current.spinElapsed >= 6.5 && !animRef.current.phaseLocked) {
         animRef.current.phaseLocked = true;
         onPhaseChange("flying");
       }
@@ -235,8 +239,8 @@ function Globe({ phase, onPhaseChange }: { phase: string; onPhaseChange: (p: str
         animRef.current.progress = 0;
       }
 
-      // Long tense slowdown (~7.5s): keep spinning while decelerating into the target
-      animRef.current.progress = Math.min(animRef.current.progress + delta * 0.135, 1);
+      // Slowdown ~7.5s: keep spinning while decelerating into the target
+      animRef.current.progress = Math.min(animRef.current.progress + delta / 7.5, 1);
       const p = animRef.current.progress;
       const spinFade = Math.pow(1 - p, 2.8); // still fast early, almost frozen at the end
       const aimP = easeInOutCubic(p);
@@ -255,7 +259,7 @@ function Globe({ phase, onPhaseChange }: { phase: string; onPhaseChange: (p: str
       camera.lookAt(0, 0, 0);
 
       // Soften rumble as we slow, but keep it until the end
-      if (Math.floor(p * 20) !== Math.floor((p - delta * 0.135) * 20)) {
+      if (Math.floor(p * 20) !== Math.floor((p - delta / 7.5) * 20)) {
         setSpinSoundLevel(0.12 * (0.35 + 0.65 * spinFade), 0.25);
       }
       
@@ -363,39 +367,53 @@ function playTypeSound() {
     const now = ctx.currentTime;
     const sr = ctx.sampleRate;
 
-    // Soft plastic/keyboard "tik" — short filtered noise, low & dull
-    const nDur = 0.028;
-    const nBuf = ctx.createBuffer(1, Math.floor(sr * nDur), sr);
-    const nData = nBuf.getChannelData(0);
-    for (let i = 0; i < nData.length; i++) {
-      nData[i] = (Math.random() * 2 - 1) * Math.pow(1 - i / nData.length, 4);
-    }
-    const noise = ctx.createBufferSource();
-    noise.buffer = nBuf;
-    const hp = ctx.createBiquadFilter();
-    hp.type = "highpass";
-    hp.frequency.value = 400;
-    const lp = ctx.createBiquadFilter();
-    lp.type = "lowpass";
-    lp.frequency.value = 1200 + Math.random() * 400;
-    lp.Q.value = 0.7;
-    const nGain = ctx.createGain();
-    nGain.gain.setValueAtTime(0.55, now);
-    nGain.gain.exponentialRampToValueAtTime(0.001, now + nDur);
-    noise.connect(hp);
-    hp.connect(lp);
-    lp.connect(nGain);
-    nGain.connect(ctx.destination);
-    noise.start(now);
-    noise.stop(now + nDur);
+    // Real-ish typewriter clack: sharp strike + wooden body + soft thud
+    const mkNoise = (dur: number, power: number) => {
+      const buf = ctx.createBuffer(1, Math.floor(sr * dur), sr);
+      const data = buf.getChannelData(0);
+      for (let i = 0; i < data.length; i++) {
+        data[i] = (Math.random() * 2 - 1) * Math.pow(1 - i / data.length, power);
+      }
+      const src = ctx.createBufferSource();
+      src.buffer = buf;
+      return src;
+    };
 
-    // Key bottom-out thud (low, short)
+    // 1) Key strike (short, mid-bright clack)
+    const strike = mkNoise(0.018, 6);
+    const strikeBp = ctx.createBiquadFilter();
+    strikeBp.type = "bandpass";
+    strikeBp.frequency.value = 2200 + Math.random() * 600;
+    strikeBp.Q.value = 2.2;
+    const strikeGain = ctx.createGain();
+    strikeGain.gain.setValueAtTime(0.7, now);
+    strikeGain.gain.exponentialRampToValueAtTime(0.001, now + 0.02);
+    strike.connect(strikeBp);
+    strikeBp.connect(strikeGain);
+    strikeGain.connect(ctx.destination);
+    strike.start(now);
+    strike.stop(now + 0.02);
+
+    // 2) Wooden/plastic body (mid thock)
+    const body = ctx.createOscillator();
+    const bodyGain = ctx.createGain();
+    body.type = "triangle";
+    body.frequency.setValueAtTime(320 + Math.random() * 80, now);
+    body.frequency.exponentialRampToValueAtTime(120, now + 0.05);
+    bodyGain.gain.setValueAtTime(0.16, now);
+    bodyGain.gain.exponentialRampToValueAtTime(0.001, now + 0.055);
+    body.connect(bodyGain);
+    bodyGain.connect(ctx.destination);
+    body.start(now);
+    body.stop(now + 0.06);
+
+    // 3) Soft bottom thud
     const thud = ctx.createOscillator();
     const thudGain = ctx.createGain();
     thud.type = "sine";
-    thud.frequency.setValueAtTime(90 + Math.random() * 25, now);
-    thud.frequency.exponentialRampToValueAtTime(45, now + 0.04);
-    thudGain.gain.setValueAtTime(0.22, now);
+    thud.frequency.setValueAtTime(75 + Math.random() * 20, now);
+    thud.frequency.exponentialRampToValueAtTime(40, now + 0.04);
+    thudGain.gain.setValueAtTime(0.14, now);
     thudGain.gain.exponentialRampToValueAtTime(0.001, now + 0.05);
     thud.connect(thudGain);
     thudGain.connect(ctx.destination);
