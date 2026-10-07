@@ -215,7 +215,7 @@ function Globe({ phase, onPhaseChange }: { phase: string; onPhaseChange: (p: str
     }
     
     if (phase === "spinning") {
-      // Fast spin ~8.5s, then hand off to slowdown
+      // Fast spin ~6.5s, then hand off to slowdown
       animRef.current.spinElapsed += delta;
       animRef.current.spinSpeed = Math.min(animRef.current.spinSpeed + delta * 4, 4.5);
       animRef.current.spinAngle += delta * animRef.current.spinSpeed;
@@ -225,7 +225,7 @@ function Globe({ phase, onPhaseChange }: { phase: string; onPhaseChange: (p: str
       camera.position.copy(dir.multiplyScalar(baseCam));
       camera.lookAt(0, 0, 0);
       
-      if (animRef.current.spinElapsed >= 8.5 && !animRef.current.phaseLocked) {
+      if (animRef.current.spinElapsed >= 6.5 && !animRef.current.phaseLocked) {
         animRef.current.phaseLocked = true;
         onPhaseChange("flying");
       }
