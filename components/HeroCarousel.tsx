@@ -90,7 +90,7 @@ export function HeroCarousel() {
         ) : (
           <div className="text-center">
             <p className="text-base font-black uppercase tracking-[0.08em] text-[#c9a227] sm:text-lg">
-              🇲🇹 Bedankt Malta! 🇲🇹
+              Bedankt Malta, je was geweldig! 🇲🇹
             </p>
             <p className="mt-1 text-sm text-white/70">3–7 oktober 2026</p>
           </div>
