@@ -11,7 +11,7 @@ const START = { lat: 52.3676, lng: 4.9041, name: "Amsterdam" };
 const DESTINATION = { lat: 45.7640, lng: 4.8357, name: "???" };
 
 let audioCtx: AudioContext | null = null;
-let spinNodes: { osc1: OscillatorNode; osc2: OscillatorNode; gain: GainNode; filter: BiquadFilterNode } | null = null;
+let spinNodes: { noise: AudioBufferSourceNode; gain: GainNode; filter: BiquadFilterNode; lfo: OscillatorNode } | null = null;
 
 async function ensureAudio(): Promise<AudioContext | null> {
   if (typeof window === "undefined") return null;
@@ -39,48 +39,48 @@ async function startSpinSound() {
 
   try {
     const now = ctx.currentTime;
-    const osc1 = ctx.createOscillator();
-    const osc2 = ctx.createOscillator();
-    const gain = ctx.createGain();
+    // Soft atmospheric rumble: filtered noise (no harsh saw/whoosh)
+    const bufferSize = ctx.sampleRate * 2;
+    const buffer = ctx.createBuffer(1, bufferSize, ctx.sampleRate);
+    const data = buffer.getChannelData(0);
+    let last = 0;
+    for (let i = 0; i < bufferSize; i++) {
+      // Brown-ish noise — deep & soft
+      const white = Math.random() * 2 - 1;
+      last = (last + 0.02 * white) / 1.02;
+      data[i] = last * 3.5;
+    }
+
+    const noise = ctx.createBufferSource();
+    noise.buffer = buffer;
+    noise.loop = true;
+
     const filter = ctx.createBiquadFilter();
+    filter.type = "lowpass";
+    filter.frequency.setValueAtTime(180, now);
+    filter.frequency.linearRampToValueAtTime(420, now + 1.5);
+    filter.Q.value = 0.6;
+
     const lfo = ctx.createOscillator();
     const lfoGain = ctx.createGain();
-
-    osc1.type = "sine";
-    osc1.frequency.setValueAtTime(80, now);
-    osc1.frequency.linearRampToValueAtTime(180, now + 1.2);
-
-    osc2.type = "sawtooth";
-    osc2.frequency.setValueAtTime(40, now);
-    osc2.frequency.linearRampToValueAtTime(90, now + 1.2);
-
-    // Subtle whoosh modulation while spinning
     lfo.type = "sine";
-    lfo.frequency.value = 0.35;
-    lfoGain.gain.value = 40;
+    lfo.frequency.value = 0.18;
+    lfoGain.gain.value = 60;
     lfo.connect(lfoGain);
-    lfoGain.connect(osc1.frequency);
-    lfoGain.connect(osc2.frequency);
+    lfoGain.connect(filter.frequency);
 
-    filter.type = "lowpass";
-    filter.frequency.setValueAtTime(200, now);
-    filter.frequency.linearRampToValueAtTime(2200, now + 1.0);
-    filter.Q.value = 8;
-
+    const gain = ctx.createGain();
     gain.gain.setValueAtTime(0, now);
-    gain.gain.linearRampToValueAtTime(0.45, now + 0.25);
+    gain.gain.linearRampToValueAtTime(0.12, now + 0.6); // quiet
 
-    osc1.connect(filter);
-    osc2.connect(filter);
+    noise.connect(filter);
     filter.connect(gain);
     gain.connect(ctx.destination);
 
-    osc1.start(now);
-    osc2.start(now);
+    noise.start(now);
     lfo.start(now);
 
-    spinNodes = { osc1, osc2, gain, filter };
-    (spinNodes as any).lfo = lfo;
+    spinNodes = { noise, gain, filter, lfo };
   } catch (e) {
     console.error("Spin sound error:", e);
   }
@@ -90,14 +90,12 @@ function stopSpinSound() {
   if (!spinNodes || !audioCtx) return;
   try {
     const now = audioCtx.currentTime;
-    const { osc1, osc2, gain } = spinNodes;
-    const lfo = (spinNodes as any).lfo as OscillatorNode | undefined;
+    const { noise, gain, lfo } = spinNodes;
     gain.gain.cancelScheduledValues(now);
-    gain.gain.setValueAtTime(gain.gain.value, now);
-    gain.gain.linearRampToValueAtTime(0, now + 0.35);
-    osc1.stop(now + 0.4);
-    osc2.stop(now + 0.4);
-    lfo?.stop(now + 0.4);
+    gain.gain.setValueAtTime(Math.max(gain.gain.value, 0.001), now);
+    gain.gain.linearRampToValueAtTime(0.001, now + 0.7);
+    noise.stop(now + 0.75);
+    lfo.stop(now + 0.75);
   } catch {}
   spinNodes = null;
 }
@@ -406,13 +404,13 @@ function FlickeringQuestionMarks() {
     return () => clearInterval(interval);
   }, []);
   
-  // Clustered around the marker / center of the globe
+  // Around the marker, a bit more spread out
   const positions = [
-    { top: '38%', left: '42%' }, { top: '40%', left: '56%' },
-    { top: '44%', left: '38%' }, { top: '46%', left: '60%' },
-    { top: '50%', left: '41%' }, { top: '52%', left: '57%' },
-    { top: '36%', left: '49%' }, { top: '55%', left: '48%' },
-    { top: '42%', left: '47%' }, { top: '48%', left: '52%' },
+    { top: '32%', left: '36%' }, { top: '34%', left: '62%' },
+    { top: '42%', left: '30%' }, { top: '44%', left: '68%' },
+    { top: '52%', left: '34%' }, { top: '54%', left: '64%' },
+    { top: '28%', left: '50%' }, { top: '60%', left: '48%' },
+    { top: '38%', left: '44%' }, { top: '50%', left: '54%' },
   ];
   
   return (
