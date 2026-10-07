@@ -7,7 +7,8 @@ import * as THREE from "three";
 import { TextureLoader } from "three";
 
 const START = { lat: 52.3676, lng: 4.9041, name: "Amsterdam" };
-const DESTINATION = { lat: 48.8566, lng: 2.3522, name: "???" }; // Paris - centrum van Frankrijk
+// Lyon — inland France (avoids coast / water misalignment)
+const DESTINATION = { lat: 45.7640, lng: 4.8357, name: "???" };
 
 let audioCtx: AudioContext | null = null;
 
@@ -132,10 +133,17 @@ function Globe({ phase, onPhaseChange }: { phase: string; onPhaseChange: (p: str
   const endPos = useMemo(() => latLngToVector3(DESTINATION.lat, DESTINATION.lng, 5), []);
   const markerPos = useMemo(() => latLngToVector3(DESTINATION.lat, DESTINATION.lng, 1.02), []);
   const { camera, size } = useThree();
-  const animRef = useRef({ progress: 0, spinSpeed: 0.002, rotX: 0, rotY: 0, finalRotY: 0 });
+  const animRef = useRef({
+    progress: 0,
+    spinSpeed: 0.002,
+    flyStarted: false,
+    phaseLocked: false,
+    startRotX: 0,
+    startRotY: 0,
+  });
   const isPortrait = size.height > size.width;
   const baseCam = isPortrait ? 3.6 : 2.8;
-  const endCam = isPortrait ? 1.6 : 1.3;
+  const endCam = isPortrait ? 1.55 : 1.25;
 
   const earthTex = useLoader(TextureLoader, "https://unpkg.com/three-globe@2.31.0/example/img/earth-blue-marble.jpg");
   
@@ -144,6 +152,15 @@ function Globe({ phase, onPhaseChange }: { phase: string; onPhaseChange: (p: str
     camera.position.copy(startPos.clone().normalize().multiplyScalar(baseCam));
     camera.lookAt(0, 0, 0);
   }, [camera, startPos, baseCam]);
+
+  useEffect(() => {
+    animRef.current.phaseLocked = false;
+    if (phase === "spinning") {
+      animRef.current.spinSpeed = 0.02;
+      animRef.current.progress = 0;
+      animRef.current.flyStarted = false;
+    }
+  }, [phase]);
 
   useFrame((state, delta) => {
     if (!groupRef.current) return;
@@ -154,35 +171,53 @@ function Globe({ phase, onPhaseChange }: { phase: string; onPhaseChange: (p: str
     }
     
     if (phase === "spinning") {
-      animRef.current.spinSpeed = Math.min(animRef.current.spinSpeed + delta * 0.025, 0.18);
-      animRef.current.rotX = Math.sin(t * 2) * 0.3;
+      animRef.current.spinSpeed = Math.min(animRef.current.spinSpeed + delta * 0.04, 0.2);
       groupRef.current.rotation.y += animRef.current.spinSpeed;
-      groupRef.current.rotation.x = animRef.current.rotX;
+      groupRef.current.rotation.x = Math.sin(t * 2.2) * 0.35;
       
-      if (animRef.current.spinSpeed >= 0.18) {
-        setTimeout(() => onPhaseChange("flying"), 150);
+      if (animRef.current.spinSpeed >= 0.2 && !animRef.current.phaseLocked) {
+        animRef.current.phaseLocked = true;
+        onPhaseChange("flying");
       }
     }
     
     if (phase === "flying") {
-      animRef.current.progress = Math.min(animRef.current.progress + delta * 0.4, 1);
+      // Unwind globe to rotation 0 so lat/lng matches the texture → marker on land
+      if (!animRef.current.flyStarted) {
+        animRef.current.flyStarted = true;
+        animRef.current.phaseLocked = false;
+        animRef.current.startRotX = groupRef.current.rotation.x;
+        let y = groupRef.current.rotation.y % (Math.PI * 2);
+        if (y > Math.PI) y -= Math.PI * 2;
+        if (y < -Math.PI) y += Math.PI * 2;
+        animRef.current.startRotY = y;
+        groupRef.current.rotation.y = y;
+        animRef.current.progress = 0;
+      }
+
+      animRef.current.progress = Math.min(animRef.current.progress + delta * 0.55, 1);
       const p = easeInOutCubic(animRef.current.progress);
-      
-      groupRef.current.rotation.x *= 0.95;
-      groupRef.current.rotation.y += 0.05 * (1 - p);
-      animRef.current.finalRotY = groupRef.current.rotation.y;
-      
-      const camPos = new THREE.Vector3().lerpVectors(startPos, endPos, p).normalize().multiplyScalar(baseCam - p * (baseCam - endCam));
-      camera.position.lerp(camPos, 0.06);
+
+      groupRef.current.rotation.x = animRef.current.startRotX * (1 - p);
+      groupRef.current.rotation.y = animRef.current.startRotY * (1 - p);
+
+      const dist = baseCam - p * (baseCam - endCam);
+      const camPos = new THREE.Vector3().lerpVectors(startPos, endPos, p).normalize().multiplyScalar(dist);
+      camera.position.copy(camPos);
       camera.lookAt(0, 0, 0);
       
-      if (animRef.current.progress >= 1) {
+      if (animRef.current.progress >= 1 && !animRef.current.phaseLocked) {
+        animRef.current.phaseLocked = true;
+        groupRef.current.rotation.set(0, 0, 0);
         onPhaseChange("arrived");
       }
     }
     
     if (phase === "arrived") {
-      groupRef.current.rotation.x *= 0.98;
+      groupRef.current.rotation.set(0, 0, 0);
+      const camPos = endPos.clone().normalize().multiplyScalar(endCam);
+      camera.position.lerp(camPos, 0.12);
+      camera.lookAt(0, 0, 0);
     }
 
     if (markerRef.current && phase === "arrived") {
@@ -355,9 +390,7 @@ function FlickeringQuestionMarks() {
 const BOOT_LINES = [
   "> BOOT SEQUENCE INITIATED...",
   "> LOADING EARTH_TEXTURE.dat",
-  "> INITIALIZING 3D_RENDERER...",
   "> GPS_MODULE: SYNCHRONIZED",
-  "> DECRYPTING COORDINATES...",
   "> DESTINATION: UNKNOWN",
   "> STATUS: READY_",
 ];
@@ -365,10 +398,11 @@ const BOOT_LINES = [
 export default function GlobeScene() {
   const [phase, setPhase] = useState("waiting");
   const [showReveal, setShowReveal] = useState(false);
-  const [bootText, setBootText] = useState("");
+  const [bootLines, setBootLines] = useState<string[]>([]);
+  const [bootCurrent, setBootCurrent] = useState("");
   const [bootTyping, setBootTyping] = useState(false);
 
-  // Single-line boot typewriter — never overlaps
+  // 5 lines, typed lines stay, ~5s total
   useEffect(() => {
     if (phase !== "loading") return;
 
@@ -376,44 +410,43 @@ export default function GlobeScene() {
     let lineIndex = 0;
     let charIndex = 0;
     let timer: ReturnType<typeof setTimeout>;
-
-    const clear = () => clearTimeout(timer);
+    const done: string[] = [];
 
     const typeChar = () => {
       if (cancelled) return;
       const line = BOOT_LINES[lineIndex];
       if (charIndex < line.length) {
-        setBootText(line.slice(0, charIndex + 1));
+        setBootCurrent(line.slice(0, charIndex + 1));
         setBootTyping(true);
         if (line[charIndex] !== " ") playTypeSound();
         charIndex++;
-        timer = setTimeout(typeChar, 45);
+        timer = setTimeout(typeChar, 22);
       } else {
+        done.push(line);
+        setBootLines([...done]);
+        setBootCurrent("");
         setBootTyping(false);
-        timer = setTimeout(() => {
-          if (cancelled) return;
-          lineIndex++;
-          if (lineIndex < BOOT_LINES.length) {
-            charIndex = 0;
-            setBootText("");
-            timer = setTimeout(typeChar, 250);
-          } else {
-            timer = setTimeout(() => {
-              if (!cancelled) setPhase("idle");
-            }, 700);
-          }
-        }, 450);
+        lineIndex++;
+        if (lineIndex < BOOT_LINES.length) {
+          charIndex = 0;
+          timer = setTimeout(typeChar, 120);
+        } else {
+          timer = setTimeout(() => {
+            if (!cancelled) setPhase("idle");
+          }, 350);
+        }
       }
     };
 
-    timer = setTimeout(typeChar, 300);
-    return () => { cancelled = true; clear(); };
+    timer = setTimeout(typeChar, 150);
+    return () => { cancelled = true; clearTimeout(timer); };
   }, [phase]);
 
   const handleStartBoot = useCallback(() => {
     if (phase !== "waiting") return;
     initAudio();
-    setBootText("");
+    setBootLines([]);
+    setBootCurrent("");
     setPhase("loading");
   }, [phase]);
 
@@ -458,7 +491,7 @@ export default function GlobeScene() {
         </div>
       )}
 
-      {/* Loading - boot sequence (exactly one line at a time) */}
+      {/* Loading - 5 lines, typed lines stay on screen */}
       {phase === "loading" && (
         <div style={{ position: "absolute", inset: 0, zIndex: 50, display: "flex", alignItems: "center", justifyContent: "center", background: "#000", padding: "2rem" }}>
           <div style={{
@@ -468,10 +501,17 @@ export default function GlobeScene() {
             color: "#00ff41",
             fontSize: "clamp(0.75rem, 3vw, 0.95rem)",
             textShadow: "0 0 10px #00ff41",
-            minHeight: "1.3em",
+            lineHeight: 1.6,
           }}>
-            {bootText}
-            {bootTyping && <span style={{ animation: "blink 0.5s infinite" }}>▋</span>}
+            {bootLines.map((line, i) => (
+              <div key={i}>{line}</div>
+            ))}
+            {(bootTyping || bootCurrent) && (
+              <div>
+                {bootCurrent}
+                {bootTyping && <span style={{ animation: "blink 0.5s infinite" }}>▋</span>}
+              </div>
+            )}
           </div>
         </div>
       )}
