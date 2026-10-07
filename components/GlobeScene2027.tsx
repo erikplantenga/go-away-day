@@ -285,6 +285,24 @@ function MatrixRain() {
   return <canvas ref={ref} style={{ position: "fixed", inset: 0, zIndex: 0, opacity: 0.2 }} />;
 }
 
+function playTypeSound() {
+  const ctx = initAudio();
+  if (!ctx) return;
+  try {
+    const now = ctx.currentTime;
+    const osc = ctx.createOscillator();
+    const gain = ctx.createGain();
+    osc.type = "square";
+    osc.frequency.value = 800 + Math.random() * 400;
+    gain.gain.setValueAtTime(0.08, now);
+    gain.gain.exponentialRampToValueAtTime(0.001, now + 0.05);
+    osc.connect(gain);
+    gain.connect(ctx.destination);
+    osc.start(now);
+    osc.stop(now + 0.05);
+  } catch (e) {}
+}
+
 function GlitchText({ text }: { text: string }) {
   const [d, setD] = useState(text);
   useEffect(() => {
@@ -303,33 +321,71 @@ function GlitchText({ text }: { text: string }) {
   return <span>{d}</span>;
 }
 
-export default function GlobeScene() {
-  const [phase, setPhase] = useState("loading");
-  const [showReveal, setShowReveal] = useState(false);
-  const [bootLines, setBootLines] = useState<string[]>([]);
-
-  // Boot sequence met opsomming
+function TypewriterLine({ text, onComplete, startDelay = 0 }: { text: string; onComplete?: () => void; startDelay?: number }) {
+  const [displayed, setDisplayed] = useState("");
+  const [started, setStarted] = useState(false);
+  
   useEffect(() => {
-    const lines = [
-      "> INITIALIZING SYSTEM...",
-      "> LOADING TRAVEL_MATRIX.exe",
-      "> DECRYPTING COORDINATES...",
-      "> DESTINATION: [CLASSIFIED]",
-      "> SUBJECTS: ERIK, BENNO",
-      "> STATUS: READY_",
-    ];
+    const startTimer = setTimeout(() => setStarted(true), startDelay);
+    return () => clearTimeout(startTimer);
+  }, [startDelay]);
+  
+  useEffect(() => {
+    if (!started) return;
+    
     let i = 0;
     const interval = setInterval(() => {
-      if (i < lines.length) {
-        setBootLines(prev => [...prev, lines[i]]);
+      if (i < text.length) {
+        setDisplayed(text.slice(0, i + 1));
+        if (text[i] !== " ") playTypeSound();
         i++;
       } else {
         clearInterval(interval);
-        setTimeout(() => setPhase("idle"), 600);
+        onComplete?.();
       }
-    }, 180);
+    }, 35); // Snelheid per karakter
+    
     return () => clearInterval(interval);
-  }, []);
+  }, [text, started, onComplete]);
+  
+  return (
+    <div style={{ 
+      color: "#00ff41", 
+      fontSize: "clamp(0.75rem, 3vw, 0.95rem)", 
+      marginBottom: "0.5rem",
+      textShadow: "0 0 10px #00ff41",
+      minHeight: "1.3em",
+      fontFamily: "monospace",
+    }}>
+      {displayed}
+      {started && displayed.length < text.length && (
+        <span style={{ animation: "blink 0.5s infinite" }}>▋</span>
+      )}
+    </div>
+  );
+}
+
+export default function GlobeScene() {
+  const [phase, setPhase] = useState("loading");
+  const [showReveal, setShowReveal] = useState(false);
+  const [currentLine, setCurrentLine] = useState(0);
+  
+  const bootLines = [
+    "> INITIALIZING SYSTEM...",
+    "> LOADING TRAVEL_MATRIX.exe",
+    "> DECRYPTING COORDINATES...",
+    "> DESTINATION: [CLASSIFIED]",
+    "> SUBJECTS: ERIK, BENNO",
+    "> STATUS: READY_",
+  ];
+
+  const handleLineComplete = useCallback(() => {
+    if (currentLine < bootLines.length - 1) {
+      setTimeout(() => setCurrentLine(prev => prev + 1), 300);
+    } else {
+      setTimeout(() => setPhase("idle"), 800);
+    }
+  }, [currentLine, bootLines.length]);
 
   const handleTap = useCallback(() => {
     if (phase !== "idle") return;
@@ -354,15 +410,14 @@ export default function GlobeScene() {
       {/* Loading - boot sequence */}
       {phase === "loading" && (
         <div style={{ position: "absolute", inset: 0, zIndex: 50, display: "flex", alignItems: "center", justifyContent: "center", background: "#000", padding: "2rem" }}>
-          <div style={{ fontFamily: "monospace", width: "100%", maxWidth: "320px" }}>
-            {bootLines.map((line, i) => (
-              <div key={i} style={{ 
-                color: "#00ff41", 
-                fontSize: "clamp(0.75rem, 3vw, 0.95rem)", 
-                marginBottom: "0.4rem",
-                textShadow: "0 0 10px #00ff41",
-                animation: "fadeSlide 0.2s ease-out",
-              }}>{line}</div>
+          <div style={{ fontFamily: "monospace", width: "100%", maxWidth: "340px" }}>
+            {bootLines.slice(0, currentLine + 1).map((line, i) => (
+              <TypewriterLine 
+                key={i} 
+                text={line} 
+                onComplete={i === currentLine ? handleLineComplete : undefined}
+                startDelay={i === 0 ? 500 : 0}
+              />
             ))}
           </div>
         </div>
