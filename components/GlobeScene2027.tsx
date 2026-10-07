@@ -464,7 +464,7 @@ export default function GlobeScene() {
     let charIndex = 0;
     let timer: ReturnType<typeof setTimeout>;
     const done: string[] = [];
-    const LINE_MS = 3000;
+    const LINE_MS = 2500;
 
     const typeLine = () => {
       if (cancelled) return;
