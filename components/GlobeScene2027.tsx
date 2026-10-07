@@ -622,6 +622,7 @@ export default function GlobeScene() {
 
   const handleTap = useCallback(async () => {
     if (phase !== "idle") return;
+    await unlockVoiceAudio();
     await startSpinSound();
     setPhase("spinning");
   }, [phase]);
