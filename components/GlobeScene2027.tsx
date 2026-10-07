@@ -11,6 +11,18 @@ const START = { lat: 52.3676, lng: 4.9041, name: "Amsterdam" };
 const DESTINATION = { lat: 45.7640, lng: 4.8357, name: "???" };
 
 let audioCtx: AudioContext | null = null;
+let spinNodes: { osc1: OscillatorNode; osc2: OscillatorNode; gain: GainNode; filter: BiquadFilterNode } | null = null;
+
+async function ensureAudio(): Promise<AudioContext | null> {
+  if (typeof window === "undefined") return null;
+  if (!audioCtx) {
+    audioCtx = new (window.AudioContext || (window as any).webkitAudioContext)();
+  }
+  if (audioCtx.state === "suspended") {
+    try { await audioCtx.resume(); } catch {}
+  }
+  return audioCtx;
+}
 
 function initAudio() {
   if (typeof window === "undefined") return null;
@@ -21,83 +33,94 @@ function initAudio() {
   return audioCtx;
 }
 
-async function playSpinSound() {
-  const ctx = initAudio();
-  if (!ctx) return;
-  
-  // Resume context for iOS
-  if (ctx.state === "suspended") {
-    await ctx.resume();
-  }
-  
+async function startSpinSound() {
+  const ctx = await ensureAudio();
+  if (!ctx || spinNodes) return;
+
   try {
-    const duration = 3.0;
     const now = ctx.currentTime;
     const osc1 = ctx.createOscillator();
     const osc2 = ctx.createOscillator();
-    const gainMain = ctx.createGain();
+    const gain = ctx.createGain();
     const filter = ctx.createBiquadFilter();
-    
+    const lfo = ctx.createOscillator();
+    const lfoGain = ctx.createGain();
+
     osc1.type = "sine";
-    osc1.frequency.setValueAtTime(50, now);
-    osc1.frequency.exponentialRampToValueAtTime(250, now + 1.5);
-    osc1.frequency.exponentialRampToValueAtTime(120, now + duration);
-    
+    osc1.frequency.setValueAtTime(80, now);
+    osc1.frequency.linearRampToValueAtTime(180, now + 1.2);
+
     osc2.type = "sawtooth";
-    osc2.frequency.setValueAtTime(25, now);
-    osc2.frequency.exponentialRampToValueAtTime(120, now + 1.5);
-    osc2.frequency.exponentialRampToValueAtTime(60, now + duration);
-    
+    osc2.frequency.setValueAtTime(40, now);
+    osc2.frequency.linearRampToValueAtTime(90, now + 1.2);
+
+    // Subtle whoosh modulation while spinning
+    lfo.type = "sine";
+    lfo.frequency.value = 0.35;
+    lfoGain.gain.value = 40;
+    lfo.connect(lfoGain);
+    lfoGain.connect(osc1.frequency);
+    lfoGain.connect(osc2.frequency);
+
     filter.type = "lowpass";
-    filter.frequency.setValueAtTime(80, now);
-    filter.frequency.exponentialRampToValueAtTime(2500, now + 1.2);
-    filter.frequency.exponentialRampToValueAtTime(400, now + duration);
-    filter.Q.value = 10;
-    
-    gainMain.gain.setValueAtTime(0, now);
-    gainMain.gain.linearRampToValueAtTime(0.4, now + 0.2);
-    gainMain.gain.linearRampToValueAtTime(0.5, now + 1.2);
-    gainMain.gain.linearRampToValueAtTime(0.15, now + duration - 0.3);
-    gainMain.gain.linearRampToValueAtTime(0, now + duration);
-    
+    filter.frequency.setValueAtTime(200, now);
+    filter.frequency.linearRampToValueAtTime(2200, now + 1.0);
+    filter.Q.value = 8;
+
+    gain.gain.setValueAtTime(0, now);
+    gain.gain.linearRampToValueAtTime(0.45, now + 0.25);
+
     osc1.connect(filter);
     osc2.connect(filter);
-    filter.connect(gainMain);
-    gainMain.connect(ctx.destination);
+    filter.connect(gain);
+    gain.connect(ctx.destination);
+
     osc1.start(now);
     osc2.start(now);
-    osc1.stop(now + duration);
-    osc2.stop(now + duration);
+    lfo.start(now);
+
+    spinNodes = { osc1, osc2, gain, filter };
+    (spinNodes as any).lfo = lfo;
   } catch (e) {
-    console.error("Sound error:", e);
+    console.error("Spin sound error:", e);
   }
 }
 
+function stopSpinSound() {
+  if (!spinNodes || !audioCtx) return;
+  try {
+    const now = audioCtx.currentTime;
+    const { osc1, osc2, gain } = spinNodes;
+    const lfo = (spinNodes as any).lfo as OscillatorNode | undefined;
+    gain.gain.cancelScheduledValues(now);
+    gain.gain.setValueAtTime(gain.gain.value, now);
+    gain.gain.linearRampToValueAtTime(0, now + 0.35);
+    osc1.stop(now + 0.4);
+    osc2.stop(now + 0.4);
+    lfo?.stop(now + 0.4);
+  } catch {}
+  spinNodes = null;
+}
+
 async function playLockSound() {
-  const ctx = initAudio();
+  const ctx = await ensureAudio();
   if (!ctx) return;
-  
-  if (ctx.state === "suspended") {
-    await ctx.resume();
-  }
-  
+
   try {
     const now = ctx.currentTime;
-    // 3 beeps
     for (let i = 0; i < 3; i++) {
       const osc = ctx.createOscillator();
       const gain = ctx.createGain();
       osc.type = "square";
       osc.frequency.value = 500 + i * 250;
       gain.gain.setValueAtTime(0, now + i * 0.12);
-      gain.gain.linearRampToValueAtTime(0.3, now + i * 0.12 + 0.02);
+      gain.gain.linearRampToValueAtTime(0.32, now + i * 0.12 + 0.02);
       gain.gain.linearRampToValueAtTime(0, now + i * 0.12 + 0.1);
       osc.connect(gain);
       gain.connect(ctx.destination);
       osc.start(now + i * 0.12);
       osc.stop(now + i * 0.12 + 0.12);
     }
-    // Final lock tone
     const oscF = ctx.createOscillator();
     const gainF = ctx.createGain();
     oscF.type = "sine";
@@ -308,20 +331,20 @@ function MatrixRain() {
 
 function playTypeSound() {
   const ctx = initAudio();
-  if (!ctx) return;
+  if (!ctx || ctx.state === "suspended") return;
   try {
     const now = ctx.currentTime;
     const osc = ctx.createOscillator();
     const gain = ctx.createGain();
     osc.type = "square";
-    osc.frequency.value = 800 + Math.random() * 400;
-    gain.gain.setValueAtTime(0.08, now);
-    gain.gain.exponentialRampToValueAtTime(0.001, now + 0.05);
+    osc.frequency.value = 900 + Math.random() * 500;
+    gain.gain.setValueAtTime(0.18, now);
+    gain.gain.exponentialRampToValueAtTime(0.001, now + 0.04);
     osc.connect(gain);
     gain.connect(ctx.destination);
     osc.start(now);
-    osc.stop(now + 0.05);
-  } catch (e) {}
+    osc.stop(now + 0.045);
+  } catch {}
 }
 
 function GlitchText({ text }: { text: string }) {
@@ -442,24 +465,26 @@ export default function GlobeScene() {
     return () => { cancelled = true; clearTimeout(timer); };
   }, [phase]);
 
-  const handleStartBoot = useCallback(() => {
+  const handleStartBoot = useCallback(async () => {
     if (phase !== "waiting") return;
-    initAudio();
+    await ensureAudio();
+    playTypeSound(); // unlock + confirm audio works
     setBootLines([]);
     setBootCurrent("");
     setPhase("loading");
   }, [phase]);
 
-  const handleTap = useCallback(() => {
+  const handleTap = useCallback(async () => {
     if (phase !== "idle") return;
-    playSpinSound();
+    await startSpinSound();
     setPhase("spinning");
   }, [phase]);
 
   const handlePhaseChange = useCallback((p: string) => {
     setPhase(p);
     if (p === "arrived") {
-      setTimeout(() => playLockSound(), 100);
+      stopSpinSound();
+      setTimeout(() => playLockSound(), 80);
       setTimeout(() => setShowReveal(true), 400);
     }
   }, []);
