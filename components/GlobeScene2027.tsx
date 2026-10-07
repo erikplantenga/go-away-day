@@ -7,7 +7,7 @@ import * as THREE from "three";
 import { TextureLoader } from "three";
 
 const START = { lat: 52.3676, lng: 4.9041, name: "Amsterdam" };
-const DESTINATION = { lat: 47.3769, lng: 8.5417, name: "???" }; // Zürich - midden in Zwitserland, 100% op land
+const DESTINATION = { lat: 48.8566, lng: 2.3522, name: "???" }; // Paris - centrum van Frankrijk
 
 let audioCtx: AudioContext | null = null;
 
@@ -125,13 +125,14 @@ function latLngToVector3(lat: number, lng: number, radius: number): THREE.Vector
 }
 
 function Globe({ phase, onPhaseChange }: { phase: string; onPhaseChange: (p: string) => void }) {
-  const meshRef = useRef<THREE.Mesh>(null);
+  const groupRef = useRef<THREE.Group>(null);
   const markerRef = useRef<THREE.Group>(null);
   const atmosphereRef = useRef<THREE.Mesh>(null);
   const startPos = useMemo(() => latLngToVector3(START.lat, START.lng, 5), []);
   const endPos = useMemo(() => latLngToVector3(DESTINATION.lat, DESTINATION.lng, 5), []);
+  const markerPos = useMemo(() => latLngToVector3(DESTINATION.lat, DESTINATION.lng, 1.02), []);
   const { camera, size } = useThree();
-  const animRef = useRef({ progress: 0, spinSpeed: 0.002, rotX: 0, rotY: 0 });
+  const animRef = useRef({ progress: 0, spinSpeed: 0.002, rotX: 0, rotY: 0, finalRotY: 0 });
   const isPortrait = size.height > size.width;
   const baseCam = isPortrait ? 3.6 : 2.8;
   const endCam = isPortrait ? 1.6 : 1.3;
@@ -145,19 +146,18 @@ function Globe({ phase, onPhaseChange }: { phase: string; onPhaseChange: (p: str
   }, [camera, startPos, baseCam]);
 
   useFrame((state, delta) => {
-    if (!meshRef.current) return;
+    if (!groupRef.current) return;
     const t = state.clock.elapsedTime;
 
     if (phase === "idle") {
-      meshRef.current.rotation.y += 0.002;
+      groupRef.current.rotation.y += 0.002;
     }
     
     if (phase === "spinning") {
-      // Multi-axis rotation - speed up
       animRef.current.spinSpeed = Math.min(animRef.current.spinSpeed + delta * 0.025, 0.18);
       animRef.current.rotX = Math.sin(t * 2) * 0.3;
-      meshRef.current.rotation.y += animRef.current.spinSpeed;
-      meshRef.current.rotation.x = animRef.current.rotX;
+      groupRef.current.rotation.y += animRef.current.spinSpeed;
+      groupRef.current.rotation.x = animRef.current.rotX;
       
       if (animRef.current.spinSpeed >= 0.18) {
         setTimeout(() => onPhaseChange("flying"), 150);
@@ -168,13 +168,10 @@ function Globe({ phase, onPhaseChange }: { phase: string; onPhaseChange: (p: str
       animRef.current.progress = Math.min(animRef.current.progress + delta * 0.4, 1);
       const p = easeInOutCubic(animRef.current.progress);
       
-      // Smoothly return X rotation to 0
-      meshRef.current.rotation.x *= 0.95;
+      groupRef.current.rotation.x *= 0.95;
+      groupRef.current.rotation.y += 0.05 * (1 - p);
+      animRef.current.finalRotY = groupRef.current.rotation.y;
       
-      // Slow down Y rotation
-      meshRef.current.rotation.y += 0.05 * (1 - p);
-      
-      // Camera flies to destination
       const camPos = new THREE.Vector3().lerpVectors(startPos, endPos, p).normalize().multiplyScalar(baseCam - p * (baseCam - endCam));
       camera.position.lerp(camPos, 0.06);
       camera.lookAt(0, 0, 0);
@@ -185,23 +182,16 @@ function Globe({ phase, onPhaseChange }: { phase: string; onPhaseChange: (p: str
     }
     
     if (phase === "arrived") {
-      // Globe staat stil - geen rotatie meer
-      meshRef.current.rotation.x *= 0.98; // Smooth to 0
+      groupRef.current.rotation.x *= 0.98;
     }
 
-    // Marker flicker effect
     if (markerRef.current && phase === "arrived") {
       const flicker = Math.sin(t * 15) * 0.3 + 0.7 + Math.sin(t * 23) * 0.2;
       markerRef.current.children.forEach((child, i) => {
         if (child instanceof THREE.Mesh && child.material instanceof THREE.MeshBasicMaterial) {
-          if (i === 0) {
-            child.material.opacity = Math.min(1, flicker + 0.3);
-          } else {
-            child.material.opacity = flicker * 0.5;
-          }
+          child.material.opacity = i === 0 ? Math.min(1, flicker + 0.3) : flicker * 0.5;
         }
       });
-      // Pulse scale
       const pulse = Math.sin(t * 8) * 0.15 + 1;
       markerRef.current.scale.setScalar(pulse);
     }
@@ -227,8 +217,8 @@ function Globe({ phase, onPhaseChange }: { phase: string; onPhaseChange: (p: str
   }), [earthTex]);
 
   return (
-    <group>
-      <mesh ref={meshRef} material={mat}><sphereGeometry args={[1, 64, 64]} /></mesh>
+    <group ref={groupRef}>
+      <mesh material={mat}><sphereGeometry args={[1, 64, 64]} /></mesh>
       <mesh ref={atmosphereRef}>
         <sphereGeometry args={[1.06, 64, 64]} />
         <shaderMaterial transparent side={THREE.BackSide} depthWrite={false}
@@ -237,14 +227,10 @@ function Globe({ phase, onPhaseChange }: { phase: string; onPhaseChange: (p: str
           fragmentShader="uniform vec3 col; varying vec3 vN; void main(){float i=pow(.6-dot(vN,vec3(0,0,1)),2.);gl_FragColor=vec4(col,i*.5);}" />
       </mesh>
       {phase === "arrived" && (
-        <group ref={markerRef} position={endPos.clone().normalize().multiplyScalar(1.01)}>
-          {/* Core dot */}
+        <group ref={markerRef} position={markerPos}>
           <mesh><sphereGeometry args={[0.018, 16, 16]} /><meshBasicMaterial color="#ff0040" transparent /></mesh>
-          {/* Glow ring 1 */}
           <mesh><sphereGeometry args={[0.03, 16, 16]} /><meshBasicMaterial color="#ff0040" transparent opacity={0.4} /></mesh>
-          {/* Glow ring 2 */}
           <mesh><ringGeometry args={[0.035, 0.05, 32]} /><meshBasicMaterial color="#ff0040" transparent opacity={0.5} side={THREE.DoubleSide} /></mesh>
-          {/* Outer pulse ring */}
           <mesh><ringGeometry args={[0.06, 0.075, 32]} /><meshBasicMaterial color="#ff0040" transparent opacity={0.3} side={THREE.DoubleSide} /></mesh>
         </group>
       )}
@@ -319,6 +305,51 @@ function GlitchText({ text }: { text: string }) {
     return () => clearInterval(iv);
   }, [text]);
   return <span>{d}</span>;
+}
+
+function FlickeringQuestionMarks() {
+  const [opacities, setOpacities] = useState<number[]>(Array(12).fill(0.3));
+  
+  useEffect(() => {
+    const interval = setInterval(() => {
+      setOpacities(prev => prev.map(() => 0.2 + Math.random() * 0.8));
+    }, 100);
+    return () => clearInterval(interval);
+  }, []);
+  
+  const positions = [
+    { top: '10%', left: '5%' }, { top: '15%', right: '8%' },
+    { top: '25%', left: '12%' }, { top: '30%', right: '15%' },
+    { top: '45%', left: '3%' }, { top: '50%', right: '5%' },
+    { top: '60%', left: '10%' }, { top: '65%', right: '12%' },
+    { top: '75%', left: '6%' }, { top: '80%', right: '8%' },
+    { top: '35%', left: '8%' }, { top: '55%', right: '10%' },
+  ];
+  
+  return (
+    <>
+      {positions.map((pos, i) => (
+        <div
+          key={i}
+          style={{
+            position: 'fixed',
+            ...pos,
+            color: '#ff0040',
+            fontFamily: 'monospace',
+            fontSize: `clamp(1.5rem, ${4 + Math.random() * 3}vw, 3rem)`,
+            fontWeight: 900,
+            textShadow: '0 0 10px #ff0040, 0 0 20px #ff0040, 0 0 30px #ff0040',
+            opacity: opacities[i],
+            zIndex: 5,
+            transition: 'opacity 0.1s',
+            pointerEvents: 'none',
+          }}
+        >
+          ?
+        </div>
+      ))}
+    </>
+  );
 }
 
 function TypewriterLine({ text, onComplete, startDelay = 0 }: { text: string; onComplete?: () => void; startDelay?: number }) {
@@ -463,6 +494,9 @@ export default function GlobeScene() {
         </div>
       )}
 
+      {/* Flickering question marks */}
+      {phase === "arrived" && showReveal && <FlickeringQuestionMarks />}
+
       {/* Reveal */}
       {phase === "arrived" && (
         <div style={{
@@ -473,12 +507,34 @@ export default function GlobeScene() {
           <div style={{ fontSize: "clamp(.6rem,2.5vw,.8rem)", color: "#00ff41", letterSpacing: ".3em", fontFamily: "monospace", marginBottom: ".3rem", textShadow: "0 0 8px #00ff41" }}>
             {">>"} DESTINATION_LOCKED
           </div>
-          <div style={{ fontSize: "clamp(2.5rem,15vw,5rem)", fontWeight: 900, fontFamily: "monospace", color: "#00ff41", textShadow: "0 0 15px #00ff41,0 0 30px #00ff41,0 0 45px #00ff41", lineHeight: 1, animation: "glow 2s infinite" }}>
+          <div style={{ fontSize: "clamp(2.5rem,15vw,5rem)", fontWeight: 900, fontFamily: "monospace", color: "#ff0040", textShadow: "0 0 15px #ff0040,0 0 30px #ff0040,0 0 45px #ff0040", lineHeight: 1, animation: "glow 2s infinite" }}>
             <GlitchText text="???" />
           </div>
           <div style={{ marginTop: ".4rem", fontSize: "clamp(.6rem,2.5vw,.8rem)", color: "#ff0040", fontFamily: "monospace", textShadow: "0 0 8px #ff0040", animation: "blink 1s infinite" }}>
             [CLASSIFIED]
           </div>
+          
+          {/* Back to 2026 button */}
+          <a 
+            href="/"
+            style={{
+              display: "inline-block",
+              marginTop: "1.5rem",
+              padding: "0.6rem 1.2rem",
+              background: "rgba(0, 255, 65, 0.1)",
+              border: "1px solid #00ff41",
+              borderRadius: "4px",
+              color: "#00ff41",
+              fontFamily: "monospace",
+              fontSize: "clamp(0.7rem, 2.5vw, 0.9rem)",
+              textDecoration: "none",
+              textShadow: "0 0 8px #00ff41",
+              cursor: "pointer",
+              transition: "all 0.2s",
+            }}
+          >
+            {"<"} BACK TO 2026
+          </a>
         </div>
       )}
 
