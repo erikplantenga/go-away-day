@@ -218,7 +218,8 @@ function Globe({ phase, onPhaseChange }: { phase: string; onPhaseChange: (p: str
         animRef.current.progress = 0;
       }
 
-      animRef.current.progress = Math.min(animRef.current.progress + delta * 0.55, 1);
+      // Longer slowdown / zoom-in (~4.5s)
+      animRef.current.progress = Math.min(animRef.current.progress + delta * 0.22, 1);
       const p = easeInOutCubic(animRef.current.progress);
 
       groupRef.current.rotation.x = animRef.current.startRotX * (1 - p);
@@ -396,22 +397,22 @@ function GlitchText({ text }: { text: string }) {
 }
 
 function FlickeringQuestionMarks() {
-  const [opacities, setOpacities] = useState<number[]>(Array(12).fill(0.3));
+  const [opacities, setOpacities] = useState<number[]>(Array(10).fill(0.3));
   
   useEffect(() => {
     const interval = setInterval(() => {
-      setOpacities(prev => prev.map(() => 0.2 + Math.random() * 0.8));
+      setOpacities(prev => prev.map(() => 0.25 + Math.random() * 0.75));
     }, 100);
     return () => clearInterval(interval);
   }, []);
   
+  // Clustered around the marker / center of the globe
   const positions = [
-    { top: '10%', left: '5%' }, { top: '15%', right: '8%' },
-    { top: '25%', left: '12%' }, { top: '30%', right: '15%' },
-    { top: '45%', left: '3%' }, { top: '50%', right: '5%' },
-    { top: '60%', left: '10%' }, { top: '65%', right: '12%' },
-    { top: '75%', left: '6%' }, { top: '80%', right: '8%' },
-    { top: '35%', left: '8%' }, { top: '55%', right: '10%' },
+    { top: '38%', left: '42%' }, { top: '40%', left: '56%' },
+    { top: '44%', left: '38%' }, { top: '46%', left: '60%' },
+    { top: '50%', left: '41%' }, { top: '52%', left: '57%' },
+    { top: '36%', left: '49%' }, { top: '55%', left: '48%' },
+    { top: '42%', left: '47%' }, { top: '48%', left: '52%' },
   ];
   
   return (
@@ -420,13 +421,15 @@ function FlickeringQuestionMarks() {
         <div
           key={i}
           style={{
-            position: 'fixed',
-            ...pos,
+            position: 'absolute',
+            top: pos.top,
+            left: pos.left,
+            transform: 'translate(-50%, -50%)',
             color: '#ff0040',
             fontFamily: 'monospace',
-            fontSize: `clamp(1.5rem, ${4 + Math.random() * 3}vw, 3rem)`,
+            fontSize: `clamp(1.1rem, ${2.5 + (i % 3)}vw, 2rem)`,
             fontWeight: 900,
-            textShadow: '0 0 10px #ff0040, 0 0 20px #ff0040, 0 0 30px #ff0040',
+            textShadow: '0 0 8px #ff0040, 0 0 16px #ff0040',
             opacity: opacities[i],
             zIndex: 5,
             transition: 'opacity 0.1s',
@@ -454,7 +457,7 @@ export default function GlobeScene() {
   const [bootCurrent, setBootCurrent] = useState("");
   const [bootTyping, setBootTyping] = useState(false);
 
-  // 4 lines × ~3.5s — then crossfade into globe
+  // 4 lines × ~3s — then crossfade into globe
   useEffect(() => {
     if (phase !== "loading") return;
 
@@ -463,7 +466,7 @@ export default function GlobeScene() {
     let charIndex = 0;
     let timer: ReturnType<typeof setTimeout>;
     const done: string[] = [];
-    const LINE_MS = 3500;
+    const LINE_MS = 3000;
 
     const typeLine = () => {
       if (cancelled) return;
@@ -527,8 +530,11 @@ export default function GlobeScene() {
 
   const handlePhaseChange = useCallback((p: string) => {
     setPhase(p);
-    if (p === "arrived") {
+    // Stop whoosh as soon as the globe starts slowing down
+    if (p === "flying") {
       stopSpinSound();
+    }
+    if (p === "arrived") {
       setTimeout(() => playLockSound(), 80);
       setTimeout(() => setShowReveal(true), 400);
     }
@@ -625,6 +631,7 @@ export default function GlobeScene() {
           <Globe phase={phase} onPhaseChange={handlePhaseChange} />
           <Stars radius={50} depth={25} count={300} factor={1.5} fade speed={0.2} />
         </Canvas>
+        {phase === "arrived" && showReveal && <FlickeringQuestionMarks />}
       </div>
 
       {/* TAP TO START - onder de globe */}
@@ -646,9 +653,6 @@ export default function GlobeScene() {
           </div>
         </div>
       )}
-
-      {/* Flickering question marks */}
-      {phase === "arrived" && showReveal && <FlickeringQuestionMarks />}
 
       {/* Reveal */}
       {phase === "arrived" && (
