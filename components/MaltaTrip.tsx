@@ -139,7 +139,7 @@ export function MaltaTrip() {
 
       {/* Sneak Preview 2027 */}
       <a
-        href="https://temporary-speedy-canyon-e425q17.vercel.app"
+        href="https://temporary-brisk-chestnut-jpzic0j.vercel.app"
         target="_blank"
         rel="noopener noreferrer"
         className="block overflow-hidden rounded-2xl bg-[#0b1f3a]/90 text-white transition-colors duration-300 active:scale-[0.99]"
