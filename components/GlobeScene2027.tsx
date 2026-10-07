@@ -86,6 +86,17 @@ async function startSpinSound() {
   }
 }
 
+function setSpinSoundLevel(level: number, ramp = 0.4) {
+  if (!spinNodes || !audioCtx) return;
+  try {
+    const now = audioCtx.currentTime;
+    const { gain } = spinNodes;
+    gain.gain.cancelScheduledValues(now);
+    gain.gain.setValueAtTime(Math.max(gain.gain.value, 0.0001), now);
+    gain.gain.linearRampToValueAtTime(Math.max(level, 0.0001), now + ramp);
+  } catch {}
+}
+
 function stopSpinSound() {
   if (!spinNodes || !audioCtx) return;
   try {
@@ -93,9 +104,9 @@ function stopSpinSound() {
     const { noise, gain, lfo } = spinNodes;
     gain.gain.cancelScheduledValues(now);
     gain.gain.setValueAtTime(Math.max(gain.gain.value, 0.001), now);
-    gain.gain.linearRampToValueAtTime(0.001, now + 0.7);
-    noise.stop(now + 0.75);
-    lfo.stop(now + 0.75);
+    gain.gain.linearRampToValueAtTime(0.001, now + 1.2);
+    noise.stop(now + 1.25);
+    lfo.stop(now + 1.25);
   } catch {}
   spinNodes = null;
 }
@@ -204,7 +215,6 @@ function Globe({ phase, onPhaseChange }: { phase: string; onPhaseChange: (p: str
     if (phase === "spinning") {
       animRef.current.spinSpeed = Math.min(animRef.current.spinSpeed + delta * 1.8, 4.5);
       animRef.current.spinAngle += delta * animRef.current.spinSpeed;
-      // Slight multi-axis feel via camera elevation wobble
       const qY = new THREE.Quaternion().setFromAxisAngle(new THREE.Vector3(0, 1, 0), animRef.current.spinAngle);
       const qX = new THREE.Quaternion().setFromAxisAngle(new THREE.Vector3(1, 0, 0), Math.sin(t * 2.2) * 0.25);
       const dir = startDir.clone().applyQuaternion(qY).applyQuaternion(qX).normalize();
@@ -225,14 +235,29 @@ function Globe({ phase, onPhaseChange }: { phase: string; onPhaseChange: (p: str
         animRef.current.progress = 0;
       }
 
-      // Longer slowdown / zoom-in (~4.5s)
-      animRef.current.progress = Math.min(animRef.current.progress + delta * 0.22, 1);
-      const p = easeInOutCubic(animRef.current.progress);
+      // Long tense slowdown (~7.5s): keep spinning while decelerating into the target
+      animRef.current.progress = Math.min(animRef.current.progress + delta * 0.135, 1);
+      const p = animRef.current.progress;
+      const spinFade = Math.pow(1 - p, 2.8); // still fast early, almost frozen at the end
+      const aimP = easeInOutCubic(p);
+      const zoomP = 1 - Math.pow(1 - p, 2.4); // most zoom happens late → tension
 
-      const dir = new THREE.Vector3().lerpVectors(animRef.current.startCamDir, endDir, p).normalize();
-      const dist = baseCam - p * (baseCam - endCam);
+      animRef.current.spinAngle += delta * animRef.current.spinSpeed * spinFade;
+      const qY = new THREE.Quaternion().setFromAxisAngle(new THREE.Vector3(0, 1, 0), animRef.current.spinAngle);
+      const qX = new THREE.Quaternion().setFromAxisAngle(
+        new THREE.Vector3(1, 0, 0),
+        Math.sin(t * 2.2) * 0.25 * spinFade
+      );
+      const orbitDir = startDir.clone().applyQuaternion(qY).applyQuaternion(qX).normalize();
+      const dir = orbitDir.clone().lerp(endDir, aimP).normalize();
+      const dist = baseCam - zoomP * (baseCam - endCam);
       camera.position.copy(dir.multiplyScalar(dist));
       camera.lookAt(0, 0, 0);
+
+      // Soften rumble as we slow, but keep it until the end
+      if (Math.floor(p * 20) !== Math.floor((p - delta * 0.135) * 20)) {
+        setSpinSoundLevel(0.12 * (0.35 + 0.65 * spinFade), 0.25);
+      }
       
       if (animRef.current.progress >= 1 && !animRef.current.phaseLocked) {
         animRef.current.phaseLocked = true;
@@ -531,13 +556,10 @@ export default function GlobeScene() {
 
   const handlePhaseChange = useCallback((p: string) => {
     setPhase(p);
-    // Stop whoosh as soon as the globe starts slowing down
-    if (p === "flying") {
-      stopSpinSound();
-    }
     if (p === "arrived") {
-      setTimeout(() => playLockSound(), 80);
-      setTimeout(() => setShowReveal(true), 400);
+      stopSpinSound(); // rumble runs through the whole slowdown
+      setTimeout(() => playLockSound(), 120);
+      setTimeout(() => setShowReveal(true), 450);
     }
   }, []);
 
