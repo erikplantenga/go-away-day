@@ -158,6 +158,49 @@ async function playLockSound() {
   }
 }
 
+function pickStoerFemaleVoice(): SpeechSynthesisVoice | null {
+  if (typeof window === "undefined" || !window.speechSynthesis) return null;
+  const voices = window.speechSynthesis.getVoices();
+  if (!voices.length) return null;
+
+  const en = voices.filter((v) => /^en(-|_)/i.test(v.lang));
+  const pool = en.length ? en : voices;
+  const preferred =
+    pool.find((v) => /samantha|moira|tessa|fiona|karen|victoria|susan|zira|google us english|siri.*female|female/i.test(v.name)) ||
+    pool.find((v) => /en-US/i.test(v.lang)) ||
+    pool[0];
+  return preferred ?? null;
+}
+
+function speakDestinationUnknown() {
+  if (typeof window === "undefined" || !window.speechSynthesis) return;
+
+  const speak = () => {
+    try {
+      window.speechSynthesis.cancel();
+      const utter = new SpeechSynthesisUtterance("Destination unknown");
+      utter.lang = "en-US";
+      utter.rate = 0.82; // measured, stoer
+      utter.pitch = 0.7; // lower = tougher
+      utter.volume = 1;
+      const voice = pickStoerFemaleVoice();
+      if (voice) {
+        utter.voice = voice;
+        utter.lang = voice.lang || "en-US";
+      }
+      window.speechSynthesis.speak(utter);
+    } catch {}
+  };
+
+  if (window.speechSynthesis.getVoices().length) {
+    speak();
+  } else {
+    window.speechSynthesis.addEventListener("voiceschanged", speak, { once: true });
+    // Fallback if voiceschanged never fires
+    setTimeout(speak, 250);
+  }
+}
+
 function latLngToVector3(lat: number, lng: number, radius: number): THREE.Vector3 {
   const phi = (90 - lat) * (Math.PI / 180);
   const theta = (lng + 180) * (Math.PI / 180);
@@ -575,6 +618,10 @@ export default function GlobeScene() {
     if (phase !== "waiting") return;
     await ensureAudio();
     playTypeSound(); // unlock + confirm audio works
+    // Warm up voices for later (iOS)
+    if (typeof window !== "undefined" && window.speechSynthesis) {
+      window.speechSynthesis.getVoices();
+    }
     setBootLines([]);
     setBootCurrent("");
     setPhase("loading");
@@ -594,6 +641,12 @@ export default function GlobeScene() {
       setTimeout(() => setShowReveal(true), 450);
     }
   }, []);
+
+  // Speak with the reveal text
+  useEffect(() => {
+    if (!showReveal) return;
+    speakDestinationUnknown();
+  }, [showReveal]);
 
   return (
     <div style={{ position: "fixed", inset: 0, background: "#000", display: "flex", flexDirection: "column", overflow: "hidden" }}>
