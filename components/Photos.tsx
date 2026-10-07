@@ -521,7 +521,7 @@ export function Photos() {
     };
   }, [showUpload, viewPhoto]);
 
-  const uploadSingleFile = async (pending: PendingFile): Promise<boolean> => {
+  const uploadSingleFile = async (pending: PendingFile): Promise<{ success: boolean; error?: string }> => {
     const { file, day, caption, isVideo } = pending;
     
     let uploadFile: Blob = file;
@@ -530,7 +530,7 @@ export function Photos() {
       try {
         uploadFile = await compressImage(file, 2);
       } catch {
-        return false;
+        return { success: false, error: "Compressie mislukt" };
       }
     }
 
@@ -541,7 +541,7 @@ export function Photos() {
         body: JSON.stringify({ op: isVideo ? "sign-video" : "sign", who, password }),
       });
       const signed = await signRes.json();
-      if (!signRes.ok) return false;
+      if (!signRes.ok) return { success: false, error: signed.error || "Aanmelden mislukt" };
 
       const cloudinaryData = new FormData();
       cloudinaryData.append("file", uploadFile);
@@ -551,7 +551,7 @@ export function Photos() {
       cloudinaryData.append("folder", signed.folder);
       cloudinaryData.append("public_id", signed.publicId);
 
-      return new Promise<boolean>((resolve) => {
+      return new Promise<{ success: boolean; error?: string }>((resolve) => {
         const xhr = new XMLHttpRequest();
         xhr.upload.addEventListener("progress", (e) => {
           if (e.lengthComputable) {
@@ -562,7 +562,7 @@ export function Photos() {
           try {
             const data = JSON.parse(xhr.responseText);
             if (xhr.status < 200 || xhr.status >= 300 || !data.secure_url) {
-              resolve(false);
+              resolve({ success: false, error: data.error?.message || `Cloudinary fout (${xhr.status})` });
               return;
             }
 
@@ -588,18 +588,23 @@ export function Photos() {
                 },
               }),
             });
-            resolve(saveRes.ok);
-          } catch {
-            resolve(false);
+            if (saveRes.ok) {
+              resolve({ success: true });
+            } else {
+              const saveData = await saveRes.json();
+              resolve({ success: false, error: saveData.error || "Opslaan mislukt" });
+            }
+          } catch (e) {
+            resolve({ success: false, error: "Verwerking mislukt" });
           }
         });
-        xhr.addEventListener("error", () => resolve(false));
+        xhr.addEventListener("error", () => resolve({ success: false, error: "Netwerk fout" }));
         const resourceType = isVideo ? "video" : "image";
         xhr.open("POST", `https://api.cloudinary.com/v1_1/${signed.cloudName}/${resourceType}/upload`);
         xhr.send(cloudinaryData);
       });
-    } catch {
-      return false;
+    } catch (e) {
+      return { success: false, error: "Onverwachte fout" };
     }
   };
 
@@ -621,11 +626,16 @@ export function Photos() {
     setError("");
 
     let successCount = 0;
+    let lastError = "";
     for (let i = 0; i < pendingFiles.length; i++) {
       setCurrentUploadIndex(i);
       setUploadProgress(0);
-      const success = await uploadSingleFile(pendingFiles[i]);
-      if (success) successCount++;
+      const result = await uploadSingleFile(pendingFiles[i]);
+      if (result.success) {
+        successCount++;
+      } else {
+        lastError = result.error || "Onbekende fout";
+      }
     }
 
     // Cleanup previews
@@ -640,7 +650,7 @@ export function Photos() {
       setShowUpload(false);
       await loadPhotos();
     } else {
-      setError(`${successCount} van ${pendingFiles.length} geüpload`);
+      setError(`${successCount} van ${pendingFiles.length} geüpload. Fout: ${lastError}`);
       await loadPhotos();
     }
   };
