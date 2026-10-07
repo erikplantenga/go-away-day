@@ -454,7 +454,7 @@ export default function GlobeScene() {
   const [bootCurrent, setBootCurrent] = useState("");
   const [bootTyping, setBootTyping] = useState(false);
 
-  // 4 lines × ~2.5s ≈ 10s total — paced per line
+  // 4 lines × ~3.5s — then crossfade into globe
   useEffect(() => {
     if (phase !== "loading") return;
 
@@ -463,14 +463,13 @@ export default function GlobeScene() {
     let charIndex = 0;
     let timer: ReturnType<typeof setTimeout>;
     const done: string[] = [];
-    const LINE_MS = 2500;
+    const LINE_MS = 3500;
 
     const typeLine = () => {
       if (cancelled) return;
       const line = BOOT_LINES[lineIndex];
       const chars = [...line];
-      // Leave ~200ms pause at end of each line
-      const charDelay = Math.max(55, Math.floor((LINE_MS - 200) / chars.length));
+      const charDelay = Math.max(60, Math.floor((LINE_MS - 250) / chars.length));
       charIndex = 0;
 
       const typeChar = () => {
@@ -488,11 +487,12 @@ export default function GlobeScene() {
           setBootTyping(false);
           lineIndex++;
           if (lineIndex < BOOT_LINES.length) {
-            timer = setTimeout(typeLine, 200);
+            timer = setTimeout(typeLine, 250);
           } else {
+            // Crossfade: earth rises from black while boot text fades out
             timer = setTimeout(() => {
-              if (!cancelled) setPhase("idle");
-            }, 300);
+              if (!cancelled) setPhase("fading");
+            }, 200);
           }
         }
       };
@@ -502,6 +502,12 @@ export default function GlobeScene() {
 
     timer = setTimeout(typeLine, 150);
     return () => { cancelled = true; clearTimeout(timer); };
+  }, [phase]);
+
+  useEffect(() => {
+    if (phase !== "fading") return;
+    const t = setTimeout(() => setPhase("idle"), 2000);
+    return () => clearTimeout(t);
   }, [phase]);
 
   const handleStartBoot = useCallback(async () => {
@@ -555,9 +561,20 @@ export default function GlobeScene() {
         </div>
       )}
 
-      {/* Loading - 5 lines, typed lines stay on screen */}
-      {phase === "loading" && (
-        <div style={{ position: "absolute", inset: 0, zIndex: 50, display: "flex", alignItems: "center", justifyContent: "center", background: "#000", padding: "2rem" }}>
+      {/* Boot overlay — fades out while globe becomes visible underneath */}
+      {(phase === "loading" || phase === "fading") && (
+        <div style={{
+          position: "absolute",
+          inset: 0,
+          zIndex: 50,
+          display: "flex",
+          alignItems: "center",
+          justifyContent: "center",
+          padding: "2rem",
+          background: phase === "fading" ? "rgba(0,0,0,0)" : "#000",
+          transition: "background 2s ease",
+          pointerEvents: phase === "fading" ? "none" : "auto",
+        }}>
           <div style={{
             fontFamily: "monospace",
             width: "100%",
@@ -566,6 +583,8 @@ export default function GlobeScene() {
             fontSize: "clamp(0.75rem, 3vw, 0.95rem)",
             textShadow: "0 0 10px #00ff41",
             lineHeight: 1.6,
+            opacity: phase === "fading" ? 0 : 1,
+            transition: "opacity 1.8s ease",
           }}>
             {bootLines.map((line, i) => (
               <div key={i}>{line}</div>
@@ -581,7 +600,7 @@ export default function GlobeScene() {
       )}
 
       {/* Header */}
-      <div style={{ position: "relative", zIndex: 10, textAlign: "center", paddingTop: "max(env(safe-area-inset-top),1rem)", flexShrink: 0, opacity: phase === "loading" || phase === "waiting" ? 0 : 1, transition: "opacity .5s" }}>
+      <div style={{ position: "relative", zIndex: 10, textAlign: "center", paddingTop: "max(env(safe-area-inset-top),1rem)", flexShrink: 0, opacity: phase === "loading" || phase === "waiting" ? 0 : 1, transition: "opacity 2s ease" }}>
         <h1 style={{ fontSize: "clamp(1.4rem,6vw,2.5rem)", fontWeight: 700, fontFamily: "monospace", color: "#00ff41", textShadow: "0 0 10px #00ff41,0 0 25px #00ff41", margin: 0, lineHeight: 1.1 }}>
           <GlitchText text="GO_AWAY_DAY" />
         </h1>
@@ -589,8 +608,17 @@ export default function GlobeScene() {
         <p style={{ fontSize: "clamp(.65rem,3vw,.85rem)", color: "#00ff41", opacity: .6, fontFamily: "monospace", margin: 0 }}>{">>"} ERIK & BENNO</p>
       </div>
 
-      {/* Globe */}
-      <div style={{ flex: 1, position: "relative", minHeight: 0 }} onClick={handleTap}>
+      {/* Globe — fades in from black as boot text fades out */}
+      <div
+        style={{
+          flex: 1,
+          position: "relative",
+          minHeight: 0,
+          opacity: phase === "waiting" || phase === "loading" ? 0 : 1,
+          transition: "opacity 2s ease",
+        }}
+        onClick={handleTap}
+      >
         <Canvas camera={{ position: [0, 0, 4], fov: 50 }} style={{ position: "absolute", inset: 0, cursor: phase === "idle" ? "pointer" : "default" }} gl={{ antialias: true }}>
           <color attach="background" args={["#000"]} />
           <ambientLight intensity={0.15} />
