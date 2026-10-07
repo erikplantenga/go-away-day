@@ -371,11 +371,12 @@ export default function GlobeScene() {
   const [currentLine, setCurrentLine] = useState(0);
   
   const bootLines = [
-    "> INITIALIZING SYSTEM...",
-    "> LOADING TRAVEL_MATRIX.exe",
+    "> BOOT SEQUENCE INITIATED...",
+    "> LOADING EARTH_TEXTURE.dat",
+    "> INITIALIZING 3D_RENDERER...",
+    "> GPS_MODULE: SYNCHRONIZED",
     "> DECRYPTING COORDINATES...",
     "> DESTINATION: [CLASSIFIED]",
-    "> SUBJECTS: ERIK, BENNO",
     "> STATUS: READY_",
   ];
 
