@@ -69,7 +69,45 @@ export function Photos() {
   const [downloadProgress, setDownloadProgress] = useState({ current: 0, total: 0 });
   const [showDownloadModal, setShowDownloadModal] = useState(false);
   const [downloadFilter, setDownloadFilter] = useState<"all" | "erik" | "benno">("all");
+  const [duplicates, setDuplicates] = useState<PhotoMeta[][] | null>(null);
+  const [checkingDuplicates, setCheckingDuplicates] = useState(false);
   const fileRef = useRef<HTMLInputElement>(null);
+
+  const checkDuplicates = async () => {
+    setCheckingDuplicates(true);
+    try {
+      const res = await fetch("/api/photos?duplicates=1");
+      const data = await res.json();
+      setDuplicates(data.duplicates || []);
+    } catch {
+      setDuplicates([]);
+    } finally {
+      setCheckingDuplicates(false);
+    }
+  };
+
+  const deleteDuplicate = async (photo: PhotoMeta) => {
+    if (!who || !password) {
+      setError("Kies wie je bent en vul wachtwoord in");
+      return;
+    }
+    try {
+      const res = await fetch("/api/photos", {
+        method: "POST",
+        headers: { "Content-Type": "application/json" },
+        body: JSON.stringify({ op: "delete", id: photo.id, who, password }),
+      });
+      if (res.ok) {
+        // Remove from duplicates list
+        setDuplicates(prev => 
+          prev?.map(group => group.filter(p => p.id !== photo.id))
+            .filter(group => group.length > 1) || null
+        );
+        // Refresh photos
+        loadPhotos();
+      }
+    } catch {}
+  };
 
   useEffect(() => {
     try {
@@ -765,6 +803,70 @@ export function Photos() {
                 </div>
               </button>
             ))}
+          </div>
+        )}
+
+        {/* Duplicate check - helemaal onderaan */}
+        {photos.length > 0 && (
+          <div className="mt-8 border-t border-white/10 pt-4">
+            <button
+              type="button"
+              onClick={checkDuplicates}
+              disabled={checkingDuplicates}
+              className="text-xs text-white/40 hover:text-white/60"
+            >
+              {checkingDuplicates ? "Checken..." : "Check op dubbele foto's"}
+            </button>
+            
+            {duplicates !== null && (
+              <div className="mt-3">
+                {duplicates.length === 0 ? (
+                  <p className="text-xs text-green-400">✓ Geen dubbelen gevonden</p>
+                ) : (
+                  <div className="space-y-3">
+                    <p className="text-xs text-orange-400">
+                      {duplicates.length} dubbele foto('s) gevonden:
+                    </p>
+                    {duplicates.map((group, gi) => (
+                      <div key={gi} className="rounded-lg bg-white/5 p-2">
+                        <p className="mb-2 text-xs text-white/60">
+                          {group.length}x dezelfde foto:
+                        </p>
+                        <div className="flex gap-2 overflow-x-auto">
+                          {group.map((photo, pi) => (
+                            <div key={photo.id} className="shrink-0">
+                              <div className="relative h-16 w-16 overflow-hidden rounded-lg">
+                                {/* eslint-disable-next-line @next/next/no-img-element */}
+                                <img
+                                  src={photo.thumbUrl}
+                                  alt=""
+                                  className="h-full w-full object-cover"
+                                />
+                              </div>
+                              <p className="mt-1 text-[10px] text-white/50">
+                                {photo.uploader} · {photo.day.slice(-2)}/10
+                              </p>
+                              {pi > 0 && (
+                                <button
+                                  type="button"
+                                  onClick={() => deleteDuplicate(photo)}
+                                  className="mt-1 text-[10px] text-red-400"
+                                >
+                                  Verwijder
+                                </button>
+                              )}
+                            </div>
+                          ))}
+                        </div>
+                      </div>
+                    ))}
+                    <p className="text-[10px] text-white/40">
+                      Kies boven wie je bent + wachtwoord om te verwijderen
+                    </p>
+                  </div>
+                )}
+              </div>
+            )}
           </div>
         )}
       </div>
