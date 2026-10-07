@@ -158,46 +158,42 @@ async function playLockSound() {
   }
 }
 
-function pickStoerFemaleVoice(): SpeechSynthesisVoice | null {
-  if (typeof window === "undefined" || !window.speechSynthesis) return null;
-  const voices = window.speechSynthesis.getVoices();
-  if (!voices.length) return null;
+// Pre-recorded female voice — reliable on iOS (speechSynthesis often fails after delays)
+let voiceAudio: HTMLAudioElement | null = null;
 
-  const en = voices.filter((v) => /^en(-|_)/i.test(v.lang));
-  const pool = en.length ? en : voices;
-  const preferred =
-    pool.find((v) => /samantha|moira|tessa|fiona|karen|victoria|susan|zira|google us english|siri.*female|female/i.test(v.name)) ||
-    pool.find((v) => /en-US/i.test(v.lang)) ||
-    pool[0];
-  return preferred ?? null;
+function getVoiceAudio() {
+  if (typeof window === "undefined") return null;
+  if (!voiceAudio) {
+    voiceAudio = new Audio("/destination-unknown.mp3");
+    voiceAudio.preload = "auto";
+  }
+  return voiceAudio;
 }
 
-function speakDestinationUnknown() {
-  if (typeof window === "undefined" || !window.speechSynthesis) return;
+/** Call from a user tap so iOS allows later playback */
+async function unlockVoiceAudio() {
+  const audio = getVoiceAudio();
+  if (!audio) return;
+  try {
+    audio.muted = true;
+    audio.currentTime = 0;
+    await audio.play();
+    audio.pause();
+    audio.currentTime = 0;
+    audio.muted = false;
+  } catch {}
+}
 
-  const speak = () => {
-    try {
-      window.speechSynthesis.cancel();
-      const utter = new SpeechSynthesisUtterance("Destination unknown");
-      utter.lang = "en-US";
-      utter.rate = 0.82; // measured, stoer
-      utter.pitch = 0.7; // lower = tougher
-      utter.volume = 1;
-      const voice = pickStoerFemaleVoice();
-      if (voice) {
-        utter.voice = voice;
-        utter.lang = voice.lang || "en-US";
-      }
-      window.speechSynthesis.speak(utter);
-    } catch {}
-  };
-
-  if (window.speechSynthesis.getVoices().length) {
-    speak();
-  } else {
-    window.speechSynthesis.addEventListener("voiceschanged", speak, { once: true });
-    // Fallback if voiceschanged never fires
-    setTimeout(speak, 250);
+async function speakDestinationUnknown() {
+  const audio = getVoiceAudio();
+  if (!audio) return;
+  try {
+    audio.muted = false;
+    audio.volume = 1;
+    audio.currentTime = 0;
+    await audio.play();
+  } catch (e) {
+    console.error("Voice playback error:", e);
   }
 }
 
@@ -617,11 +613,8 @@ export default function GlobeScene() {
   const handleStartBoot = useCallback(async () => {
     if (phase !== "waiting") return;
     await ensureAudio();
-    playTypeSound(); // unlock + confirm audio works
-    // Warm up voices for later (iOS)
-    if (typeof window !== "undefined" && window.speechSynthesis) {
-      window.speechSynthesis.getVoices();
-    }
+    await unlockVoiceAudio(); // iOS: unlock mp3 voice for later reveal
+    playTypeSound();
     setBootLines([]);
     setBootCurrent("");
     setPhase("loading");
