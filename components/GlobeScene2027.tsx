@@ -117,31 +117,42 @@ async function playLockSound() {
 
   try {
     const now = ctx.currentTime;
-    for (let i = 0; i < 3; i++) {
+    // Soft rising chimes (warm sine, no square/plastic beeps)
+    const notes = [392, 494, 587]; // G4, B4, D5
+    notes.forEach((freq, i) => {
+      const t0 = now + i * 0.16;
       const osc = ctx.createOscillator();
       const gain = ctx.createGain();
-      osc.type = "square";
-      osc.frequency.value = 500 + i * 250;
-      gain.gain.setValueAtTime(0, now + i * 0.12);
-      gain.gain.linearRampToValueAtTime(0.32, now + i * 0.12 + 0.02);
-      gain.gain.linearRampToValueAtTime(0, now + i * 0.12 + 0.1);
+      const filter = ctx.createBiquadFilter();
+      osc.type = "sine";
+      osc.frequency.value = freq;
+      filter.type = "lowpass";
+      filter.frequency.value = 1800;
+      gain.gain.setValueAtTime(0, t0);
+      gain.gain.linearRampToValueAtTime(0.22, t0 + 0.04);
+      gain.gain.exponentialRampToValueAtTime(0.001, t0 + 0.45);
+      osc.connect(filter);
+      filter.connect(gain);
+      gain.connect(ctx.destination);
+      osc.start(t0);
+      osc.stop(t0 + 0.5);
+    });
+
+    // Gentle resolve chord
+    const resolveAt = now + 0.55;
+    [392, 523.25, 659.25].forEach((freq, i) => {
+      const osc = ctx.createOscillator();
+      const gain = ctx.createGain();
+      osc.type = i === 0 ? "triangle" : "sine";
+      osc.frequency.value = freq;
+      gain.gain.setValueAtTime(0, resolveAt);
+      gain.gain.linearRampToValueAtTime(i === 0 ? 0.12 : 0.16, resolveAt + 0.08);
+      gain.gain.exponentialRampToValueAtTime(0.001, resolveAt + 1.1);
       osc.connect(gain);
       gain.connect(ctx.destination);
-      osc.start(now + i * 0.12);
-      osc.stop(now + i * 0.12 + 0.12);
-    }
-    const oscF = ctx.createOscillator();
-    const gainF = ctx.createGain();
-    oscF.type = "sine";
-    oscF.frequency.setValueAtTime(1200, now + 0.4);
-    oscF.frequency.exponentialRampToValueAtTime(600, now + 1.0);
-    gainF.gain.setValueAtTime(0, now + 0.4);
-    gainF.gain.linearRampToValueAtTime(0.35, now + 0.45);
-    gainF.gain.linearRampToValueAtTime(0, now + 1.1);
-    oscF.connect(gainF);
-    gainF.connect(ctx.destination);
-    oscF.start(now + 0.4);
-    oscF.stop(now + 1.1);
+      osc.start(resolveAt);
+      osc.stop(resolveAt + 1.15);
+    });
   } catch (e) {
     console.error("Lock sound error:", e);
   }
