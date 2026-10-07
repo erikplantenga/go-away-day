@@ -334,16 +334,42 @@ function playTypeSound() {
   if (!ctx || ctx.state === "suspended") return;
   try {
     const now = ctx.currentTime;
-    const osc = ctx.createOscillator();
-    const gain = ctx.createGain();
-    osc.type = "square";
-    osc.frequency.value = 900 + Math.random() * 500;
-    gain.gain.setValueAtTime(0.18, now);
-    gain.gain.exponentialRampToValueAtTime(0.001, now + 0.04);
-    osc.connect(gain);
-    gain.connect(ctx.destination);
-    osc.start(now);
-    osc.stop(now + 0.045);
+
+    // Key-strike noise (typewriter click)
+    const dur = 0.045;
+    const buffer = ctx.createBuffer(1, Math.floor(ctx.sampleRate * dur), ctx.sampleRate);
+    const data = buffer.getChannelData(0);
+    for (let i = 0; i < data.length; i++) {
+      const env = Math.pow(1 - i / data.length, 3);
+      data[i] = (Math.random() * 2 - 1) * env;
+    }
+    const noise = ctx.createBufferSource();
+    noise.buffer = buffer;
+    const noiseFilter = ctx.createBiquadFilter();
+    noiseFilter.type = "bandpass";
+    noiseFilter.frequency.value = 1800 + Math.random() * 1200;
+    noiseFilter.Q.value = 1.2;
+    const noiseGain = ctx.createGain();
+    noiseGain.gain.setValueAtTime(0.35, now);
+    noiseGain.gain.exponentialRampToValueAtTime(0.001, now + dur);
+    noise.connect(noiseFilter);
+    noiseFilter.connect(noiseGain);
+    noiseGain.connect(ctx.destination);
+    noise.start(now);
+    noise.stop(now + dur);
+
+    // Soft mechanical thump
+    const thump = ctx.createOscillator();
+    const thumpGain = ctx.createGain();
+    thump.type = "triangle";
+    thump.frequency.setValueAtTime(140 + Math.random() * 40, now);
+    thump.frequency.exponentialRampToValueAtTime(60, now + 0.05);
+    thumpGain.gain.setValueAtTime(0.12, now);
+    thumpGain.gain.exponentialRampToValueAtTime(0.001, now + 0.06);
+    thump.connect(thumpGain);
+    thumpGain.connect(ctx.destination);
+    thump.start(now);
+    thump.stop(now + 0.07);
   } catch {}
 }
 
@@ -425,7 +451,7 @@ export default function GlobeScene() {
   const [bootCurrent, setBootCurrent] = useState("");
   const [bootTyping, setBootTyping] = useState(false);
 
-  // 5 lines, typed lines stay, ~5s total
+  // 5 lines stay on screen, ~8s total, slower typing + typewriter clicks
   useEffect(() => {
     if (phase !== "loading") return;
 
@@ -443,7 +469,9 @@ export default function GlobeScene() {
         setBootTyping(true);
         if (line[charIndex] !== " ") playTypeSound();
         charIndex++;
-        timer = setTimeout(typeChar, 22);
+        // Slight human variation in typing speed
+        const delay = line[charIndex - 1] === " " ? 90 : 48 + Math.floor(Math.random() * 28);
+        timer = setTimeout(typeChar, delay);
       } else {
         done.push(line);
         setBootLines([...done]);
@@ -452,16 +480,16 @@ export default function GlobeScene() {
         lineIndex++;
         if (lineIndex < BOOT_LINES.length) {
           charIndex = 0;
-          timer = setTimeout(typeChar, 120);
+          timer = setTimeout(typeChar, 280);
         } else {
           timer = setTimeout(() => {
             if (!cancelled) setPhase("idle");
-          }, 350);
+          }, 450);
         }
       }
     };
 
-    timer = setTimeout(typeChar, 150);
+    timer = setTimeout(typeChar, 200);
     return () => { cancelled = true; clearTimeout(timer); };
   }, [phase]);
 
