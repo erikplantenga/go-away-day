@@ -158,39 +158,47 @@ async function playLockSound() {
   }
 }
 
-// Pre-recorded female voice — only created/played at reveal (never at boot)
-let voiceAudio: HTMLAudioElement | null = null;
-let unlockAudio: HTMLAudioElement | null = null;
+// Voice via Web Audio buffer — works on iOS after AudioContext was unlocked on tap
+let voiceBuffer: AudioBuffer | null = null;
 let voiceAllowed = false; // true only after destination lock
+let voiceLoadPromise: Promise<void> | null = null;
 
-/** Silent unlock for iOS — never touches the voice mp3 */
-async function unlockVoiceAudio() {
-  if (typeof window === "undefined") return;
-  try {
-    if (!unlockAudio) {
-      unlockAudio = new Audio("/silence.mp3");
-      unlockAudio.preload = "auto";
+/** Prefetch + decode mp3 into AudioContext (call on user tap, plays nothing) */
+async function preloadVoiceClip() {
+  if (voiceBuffer || typeof window === "undefined") return;
+  if (voiceLoadPromise) return voiceLoadPromise;
+
+  voiceLoadPromise = (async () => {
+    try {
+      const ctx = await ensureAudio();
+      if (!ctx) return;
+      const res = await fetch("/destination-unknown.mp3");
+      const arr = await res.arrayBuffer();
+      voiceBuffer = await ctx.decodeAudioData(arr.slice(0));
+    } catch (e) {
+      console.error("Voice preload error:", e);
+      voiceLoadPromise = null;
     }
-    unlockAudio.volume = 0;
-    await unlockAudio.play();
-    unlockAudio.pause();
-    unlockAudio.currentTime = 0;
-  } catch {}
+  })();
+
+  return voiceLoadPromise;
 }
 
 async function speakDestinationUnknown() {
   if (typeof window === "undefined" || !voiceAllowed) return;
   try {
-    // Fresh element at reveal time — avoids Safari autoplaying a preloaded clip on tap
-    if (voiceAudio) {
-      voiceAudio.pause();
-      voiceAudio.src = "";
-      voiceAudio = null;
-    }
-    voiceAudio = new Audio("/destination-unknown.mp3");
-    voiceAudio.preload = "auto";
-    voiceAudio.volume = 1;
-    await voiceAudio.play();
+    const ctx = await ensureAudio();
+    if (!ctx) return;
+    if (!voiceBuffer) await preloadVoiceClip();
+    if (!voiceBuffer) return;
+
+    const src = ctx.createBufferSource();
+    const gain = ctx.createGain();
+    src.buffer = voiceBuffer;
+    gain.gain.value = 1;
+    src.connect(gain);
+    gain.connect(ctx.destination);
+    src.start(ctx.currentTime);
   } catch (e) {
     console.error("Voice playback error:", e);
   }
@@ -613,8 +621,9 @@ export default function GlobeScene() {
     if (phase !== "waiting") return;
     voiceAllowed = false;
     await ensureAudio();
-    // Only unlock Web Audio for typing clicks — do NOT touch voice mp3 here
     playTypeSound();
+    // Decode voice in background after gesture unlock — silent, no playback
+    preloadVoiceClip();
     setBootLines([]);
     setBootCurrent("");
     setPhase("loading");
@@ -622,7 +631,8 @@ export default function GlobeScene() {
 
   const handleTap = useCallback(async () => {
     if (phase !== "idle") return;
-    await unlockVoiceAudio(); // silent.mp3 only
+    await ensureAudio();
+    preloadVoiceClip(); // ensure buffer ready before reveal
     await startSpinSound();
     setPhase("spinning");
   }, [phase]);
@@ -635,7 +645,7 @@ export default function GlobeScene() {
       setTimeout(() => {
         voiceAllowed = true;
         setShowReveal(true);
-        speakDestinationUnknown(); // only here — with the text
+        speakDestinationUnknown(); // Web Audio — same unlocked context
       }, 450);
     }
   }, []);
