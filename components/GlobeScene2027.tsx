@@ -505,7 +505,7 @@ const BOOT_LINES = [
   "> BOOT SEQUENCE INITIATED...",
   "> LOADING EARTH_TEXTURE.dat",
   "> DESTINATION: UNKNOWN",
-  "> READY TO GO_",
+  "> READY TO GO AWAY DAY_",
 ];
 
 export default function GlobeScene() {
