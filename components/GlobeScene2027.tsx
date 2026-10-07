@@ -7,8 +7,8 @@ import * as THREE from "three";
 import { TextureLoader } from "three";
 
 const START = { lat: 52.3676, lng: 4.9041, name: "Amsterdam" };
-// Lyon — inland France (avoids coast / water misalignment)
-const DESTINATION = { lat: 45.7640, lng: 4.8357, name: "???" };
+// Munich — deep inland, clearly on land with blue-marble + three-globe mapping
+const DESTINATION = { lat: 48.1351, lng: 11.5820, name: "???" };
 
 let audioCtx: AudioContext | null = null;
 let spinNodes: { noise: AudioBufferSourceNode; gain: GainNode; filter: BiquadFilterNode; lfo: OscillatorNode } | null = null;
@@ -147,20 +147,25 @@ function latLngToVector3(lat: number, lng: number, radius: number): THREE.Vector
 }
 
 function Globe({ phase, onPhaseChange }: { phase: string; onPhaseChange: (p: string) => void }) {
-  const groupRef = useRef<THREE.Group>(null);
+  const earthRef = useRef<THREE.Group>(null);
   const markerRef = useRef<THREE.Group>(null);
   const atmosphereRef = useRef<THREE.Mesh>(null);
-  const startPos = useMemo(() => latLngToVector3(START.lat, START.lng, 5), []);
-  const endPos = useMemo(() => latLngToVector3(DESTINATION.lat, DESTINATION.lng, 5), []);
-  const markerPos = useMemo(() => latLngToVector3(DESTINATION.lat, DESTINATION.lng, 1.02), []);
+  const startDir = useMemo(() => latLngToVector3(START.lat, START.lng, 1).normalize(), []);
+  const endDir = useMemo(() => latLngToVector3(DESTINATION.lat, DESTINATION.lng, 1).normalize(), []);
+  const markerPos = useMemo(() => endDir.clone().multiplyScalar(1.015), [endDir]);
+  const markerQuat = useMemo(() => {
+    const q = new THREE.Quaternion();
+    q.setFromUnitVectors(new THREE.Vector3(0, 0, 1), endDir);
+    return q;
+  }, [endDir]);
   const { camera, size } = useThree();
   const animRef = useRef({
     progress: 0,
-    spinSpeed: 0.002,
+    spinAngle: 0,
+    spinSpeed: 0.8,
     flyStarted: false,
     phaseLocked: false,
-    startRotX: 0,
-    startRotY: 0,
+    startCamDir: new THREE.Vector3(),
   });
   const isPortrait = size.height > size.width;
   const baseCam = isPortrait ? 3.6 : 2.8;
@@ -170,49 +175,53 @@ function Globe({ phase, onPhaseChange }: { phase: string; onPhaseChange: (p: str
   
   useEffect(() => { if (earthTex) earthTex.colorSpace = THREE.SRGBColorSpace; }, [earthTex]);
   useEffect(() => {
-    camera.position.copy(startPos.clone().normalize().multiplyScalar(baseCam));
+    // Earth texture stays fixed — camera orbits. Marker always matches land.
+    camera.position.copy(startDir.clone().multiplyScalar(baseCam));
     camera.lookAt(0, 0, 0);
-  }, [camera, startPos, baseCam]);
+  }, [camera, startDir, baseCam]);
 
   useEffect(() => {
     animRef.current.phaseLocked = false;
     if (phase === "spinning") {
-      animRef.current.spinSpeed = 0.02;
+      animRef.current.spinSpeed = 1.2;
       animRef.current.progress = 0;
       animRef.current.flyStarted = false;
     }
   }, [phase]);
 
   useFrame((state, delta) => {
-    if (!groupRef.current) return;
     const t = state.clock.elapsedTime;
 
+    // Idle: slow camera orbit (earth mesh never rotates → land coords stay correct)
     if (phase === "idle") {
-      groupRef.current.rotation.y += 0.002;
+      animRef.current.spinAngle += delta * 0.12;
+      const q = new THREE.Quaternion().setFromAxisAngle(new THREE.Vector3(0, 1, 0), animRef.current.spinAngle);
+      const dir = startDir.clone().applyQuaternion(q);
+      camera.position.copy(dir.multiplyScalar(baseCam));
+      camera.lookAt(0, 0, 0);
     }
     
     if (phase === "spinning") {
-      animRef.current.spinSpeed = Math.min(animRef.current.spinSpeed + delta * 0.04, 0.2);
-      groupRef.current.rotation.y += animRef.current.spinSpeed;
-      groupRef.current.rotation.x = Math.sin(t * 2.2) * 0.35;
+      animRef.current.spinSpeed = Math.min(animRef.current.spinSpeed + delta * 1.8, 4.5);
+      animRef.current.spinAngle += delta * animRef.current.spinSpeed;
+      // Slight multi-axis feel via camera elevation wobble
+      const qY = new THREE.Quaternion().setFromAxisAngle(new THREE.Vector3(0, 1, 0), animRef.current.spinAngle);
+      const qX = new THREE.Quaternion().setFromAxisAngle(new THREE.Vector3(1, 0, 0), Math.sin(t * 2.2) * 0.25);
+      const dir = startDir.clone().applyQuaternion(qY).applyQuaternion(qX).normalize();
+      camera.position.copy(dir.multiplyScalar(baseCam));
+      camera.lookAt(0, 0, 0);
       
-      if (animRef.current.spinSpeed >= 0.2 && !animRef.current.phaseLocked) {
+      if (animRef.current.spinSpeed >= 4.5 && !animRef.current.phaseLocked) {
         animRef.current.phaseLocked = true;
         onPhaseChange("flying");
       }
     }
     
     if (phase === "flying") {
-      // Unwind globe to rotation 0 so lat/lng matches the texture → marker on land
       if (!animRef.current.flyStarted) {
         animRef.current.flyStarted = true;
         animRef.current.phaseLocked = false;
-        animRef.current.startRotX = groupRef.current.rotation.x;
-        let y = groupRef.current.rotation.y % (Math.PI * 2);
-        if (y > Math.PI) y -= Math.PI * 2;
-        if (y < -Math.PI) y += Math.PI * 2;
-        animRef.current.startRotY = y;
-        groupRef.current.rotation.y = y;
+        animRef.current.startCamDir = camera.position.clone().normalize();
         animRef.current.progress = 0;
       }
 
@@ -220,24 +229,19 @@ function Globe({ phase, onPhaseChange }: { phase: string; onPhaseChange: (p: str
       animRef.current.progress = Math.min(animRef.current.progress + delta * 0.22, 1);
       const p = easeInOutCubic(animRef.current.progress);
 
-      groupRef.current.rotation.x = animRef.current.startRotX * (1 - p);
-      groupRef.current.rotation.y = animRef.current.startRotY * (1 - p);
-
+      const dir = new THREE.Vector3().lerpVectors(animRef.current.startCamDir, endDir, p).normalize();
       const dist = baseCam - p * (baseCam - endCam);
-      const camPos = new THREE.Vector3().lerpVectors(startPos, endPos, p).normalize().multiplyScalar(dist);
-      camera.position.copy(camPos);
+      camera.position.copy(dir.multiplyScalar(dist));
       camera.lookAt(0, 0, 0);
       
       if (animRef.current.progress >= 1 && !animRef.current.phaseLocked) {
         animRef.current.phaseLocked = true;
-        groupRef.current.rotation.set(0, 0, 0);
         onPhaseChange("arrived");
       }
     }
     
     if (phase === "arrived") {
-      groupRef.current.rotation.set(0, 0, 0);
-      const camPos = endPos.clone().normalize().multiplyScalar(endCam);
+      const camPos = endDir.clone().multiplyScalar(endCam);
       camera.position.lerp(camPos, 0.12);
       camera.lookAt(0, 0, 0);
     }
@@ -246,10 +250,10 @@ function Globe({ phase, onPhaseChange }: { phase: string; onPhaseChange: (p: str
       const flicker = Math.sin(t * 15) * 0.3 + 0.7 + Math.sin(t * 23) * 0.2;
       markerRef.current.children.forEach((child, i) => {
         if (child instanceof THREE.Mesh && child.material instanceof THREE.MeshBasicMaterial) {
-          child.material.opacity = i === 0 ? Math.min(1, flicker + 0.3) : flicker * 0.5;
+          child.material.opacity = i === 0 ? Math.min(1, flicker + 0.3) : flicker * 0.45;
         }
       });
-      const pulse = Math.sin(t * 8) * 0.15 + 1;
+      const pulse = Math.sin(t * 8) * 0.1 + 1;
       markerRef.current.scale.setScalar(pulse);
     }
 
@@ -274,7 +278,7 @@ function Globe({ phase, onPhaseChange }: { phase: string; onPhaseChange: (p: str
   }), [earthTex]);
 
   return (
-    <group ref={groupRef}>
+    <group ref={earthRef}>
       <mesh material={mat}><sphereGeometry args={[1, 64, 64]} /></mesh>
       <mesh ref={atmosphereRef}>
         <sphereGeometry args={[1.06, 64, 64]} />
@@ -284,11 +288,10 @@ function Globe({ phase, onPhaseChange }: { phase: string; onPhaseChange: (p: str
           fragmentShader="uniform vec3 col; varying vec3 vN; void main(){float i=pow(.6-dot(vN,vec3(0,0,1)),2.);gl_FragColor=vec4(col,i*.5);}" />
       </mesh>
       {phase === "arrived" && (
-        <group ref={markerRef} position={markerPos}>
-          <mesh><sphereGeometry args={[0.018, 16, 16]} /><meshBasicMaterial color="#ff0040" transparent /></mesh>
-          <mesh><sphereGeometry args={[0.03, 16, 16]} /><meshBasicMaterial color="#ff0040" transparent opacity={0.4} /></mesh>
-          <mesh><ringGeometry args={[0.035, 0.05, 32]} /><meshBasicMaterial color="#ff0040" transparent opacity={0.5} side={THREE.DoubleSide} /></mesh>
-          <mesh><ringGeometry args={[0.06, 0.075, 32]} /><meshBasicMaterial color="#ff0040" transparent opacity={0.3} side={THREE.DoubleSide} /></mesh>
+        <group ref={markerRef} position={markerPos} quaternion={markerQuat}>
+          <mesh><sphereGeometry args={[0.008, 12, 12]} /><meshBasicMaterial color="#ff0040" transparent /></mesh>
+          <mesh><sphereGeometry args={[0.014, 12, 12]} /><meshBasicMaterial color="#ff0040" transparent opacity={0.35} /></mesh>
+          <mesh><ringGeometry args={[0.016, 0.022, 28]} /><meshBasicMaterial color="#ff0040" transparent opacity={0.55} side={THREE.DoubleSide} /></mesh>
         </group>
       )}
     </group>
