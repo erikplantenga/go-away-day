@@ -2,6 +2,7 @@
 
 import { useEffect, useRef, useState } from "react";
 import { ConfettiBurst } from "@/components/ConfettiBurst";
+import { FaceIdSetupRow, FaceIdUnlockButton } from "@/components/FaceIdControls";
 import { MpQuizBonus, mpQuizChoiceClass } from "@/components/MpQuizBonus";
 import { MpQuizChampion } from "@/components/MpQuizChampion";
 import { MpQuizSpin } from "@/components/MpQuizSpin";
@@ -814,6 +815,14 @@ export function MpQuiz({ onOpenNews }: { onOpenNews?: () => void }) {
             {screen === "login" && (
               <div className="mx-auto mt-6 max-w-md space-y-4">
                 <p className="text-center text-lg font-bold">Ben je Benno of Erik?</p>
+                <FaceIdUnlockButton
+                  busy={busy}
+                  onUnlocked={async ({ user, password: pass }) => {
+                    setWho(user);
+                    setPassword(pass);
+                    await start(user, pass);
+                  }}
+                />
                 <div className="grid grid-cols-2 gap-2">
                   {(["benno", "erik"] as const).map((id) => (
                     <button
@@ -839,6 +848,7 @@ export function MpQuiz({ onOpenNews }: { onOpenNews?: () => void }) {
                   autoComplete="current-password"
                   className="min-h-11 w-full rounded-xl bg-white/10 px-4 text-base text-white placeholder:text-white/40"
                 />
+                <FaceIdSetupRow user={who} password={password} />
                 {error && <p className="text-center text-sm text-red-300">{error}</p>}
                 <button
                   type="button"

@@ -235,7 +235,7 @@ export default function Ideas2027() {
             </>
           ) : (
             <p className="mt-1 text-xs text-white/60">
-              Log eerst in met wachtwoord. Daarna kun je Face ID bovenaan de ideeënlijst inschakelen.
+              Log eerst in met wachtwoord. Daarna Face ID inschakelen — werkt ook voor quiz en foto&apos;s.
             </p>
           )}
         </div>
@@ -312,8 +312,8 @@ export default function Ideas2027() {
               {!faceAvailable
                 ? "Werkt het best in Safari op iPhone. Je kunt het hier toch proberen."
                 : faceEnabled
-                  ? "Aan op dit apparaat — volgende keer met Face ID inloggen"
-                  : "Tik op Inschakelen om Face ID te koppelen"}
+                  ? "Aan — werkt voor ideeën, quiz en foto's"
+                  : "Tik op Inschakelen (werkt daarna overal in de app)"}
             </p>
           </div>
           {faceEnabled ? (

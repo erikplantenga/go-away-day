@@ -1,6 +1,7 @@
 import type { IdeasUser } from "./ideas2027";
 
-const FACE_KEY = "ideas2027_faceid";
+const FACE_KEY = "goawayday_faceid";
+const FACE_KEY_LEGACY = "ideas2027_faceid";
 
 export type FaceIdVault = {
   user: IdeasUser;
@@ -43,10 +44,16 @@ export async function platformAuthenticatorAvailable(): Promise<boolean> {
 export function loadFaceIdVault(): FaceIdVault | null {
   if (typeof window === "undefined") return null;
   try {
-    const raw = localStorage.getItem(FACE_KEY);
+    const raw = localStorage.getItem(FACE_KEY) ?? localStorage.getItem(FACE_KEY_LEGACY);
     if (!raw) return null;
     const v = JSON.parse(raw) as FaceIdVault;
-    if ((v.user === "erik" || v.user === "benno") && v.password && v.credId) return v;
+    if ((v.user === "erik" || v.user === "benno") && v.password && v.credId) {
+      // migrate legacy key
+      if (!localStorage.getItem(FACE_KEY)) {
+        localStorage.setItem(FACE_KEY, raw);
+      }
+      return v;
+    }
   } catch {}
   return null;
 }
@@ -54,6 +61,7 @@ export function loadFaceIdVault(): FaceIdVault | null {
 export function clearFaceIdVault() {
   if (typeof window === "undefined") return;
   localStorage.removeItem(FACE_KEY);
+  localStorage.removeItem(FACE_KEY_LEGACY);
 }
 
 /** Register platform authenticator (Face ID / Touch ID) and store login vault */
@@ -61,13 +69,13 @@ export async function enableFaceId(user: IdeasUser, password: string): Promise<v
   if (!faceIdSupported()) throw new Error("Face ID niet beschikbaar op dit apparaat");
 
   const challenge = crypto.getRandomValues(new Uint8Array(32));
-  const userId = new TextEncoder().encode(`ideas2027:${user}`);
+  const userId = new TextEncoder().encode(`goawayday:${user}`);
 
   const cred = (await navigator.credentials.create({
     publicKey: {
       challenge,
       rp: {
-        name: "Go Away Day Ideeën",
+        name: "Go Away Day",
         id: window.location.hostname,
       },
       user: {
@@ -97,6 +105,7 @@ export async function enableFaceId(user: IdeasUser, password: string): Promise<v
     credId: b64urlFromBuf(cred.rawId),
   };
   localStorage.setItem(FACE_KEY, JSON.stringify(vault));
+  localStorage.removeItem(FACE_KEY_LEGACY);
 }
 
 /** Unlock with Face ID / Touch ID and return stored session */

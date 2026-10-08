@@ -2,6 +2,7 @@
 
 import { useEffect, useState, useRef } from "react";
 import JSZip from "jszip";
+import { FaceIdSetupRow, FaceIdUnlockButton } from "@/components/FaceIdControls";
 
 type PhotoMeta = {
   id: string;
@@ -903,6 +904,13 @@ export function Photos() {
             <h2 className="mt-2 text-xl font-bold">Foto's & video's uploaden</h2>
 
             <div className="mt-4 space-y-3">
+              <FaceIdUnlockButton
+                onUnlocked={({ user, password: pass }) => {
+                  setWho(user);
+                  setPassword(pass);
+                  setError("");
+                }}
+              />
               <div>
                 <p className="mb-2 text-sm font-semibold text-white/80">Wie ben je?</p>
                 <div className="grid grid-cols-2 gap-2">
@@ -928,6 +936,7 @@ export function Photos() {
                 placeholder="Wachtwoord"
                 className="min-h-11 w-full rounded-xl bg-white/10 px-4 text-base text-white placeholder:text-white/40"
               />
+              <FaceIdSetupRow user={who} password={password} />
 
               <div>
                 <p className="mb-2 text-sm font-semibold text-white/80">Selecteer foto's of video's</p>
@@ -1178,6 +1187,13 @@ export function Photos() {
                 <h3 className="text-lg font-bold text-white">Bewerken</h3>
                 
                 <div className="mt-4 space-y-3">
+                  <FaceIdUnlockButton
+                    onUnlocked={({ user, password: pass }) => {
+                      setWho(user);
+                      setPassword(pass);
+                      setError("");
+                    }}
+                  />
                   <div>
                     <p className="mb-1 text-sm text-white/70">Wie ben je?</p>
                     <div className="grid grid-cols-2 gap-2">
@@ -1203,6 +1219,7 @@ export function Photos() {
                     placeholder="Wachtwoord"
                     className="min-h-10 w-full rounded-lg bg-white/10 px-3 text-white placeholder:text-white/40"
                   />
+                  <FaceIdSetupRow user={who} password={password} />
                   
                   <div>
                     <p className="mb-1 text-sm text-white/70">Dag</p>
@@ -1264,6 +1281,13 @@ export function Photos() {
                 </p>
                 
                 <div className="mt-4 space-y-3">
+                  <FaceIdUnlockButton
+                    onUnlocked={({ user, password: pass }) => {
+                      setWho(user);
+                      setPassword(pass);
+                      setError("");
+                    }}
+                  />
                   <div className="grid grid-cols-2 gap-2">
                     {(["erik", "benno"] as const).map((id) => (
                       <button
