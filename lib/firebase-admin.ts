@@ -7,6 +7,8 @@ import { initializeApp, getApps, cert, App } from "firebase-admin/app";
 import { getFirestore } from "firebase-admin/firestore";
 import type { CityEntry, RemovedEntry, GameConfig } from "./firestore";
 import type { QuizMiss, QuizPlayer } from "./mpQuiz";
+import type { Idea2027, IdeasUser } from "./ideas2027";
+import { sortIdeas } from "./ideas2027";
 
 let app: App | null = null;
 
@@ -414,4 +416,70 @@ export async function recordMpQuizSpin(
     out = play;
   });
   return { play: out!, totals: await getMpQuizTotals(), added };
+}
+
+/** In-memory fallback when Firebase/Redis unavailable (local) */
+const ideasMem: Idea2027[] = [];
+
+export async function listIdeas2027(): Promise<Idea2027[]> {
+  const d = db();
+  if (!d) return sortIdeas(ideasMem);
+  const snap = await d.collection("ideas2027").get();
+  const ideas = snap.docs.map((doc) => {
+    const data = doc.data();
+    return {
+      id: doc.id,
+      text: String(data.text ?? ""),
+      author: (data.author === "benno" ? "benno" : "erik") as IdeasUser,
+      createdAt: String(data.createdAt ?? ""),
+      ratings: {
+        erik: data.ratings?.erik == null ? undefined : Number(data.ratings.erik),
+        benno: data.ratings?.benno == null ? undefined : Number(data.ratings.benno),
+      },
+    } satisfies Idea2027;
+  });
+  return sortIdeas(ideas);
+}
+
+export async function addIdea2027(idea: Idea2027): Promise<Idea2027> {
+  const d = db();
+  if (!d) {
+    ideasMem.unshift(idea);
+    return idea;
+  }
+  await d.collection("ideas2027").doc(idea.id).set(idea);
+  return idea;
+}
+
+export async function rateIdea2027(
+  id: string,
+  user: IdeasUser,
+  rating: number,
+): Promise<Idea2027 | null> {
+  const d = db();
+  if (!d) {
+    const idea = ideasMem.find((i) => i.id === id);
+    if (!idea) return null;
+    idea.ratings = { ...idea.ratings, [user]: rating };
+    return idea;
+  }
+  const ref = d.collection("ideas2027").doc(id);
+  const snap = await ref.get();
+  if (!snap.exists) return null;
+  const data = snap.data() ?? {};
+  const ratings = {
+    ...(data.ratings ?? {}),
+    [user]: rating,
+  };
+  await ref.set({ ratings }, { merge: true });
+  return {
+    id,
+    text: String(data.text ?? ""),
+    author: (data.author === "benno" ? "benno" : "erik") as IdeasUser,
+    createdAt: String(data.createdAt ?? ""),
+    ratings: {
+      erik: ratings.erik == null ? undefined : Number(ratings.erik),
+      benno: ratings.benno == null ? undefined : Number(ratings.benno),
+    },
+  };
 }
