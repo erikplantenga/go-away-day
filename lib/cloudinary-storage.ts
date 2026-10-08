@@ -137,7 +137,7 @@ export async function findDuplicates(): Promise<{ duplicates: PhotoMeta[][]; tot
     const snap = await db.collection("photos").get();
     const list = snap.docs.map((doc) => doc.data() as PhotoMeta);
     
-    // Group by fullUrl to find duplicates
+    // Group by fullUrl to find exact duplicates
     const byUrl = new Map<string, PhotoMeta[]>();
     for (const photo of list) {
       const existing = byUrl.get(photo.fullUrl) || [];
@@ -145,7 +145,38 @@ export async function findDuplicates(): Promise<{ duplicates: PhotoMeta[][]; tot
       byUrl.set(photo.fullUrl, existing);
     }
     
-    const duplicates = [...byUrl.values()].filter(group => group.length > 1);
+    // Also group by uploader+day+similar upload time (within 5 minutes)
+    const byTimeKey = new Map<string, PhotoMeta[]>();
+    for (const photo of list) {
+      // Create a key based on uploader, day, and upload time rounded to 5 min
+      const uploadTime = new Date(photo.uploadedAt).getTime();
+      const roundedTime = Math.floor(uploadTime / (5 * 60 * 1000)); // 5 minute buckets
+      const key = `${photo.uploader}-${photo.day}-${roundedTime}`;
+      const existing = byTimeKey.get(key) || [];
+      existing.push(photo);
+      byTimeKey.set(key, existing);
+    }
+    
+    // Combine both methods
+    const allDuplicates = new Map<string, PhotoMeta[]>();
+    
+    for (const group of byUrl.values()) {
+      if (group.length > 1) {
+        const key = group.map(p => p.id).sort().join(",");
+        allDuplicates.set(key, group);
+      }
+    }
+    
+    for (const group of byTimeKey.values()) {
+      if (group.length > 1) {
+        const key = group.map(p => p.id).sort().join(",");
+        if (!allDuplicates.has(key)) {
+          allDuplicates.set(key, group);
+        }
+      }
+    }
+    
+    const duplicates = [...allDuplicates.values()];
     return { duplicates, total: list.length };
   } catch (e) {
     console.error("findDuplicates error:", e);
@@ -163,6 +194,32 @@ export async function photoExistsByUrl(fullUrl: string): Promise<boolean> {
   } catch (e) {
     console.error("photoExistsByUrl error:", e);
     return false;
+  }
+}
+
+export async function removeDuplicates(): Promise<{ removed: number; kept: number }> {
+  const db = await firestore();
+  if (!db) return { removed: 0, kept: 0 };
+
+  try {
+    const { duplicates } = await findDuplicates();
+    let removed = 0;
+    
+    for (const group of duplicates) {
+      // Sort by uploadedAt, keep the oldest one
+      group.sort((a, b) => a.uploadedAt.localeCompare(b.uploadedAt));
+      
+      // Delete all except the first one
+      for (let i = 1; i < group.length; i++) {
+        await db.collection("photos").doc(group[i].id).delete();
+        removed++;
+      }
+    }
+    
+    return { removed, kept: duplicates.length };
+  } catch (e) {
+    console.error("removeDuplicates error:", e);
+    return { removed: 0, kept: 0 };
   }
 }
 
