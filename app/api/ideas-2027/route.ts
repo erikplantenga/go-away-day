@@ -18,6 +18,7 @@ async function storage() {
       add: (idea: Idea2027) => fb.addIdea2027(idea),
       rate: (id: string, user: "erik" | "benno", rating: number) =>
         fb.rateIdea2027(id, user, rating),
+      update: (id: string, text: string) => fb.updateIdea2027(id, text),
     };
   }
 
@@ -50,6 +51,16 @@ async function storage() {
         await redis.set(KEY, list);
         return idea;
       },
+      update: async (id: string, text: string) => {
+        const v = await redis.get(KEY);
+        const ideas = (typeof v === "string" ? JSON.parse(v) : v) as Idea2027[] | null;
+        const list = Array.isArray(ideas) ? ideas : [];
+        const idea = list.find((i) => i.id === id);
+        if (!idea) return null;
+        idea.text = text;
+        await redis.set(KEY, list);
+        return idea;
+      },
     };
   }
 
@@ -59,6 +70,7 @@ async function storage() {
     add: (idea: Idea2027) => fb.addIdea2027(idea),
     rate: (id: string, user: "erik" | "benno", rating: number) =>
       fb.rateIdea2027(id, user, rating),
+    update: (id: string, text: string) => fb.updateIdea2027(id, text),
   };
 }
 
@@ -116,6 +128,35 @@ export async function POST(req: NextRequest) {
         return NextResponse.json({ error: "Geen idee" }, { status: 400 });
       }
       const updated = await store.rate(id, user, rating);
+      if (!updated) {
+        return NextResponse.json({ error: "Idee niet gevonden" }, { status: 404 });
+      }
+      return NextResponse.json({
+        data: { ...updated, average: averageRating(updated) },
+      });
+    }
+
+    if (op === "edit") {
+      const text = String(body.text ?? "").trim();
+      if (text.length < 2) {
+        return NextResponse.json({ error: "Idee is te kort" }, { status: 400 });
+      }
+      if (text.length > 500) {
+        return NextResponse.json({ error: "Idee is te lang (max 500)" }, { status: 400 });
+      }
+      const id = String(body.id ?? "");
+      if (!id) {
+        return NextResponse.json({ error: "Geen idee" }, { status: 400 });
+      }
+      const existing = (await store.list()).find((i) => i.id === id);
+      if (!existing) {
+        return NextResponse.json({ error: "Idee niet gevonden" }, { status: 404 });
+      }
+      // Alleen eigen ideeën bewerken
+      if (existing.author !== user) {
+        return NextResponse.json({ error: "Alleen je eigen idee bewerken" }, { status: 403 });
+      }
+      const updated = await store.update(id, text);
       if (!updated) {
         return NextResponse.json({ error: "Idee niet gevonden" }, { status: 404 });
       }
