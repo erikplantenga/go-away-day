@@ -60,7 +60,9 @@ export function LayoutWithOptionalHeader({
     pathname === "/quiz-demo" ||
     pathname === "/kampioen-demo" ||
     pathname === "/checkin-demo" ||
-    pathname === "/eindstand-demo"
+    pathname === "/eindstand-demo" ||
+    pathname === "/preview-2027" ||
+    pathname === "/ideeen-2027"
   ) {
     return <main>{children}</main>;
   }
