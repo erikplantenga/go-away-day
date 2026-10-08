@@ -297,7 +297,7 @@ export async function removePhotoLike(photoId: string): Promise<number | null> {
   }
 }
 
-export async function restoreFromCloudinary(): Promise<{ restored: number; total: number; existing: number; error?: string }> {
+export async function restoreFromCloudinary(): Promise<{ restored: number; total: number; existing: number; error?: string; debug?: unknown }> {
   const config = parseCloudinaryUrl();
   const db = await firestore();
   if (!config || !db) return { restored: 0, total: 0, existing: 0, error: "Niet geconfigureerd" };
@@ -305,16 +305,16 @@ export async function restoreFromCloudinary(): Promise<{ restored: number; total
   try {
     const auth = Buffer.from(`${config.apiKey}:${config.apiSecret}`).toString("base64");
     
-    // Get all images from Cloudinary folder
+    // Get all images from Cloudinary folder (type=upload is required)
     const imgRes = await fetch(
-      `https://api.cloudinary.com/v1_1/${config.cloudName}/resources/image?prefix=go-away-day&max_results=500`,
+      `https://api.cloudinary.com/v1_1/${config.cloudName}/resources/image/upload?prefix=go-away-day&max_results=500`,
       { headers: { Authorization: `Basic ${auth}` } }
     );
     const imgData = await imgRes.json();
     
     // Get all videos from Cloudinary folder
     const vidRes = await fetch(
-      `https://api.cloudinary.com/v1_1/${config.cloudName}/resources/video?prefix=go-away-day&max_results=500`,
+      `https://api.cloudinary.com/v1_1/${config.cloudName}/resources/video/upload?prefix=go-away-day&max_results=500`,
       { headers: { Authorization: `Basic ${auth}` } }
     );
     const vidData = await vidRes.json();
@@ -358,7 +358,12 @@ export async function restoreFromCloudinary(): Promise<{ restored: number; total
       restored++;
     }
     
-    return { restored, total: allResources.length, existing: existingIds.size };
+    return { 
+      restored, 
+      total: allResources.length, 
+      existing: existingIds.size,
+      debug: { imgCount: imgData.resources?.length || 0, vidCount: vidData.resources?.length || 0 }
+    };
   } catch (e) {
     console.error("restoreFromCloudinary error:", e);
     return { restored: 0, total: 0, existing: 0, error: e instanceof Error ? e.message : "Onbekende fout" };
