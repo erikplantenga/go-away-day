@@ -29,6 +29,17 @@ export function faceIdSupported(): boolean {
   return !!window.PublicKeyCredential && typeof navigator.credentials?.create === "function";
 }
 
+/** Async check for Face ID / Touch ID / Windows Hello */
+export async function platformAuthenticatorAvailable(): Promise<boolean> {
+  if (!faceIdSupported()) return false;
+  try {
+    if (typeof PublicKeyCredential.isUserVerifyingPlatformAuthenticatorAvailable === "function") {
+      return await PublicKeyCredential.isUserVerifyingPlatformAuthenticatorAvailable();
+    }
+  } catch {}
+  return true; // API aanwezig → knop tonen, enable faalt anders met duidelijke error
+}
+
 export function loadFaceIdVault(): FaceIdVault | null {
   if (typeof window === "undefined") return null;
   try {

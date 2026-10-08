@@ -5,9 +5,9 @@ import type { Idea2027, IdeasUser } from "@/lib/ideas2027";
 import {
   clearFaceIdVault,
   enableFaceId,
-  faceIdSupported,
   loadFaceIdVault,
   loginWithFaceId,
+  platformAuthenticatorAvailable,
 } from "@/lib/ideasFaceId";
 
 type IdeaRow = Idea2027 & { average: number | null };
@@ -74,7 +74,11 @@ export default function Ideas2027() {
   }, []);
 
   useEffect(() => {
-    setFaceAvailable(faceIdSupported());
+    let cancelled = false;
+    (async () => {
+      const ok = await platformAuthenticatorAvailable();
+      if (!cancelled) setFaceAvailable(ok);
+    })();
     const vault = loadFaceIdVault();
     setFaceEnabled(!!vault);
     if (vault) setUserPick(vault.user);
@@ -84,6 +88,7 @@ export default function Ideas2027() {
       setSession(s);
       refresh(s);
     }
+    return () => { cancelled = true; };
   }, [refresh]);
 
   const handleLogin = async (e: React.FormEvent) => {
@@ -214,19 +219,29 @@ export default function Ideas2027() {
           Brainstorm voor de Go Away Day 2027-app. Log in als Erik of Benno.
         </p>
 
-        {faceAvailable && faceEnabled && (
-          <button
-            type="button"
-            onClick={handleFaceLogin}
-            disabled={busy}
-            className="mt-8 w-full rounded-2xl border border-[#c9a227]/60 bg-[#c9a227]/15 py-3.5 text-sm font-bold text-[#c9a227] disabled:opacity-50"
-          >
-            {busy ? "Bezig…" : "Inloggen met Face ID"}
-          </button>
-        )}
+        <div className="mt-6 rounded-2xl border border-[#c9a227]/40 bg-[#c9a227]/10 px-4 py-4">
+          <p className="text-base font-bold text-[#c9a227]">Face ID / Touch ID</p>
+          {faceEnabled ? (
+            <>
+              <p className="mt-1 text-xs text-white/60">Ingesteld op dit apparaat.</p>
+              <button
+                type="button"
+                onClick={handleFaceLogin}
+                disabled={busy}
+                className="mt-3 w-full rounded-xl bg-[#c9a227] py-3 text-sm font-bold text-[#0b1f3a] disabled:opacity-50"
+              >
+                {busy ? "Bezig…" : "Inloggen met Face ID"}
+              </button>
+            </>
+          ) : (
+            <p className="mt-1 text-xs text-white/60">
+              Log eerst in met wachtwoord. Daarna kun je Face ID bovenaan de ideeënlijst inschakelen.
+            </p>
+          )}
+        </div>
 
         <form onSubmit={handleLogin} className="mt-4 space-y-4 rounded-2xl bg-[#0b1f3a]/90 p-5">
-          {faceAvailable && faceEnabled && (
+          {faceEnabled && (
             <p className="text-center text-xs text-white/40">Of met wachtwoord</p>
           )}
           <div>
@@ -289,39 +304,39 @@ export default function Ideas2027() {
         Beste scores bovenaan. Rate elkaars ideeën 1–10.
       </p>
 
-      {faceAvailable && (
-        <div className="mt-4 rounded-2xl bg-white/5 px-4 py-3">
-          <div className="flex items-center justify-between gap-3">
-            <div>
-              <p className="text-sm font-semibold text-white/90">Face ID</p>
-              <p className="text-xs text-white/45">
-                {faceEnabled
-                  ? "Aan op dit apparaat — sneller inloggen volgende keer"
-                  : "Eenmalig instellen na wachtwoord-login"}
-              </p>
-            </div>
-            {faceEnabled ? (
-              <button
-                type="button"
-                onClick={handleDisableFaceId}
-                className="shrink-0 rounded-xl bg-white/10 px-3 py-2 text-xs text-white/70"
-              >
-                Uit
-              </button>
-            ) : (
-              <button
-                type="button"
-                disabled={busy}
-                onClick={handleEnableFaceId}
-                className="shrink-0 rounded-xl bg-[#c9a227] px-3 py-2 text-xs font-bold text-[#0b1f3a] disabled:opacity-50"
-              >
-                Inschakelen
-              </button>
-            )}
+      <div className="mt-4 rounded-2xl border border-[#c9a227]/40 bg-[#c9a227]/10 px-4 py-4">
+        <div className="flex items-center justify-between gap-3">
+          <div className="min-w-0">
+            <p className="text-base font-bold text-[#c9a227]">Face ID / Touch ID</p>
+            <p className="mt-0.5 text-xs text-white/60">
+              {!faceAvailable
+                ? "Werkt het best in Safari op iPhone. Je kunt het hier toch proberen."
+                : faceEnabled
+                  ? "Aan op dit apparaat — volgende keer met Face ID inloggen"
+                  : "Tik op Inschakelen om Face ID te koppelen"}
+            </p>
           </div>
-          {faceMsg && <p className="mt-2 text-xs text-[#c9a227]">{faceMsg}</p>}
+          {faceEnabled ? (
+            <button
+              type="button"
+              onClick={handleDisableFaceId}
+              className="shrink-0 rounded-xl bg-white/10 px-3 py-2.5 text-xs font-semibold text-white/80"
+            >
+              Uit
+            </button>
+          ) : (
+            <button
+              type="button"
+              disabled={busy}
+              onClick={handleEnableFaceId}
+              className="shrink-0 rounded-xl bg-[#c9a227] px-4 py-2.5 text-sm font-bold text-[#0b1f3a] disabled:opacity-50"
+            >
+              Inschakelen
+            </button>
+          )}
         </div>
-      )}
+        {faceMsg && <p className="mt-2 text-xs text-white/80">{faceMsg}</p>}
+      </div>
 
       <form onSubmit={handleAdd} className="mt-6 rounded-2xl bg-[#0b1f3a]/90 p-4">
         <label className="mb-2 block text-xs uppercase tracking-wider text-white/50">
