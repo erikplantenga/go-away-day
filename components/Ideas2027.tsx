@@ -2,6 +2,13 @@
 
 import { useCallback, useEffect, useState } from "react";
 import type { Idea2027, IdeasUser } from "@/lib/ideas2027";
+import {
+  clearFaceIdVault,
+  enableFaceId,
+  faceIdSupported,
+  loadFaceIdVault,
+  loginWithFaceId,
+} from "@/lib/ideasFaceId";
 
 type IdeaRow = Idea2027 & { average: number | null };
 
@@ -49,6 +56,9 @@ export default function Ideas2027() {
   const [loading, setLoading] = useState(false);
   const [busy, setBusy] = useState(false);
   const [error, setError] = useState("");
+  const [faceAvailable, setFaceAvailable] = useState(false);
+  const [faceEnabled, setFaceEnabled] = useState(false);
+  const [faceMsg, setFaceMsg] = useState("");
 
   const refresh = useCallback(async (s: Session) => {
     setLoading(true);
@@ -64,6 +74,11 @@ export default function Ideas2027() {
   }, []);
 
   useEffect(() => {
+    setFaceAvailable(faceIdSupported());
+    const vault = loadFaceIdVault();
+    setFaceEnabled(!!vault);
+    if (vault) setUserPick(vault.user);
+
     const s = loadSession();
     if (s) {
       setSession(s);
@@ -86,6 +101,44 @@ export default function Ideas2027() {
     } finally {
       setBusy(false);
     }
+  };
+
+  const handleFaceLogin = async () => {
+    setLoginError("");
+    setBusy(true);
+    try {
+      const unlocked = await loginWithFaceId();
+      const s: Session = { user: unlocked.user, password: unlocked.password };
+      await api("list", s);
+      saveSession(s);
+      setSession(s);
+      await refresh(s);
+    } catch (err) {
+      setLoginError(err instanceof Error ? err.message : "Face ID mislukt");
+    } finally {
+      setBusy(false);
+    }
+  };
+
+  const handleEnableFaceId = async () => {
+    if (!session) return;
+    setFaceMsg("");
+    setBusy(true);
+    try {
+      await enableFaceId(session.user, session.password);
+      setFaceEnabled(true);
+      setFaceMsg("Face ID staat aan op dit apparaat.");
+    } catch (err) {
+      setFaceMsg(err instanceof Error ? err.message : "Face ID mislukt");
+    } finally {
+      setBusy(false);
+    }
+  };
+
+  const handleDisableFaceId = () => {
+    clearFaceIdVault();
+    setFaceEnabled(false);
+    setFaceMsg("Face ID uitgezet.");
   };
 
   const handleLogout = () => {
@@ -161,7 +214,21 @@ export default function Ideas2027() {
           Brainstorm voor de Go Away Day 2027-app. Log in als Erik of Benno.
         </p>
 
-        <form onSubmit={handleLogin} className="mt-8 space-y-4 rounded-2xl bg-[#0b1f3a]/90 p-5">
+        {faceAvailable && faceEnabled && (
+          <button
+            type="button"
+            onClick={handleFaceLogin}
+            disabled={busy}
+            className="mt-8 w-full rounded-2xl border border-[#c9a227]/60 bg-[#c9a227]/15 py-3.5 text-sm font-bold text-[#c9a227] disabled:opacity-50"
+          >
+            {busy ? "Bezig…" : "Inloggen met Face ID"}
+          </button>
+        )}
+
+        <form onSubmit={handleLogin} className="mt-4 space-y-4 rounded-2xl bg-[#0b1f3a]/90 p-5">
+          {faceAvailable && faceEnabled && (
+            <p className="text-center text-xs text-white/40">Of met wachtwoord</p>
+          )}
           <div>
             <p className="mb-2 text-xs uppercase tracking-wider text-white/50">Wie ben je?</p>
             <div className="grid grid-cols-2 gap-2">
@@ -221,6 +288,40 @@ export default function Ideas2027() {
       <p className="mt-1 text-sm text-white/60">
         Beste scores bovenaan. Rate elkaars ideeën 1–10.
       </p>
+
+      {faceAvailable && (
+        <div className="mt-4 rounded-2xl bg-white/5 px-4 py-3">
+          <div className="flex items-center justify-between gap-3">
+            <div>
+              <p className="text-sm font-semibold text-white/90">Face ID</p>
+              <p className="text-xs text-white/45">
+                {faceEnabled
+                  ? "Aan op dit apparaat — sneller inloggen volgende keer"
+                  : "Eenmalig instellen na wachtwoord-login"}
+              </p>
+            </div>
+            {faceEnabled ? (
+              <button
+                type="button"
+                onClick={handleDisableFaceId}
+                className="shrink-0 rounded-xl bg-white/10 px-3 py-2 text-xs text-white/70"
+              >
+                Uit
+              </button>
+            ) : (
+              <button
+                type="button"
+                disabled={busy}
+                onClick={handleEnableFaceId}
+                className="shrink-0 rounded-xl bg-[#c9a227] px-3 py-2 text-xs font-bold text-[#0b1f3a] disabled:opacity-50"
+              >
+                Inschakelen
+              </button>
+            )}
+          </div>
+          {faceMsg && <p className="mt-2 text-xs text-[#c9a227]">{faceMsg}</p>}
+        </div>
+      )}
 
       <form onSubmit={handleAdd} className="mt-6 rounded-2xl bg-[#0b1f3a]/90 p-4">
         <label className="mb-2 block text-xs uppercase tracking-wider text-white/50">
