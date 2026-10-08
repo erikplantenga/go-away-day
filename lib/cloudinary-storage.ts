@@ -137,7 +137,7 @@ export async function findDuplicates(): Promise<{ duplicates: PhotoMeta[][]; tot
     const snap = await db.collection("photos").get();
     const list = snap.docs.map((doc) => doc.data() as PhotoMeta);
     
-    // Group by fullUrl to find exact duplicates
+    // Only group by fullUrl to find exact duplicates (same file uploaded twice)
     const byUrl = new Map<string, PhotoMeta[]>();
     for (const photo of list) {
       const existing = byUrl.get(photo.fullUrl) || [];
@@ -145,38 +145,13 @@ export async function findDuplicates(): Promise<{ duplicates: PhotoMeta[][]; tot
       byUrl.set(photo.fullUrl, existing);
     }
     
-    // Also group by uploader+day+similar upload time (within 5 minutes)
-    const byTimeKey = new Map<string, PhotoMeta[]>();
-    for (const photo of list) {
-      // Create a key based on uploader, day, and upload time rounded to 5 min
-      const uploadTime = new Date(photo.uploadedAt).getTime();
-      const roundedTime = Math.floor(uploadTime / (5 * 60 * 1000)); // 5 minute buckets
-      const key = `${photo.uploader}-${photo.day}-${roundedTime}`;
-      const existing = byTimeKey.get(key) || [];
-      existing.push(photo);
-      byTimeKey.set(key, existing);
-    }
-    
-    // Combine both methods
-    const allDuplicates = new Map<string, PhotoMeta[]>();
-    
+    const duplicates: PhotoMeta[][] = [];
     for (const group of byUrl.values()) {
       if (group.length > 1) {
-        const key = group.map(p => p.id).sort().join(",");
-        allDuplicates.set(key, group);
+        duplicates.push(group);
       }
     }
     
-    for (const group of byTimeKey.values()) {
-      if (group.length > 1) {
-        const key = group.map(p => p.id).sort().join(",");
-        if (!allDuplicates.has(key)) {
-          allDuplicates.set(key, group);
-        }
-      }
-    }
-    
-    const duplicates = [...allDuplicates.values()];
     return { duplicates, total: list.length };
   } catch (e) {
     console.error("findDuplicates error:", e);
@@ -297,7 +272,7 @@ export async function removePhotoLike(photoId: string): Promise<number | null> {
   }
 }
 
-export async function restoreFromCloudinary(): Promise<{ restored: number; total: number; existing: number; error?: string; debug?: unknown }> {
+export async function restoreFromCloudinary(): Promise<{ restored: number; total: number; existing: number; error?: string }> {
   const config = parseCloudinaryUrl();
   const db = await firestore();
   if (!config || !db) return { restored: 0, total: 0, existing: 0, error: "Niet geconfigureerd" };
@@ -358,12 +333,7 @@ export async function restoreFromCloudinary(): Promise<{ restored: number; total
       restored++;
     }
     
-    return { 
-      restored, 
-      total: allResources.length, 
-      existing: existingIds.size,
-      debug: { imgCount: imgData.resources?.length || 0, vidCount: vidData.resources?.length || 0 }
-    };
+    return { restored, total: allResources.length, existing: existingIds.size };
   } catch (e) {
     console.error("restoreFromCloudinary error:", e);
     return { restored: 0, total: 0, existing: 0, error: e instanceof Error ? e.message : "Onbekende fout" };
