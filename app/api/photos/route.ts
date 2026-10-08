@@ -17,12 +17,14 @@ import {
 export const dynamic = "force-dynamic";
 
 const PASSWORDS: Record<string, string> = {
-  erik: "Erik",
-  benno: "Wenstra",
+  erik: "erik",
+  benno: "wenstra",
 };
 
 function checkPass(who: string, password: unknown) {
-  return typeof password === "string" && password === PASSWORDS[who];
+  if (typeof password !== "string") return false;
+  const expected = PASSWORDS[who];
+  return expected && password.toLowerCase() === expected;
 }
 
 export async function GET(req: NextRequest) {
