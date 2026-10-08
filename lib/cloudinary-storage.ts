@@ -297,10 +297,10 @@ export async function removePhotoLike(photoId: string): Promise<number | null> {
   }
 }
 
-export async function restoreFromCloudinary(): Promise<{ restored: number; error?: string }> {
+export async function restoreFromCloudinary(): Promise<{ restored: number; total: number; existing: number; error?: string }> {
   const config = parseCloudinaryUrl();
   const db = await firestore();
-  if (!config || !db) return { restored: 0, error: "Niet geconfigureerd" };
+  if (!config || !db) return { restored: 0, total: 0, existing: 0, error: "Niet geconfigureerd" };
 
   try {
     const auth = Buffer.from(`${config.apiKey}:${config.apiSecret}`).toString("base64");
@@ -324,23 +324,20 @@ export async function restoreFromCloudinary(): Promise<{ restored: number; error
       ...(vidData.resources || []).map((r: any) => ({ ...r, isVideo: true })),
     ];
     
-    // Get existing photos from Firestore
+    // Get existing photos from Firestore by ID
     const existingSnap = await db.collection("photos").get();
-    const existingUrls = new Set(existingSnap.docs.map(d => (d.data() as PhotoMeta).fullUrl));
+    const existingIds = new Set(existingSnap.docs.map(d => d.id));
     
     let restored = 0;
     for (const resource of allResources) {
       const fullUrl = resource.secure_url;
-      
-      // Skip if already in Firestore
-      if (existingUrls.has(fullUrl)) continue;
-      
       const publicId = resource.public_id;
       const id = publicId.includes("/") ? publicId.split("/").pop() : publicId;
-      const createdAt = resource.created_at || new Date().toISOString();
       
-      // Try to determine uploader and day from filename or default
-      // Filename format might be: timestamp-randomid
+      // Skip if ID already exists in Firestore
+      if (existingIds.has(id)) continue;
+      
+      const createdAt = resource.created_at || new Date().toISOString();
       const isVideo = resource.isVideo;
       const thumbUrl = isVideo
         ? fullUrl.replace("/upload/", "/upload/c_fill,w_400,h_400,q_auto,f_jpg,so_0/")
@@ -361,10 +358,10 @@ export async function restoreFromCloudinary(): Promise<{ restored: number; error
       restored++;
     }
     
-    return { restored };
+    return { restored, total: allResources.length, existing: existingIds.size };
   } catch (e) {
     console.error("restoreFromCloudinary error:", e);
-    return { restored: 0, error: e instanceof Error ? e.message : "Onbekende fout" };
+    return { restored: 0, total: 0, existing: 0, error: e instanceof Error ? e.message : "Onbekende fout" };
   }
 }
 
