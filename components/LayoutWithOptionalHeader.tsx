@@ -3,6 +3,7 @@
 import { usePathname } from "next/navigation";
 import { useState, useEffect } from "react";
 import { HeroCarousel } from "@/components/HeroCarousel";
+import { IdeasNewIdeaPopup } from "@/components/IdeasNewIdeaPopup";
 
 function EndOfTripPopup({ onClose }: { onClose: () => void }) {
   return (
@@ -64,11 +65,17 @@ export function LayoutWithOptionalHeader({
     pathname === "/preview-2027" ||
     pathname === "/ideeen-2027"
   ) {
-    return <main>{children}</main>;
+    return (
+      <>
+        <IdeasNewIdeaPopup />
+        <main>{children}</main>
+      </>
+    );
   }
 
   return (
     <>
+      <IdeasNewIdeaPopup />
       {showEndPopup && <EndOfTripPopup onClose={closePopup} />}
       <header className="mb-4 text-center">
         <h1 className="text-xl font-bold text-[#f4efe4] sm:text-2xl">Go Away Day</h1>
