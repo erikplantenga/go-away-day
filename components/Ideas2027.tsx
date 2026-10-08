@@ -44,6 +44,8 @@ export default function Ideas2027() {
   const [loginError, setLoginError] = useState("");
   const [ideas, setIdeas] = useState<IdeaRow[]>([]);
   const [text, setText] = useState("");
+  const [editingId, setEditingId] = useState<string | null>(null);
+  const [editText, setEditText] = useState("");
   const [loading, setLoading] = useState(false);
   const [busy, setBusy] = useState(false);
   const [error, setError] = useState("");
@@ -118,6 +120,33 @@ export default function Ideas2027() {
       await refresh(session);
     } catch (err) {
       setError(err instanceof Error ? err.message : "Raten mislukt");
+    } finally {
+      setBusy(false);
+    }
+  };
+
+  const startEdit = (idea: IdeaRow) => {
+    setEditingId(idea.id);
+    setEditText(idea.text);
+    setError("");
+  };
+
+  const cancelEdit = () => {
+    setEditingId(null);
+    setEditText("");
+  };
+
+  const handleSaveEdit = async (id: string) => {
+    if (!session || editText.trim().length < 2) return;
+    setBusy(true);
+    setError("");
+    try {
+      await api("edit", session, { id, text: editText.trim() });
+      setEditingId(null);
+      setEditText("");
+      await refresh(session);
+    } catch (err) {
+      setError(err instanceof Error ? err.message : "Bewerken mislukt");
     } finally {
       setBusy(false);
     }
@@ -238,6 +267,15 @@ export default function Ideas2027() {
                   <span className="text-xs capitalize text-white/40">
                     {idea.author}
                   </span>
+                  {idea.author === session.user && editingId !== idea.id && (
+                    <button
+                      type="button"
+                      onClick={() => startEdit(idea)}
+                      className="text-[11px] text-[#c9a227] underline"
+                    >
+                      Bewerken
+                    </button>
+                  )}
                 </div>
                 <div className="text-right">
                   <div className="text-lg font-bold text-[#c9a227]">{avg}</div>
@@ -245,7 +283,36 @@ export default function Ideas2027() {
                 </div>
               </div>
 
-              <p className="text-[15px] leading-snug text-white/90">{idea.text}</p>
+              {editingId === idea.id ? (
+                <div className="space-y-2">
+                  <textarea
+                    value={editText}
+                    onChange={(e) => setEditText(e.target.value)}
+                    rows={3}
+                    maxLength={500}
+                    className="w-full resize-none rounded-xl border border-[#c9a227]/50 bg-black/30 px-3 py-2 text-sm text-white outline-none focus:border-[#c9a227]"
+                  />
+                  <div className="flex gap-2">
+                    <button
+                      type="button"
+                      disabled={busy || editText.trim().length < 2}
+                      onClick={() => handleSaveEdit(idea.id)}
+                      className="flex-1 rounded-xl bg-[#c9a227] py-2 text-xs font-bold text-[#0b1f3a] disabled:opacity-50"
+                    >
+                      Opslaan
+                    </button>
+                    <button
+                      type="button"
+                      onClick={cancelEdit}
+                      className="rounded-xl bg-white/10 px-4 py-2 text-xs text-white/70"
+                    >
+                      Annuleren
+                    </button>
+                  </div>
+                </div>
+              ) : (
+                <p className="text-[15px] leading-snug text-white/90">{idea.text}</p>
+              )}
 
               <div className="mt-3 flex flex-wrap gap-1.5 text-[10px] text-white/35">
                 {idea.ratings.erik != null && <span>Erik: {idea.ratings.erik}/10</span>}

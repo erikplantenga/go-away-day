@@ -451,6 +451,20 @@ export async function addIdea2027(idea: Idea2027): Promise<Idea2027> {
   return idea;
 }
 
+function ideaFromData(id: string, data: Record<string, unknown>): Idea2027 {
+  const ratings = (data.ratings ?? {}) as { erik?: unknown; benno?: unknown };
+  return {
+    id,
+    text: String(data.text ?? ""),
+    author: (data.author === "benno" ? "benno" : "erik") as IdeasUser,
+    createdAt: String(data.createdAt ?? ""),
+    ratings: {
+      erik: ratings.erik == null ? undefined : Number(ratings.erik),
+      benno: ratings.benno == null ? undefined : Number(ratings.benno),
+    },
+  };
+}
+
 export async function rateIdea2027(
   id: string,
   user: IdeasUser,
@@ -472,14 +486,24 @@ export async function rateIdea2027(
     [user]: rating,
   };
   await ref.set({ ratings }, { merge: true });
-  return {
-    id,
-    text: String(data.text ?? ""),
-    author: (data.author === "benno" ? "benno" : "erik") as IdeasUser,
-    createdAt: String(data.createdAt ?? ""),
-    ratings: {
-      erik: ratings.erik == null ? undefined : Number(ratings.erik),
-      benno: ratings.benno == null ? undefined : Number(ratings.benno),
-    },
-  };
+  return ideaFromData(id, { ...data, ratings } as Record<string, unknown>);
+}
+
+export async function updateIdea2027(
+  id: string,
+  text: string,
+): Promise<Idea2027 | null> {
+  const d = db();
+  if (!d) {
+    const idea = ideasMem.find((i) => i.id === id);
+    if (!idea) return null;
+    idea.text = text;
+    return idea;
+  }
+  const ref = d.collection("ideas2027").doc(id);
+  const snap = await ref.get();
+  if (!snap.exists) return null;
+  const data = snap.data() ?? {};
+  await ref.set({ text, updatedAt: new Date().toISOString() }, { merge: true });
+  return ideaFromData(id, { ...data, text } as Record<string, unknown>);
 }
