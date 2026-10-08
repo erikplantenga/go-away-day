@@ -1351,36 +1351,7 @@ export function Photos() {
         <div className="fixed inset-0 z-[95] flex items-center justify-center bg-black/80 p-4">
           <div className="w-full max-w-sm rounded-2xl bg-[#0b1f3a] p-5">
             <h3 className="text-xl font-bold text-white">Download foto's</h3>
-            <p className="mt-2 text-sm text-white/70">
-              Welke foto's wil je downloaden?
-            </p>
             
-            <div className="mt-4 space-y-2">
-              {(["all", "erik", "benno"] as const).map((opt) => {
-                const count = opt === "all" 
-                  ? photos.length 
-                  : photos.filter(p => p.uploader === opt).length;
-                const label = opt === "all" ? "Alle foto's" : opt === "erik" ? "Alleen Erik" : "Alleen Benno";
-                return (
-                  <button
-                    key={opt}
-                    type="button"
-                    onClick={() => setDownloadFilter(opt)}
-                    className={`flex w-full items-center justify-between rounded-xl px-4 py-3 text-left ${
-                      downloadFilter === opt 
-                        ? "bg-[#c9a227] text-[#0b1f3a]" 
-                        : "bg-white/10 text-white"
-                    }`}
-                  >
-                    <span className="font-semibold">{label}</span>
-                    <span className={`text-sm ${downloadFilter === opt ? "text-[#0b1f3a]/70" : "text-white/50"}`}>
-                      {count} items
-                    </span>
-                  </button>
-                );
-              })}
-            </div>
-
             {downloading ? (
               <div className="mt-5">
                 <div className="relative h-12 w-full overflow-hidden rounded-xl bg-white/10">
@@ -1394,25 +1365,76 @@ export function Photos() {
                     </span>
                   </div>
                 </div>
-                <p className="mt-2 text-center text-xs text-white/50">Bestanden worden verzameld...</p>
+                <p className="mt-2 text-center text-xs text-white/50">ZIP wordt gemaakt...</p>
               </div>
             ) : (
-              <div className="mt-5 flex gap-2">
+              <>
+                <p className="mt-3 text-sm text-white/70">
+                  Kies hoe je de foto's wilt downloaden:
+                </p>
+
+                {/* iPhone / HD Gallery option */}
+                <a
+                  href="/download"
+                  className="mt-4 flex w-full items-center gap-3 rounded-xl bg-gradient-to-r from-blue-600 to-purple-600 px-4 py-4 text-left"
+                >
+                  <span className="text-2xl">📱</span>
+                  <div>
+                    <div className="font-bold text-white">HD Galerij (iPhone)</div>
+                    <div className="text-xs text-white/70">Lang indrukken → opslaan naar Foto's</div>
+                  </div>
+                </a>
+
+                {/* ZIP download section */}
+                <div className="mt-4 rounded-xl bg-white/5 p-4">
+                  <div className="flex items-center gap-3">
+                    <span className="text-2xl">📦</span>
+                    <div>
+                      <div className="font-bold text-white">ZIP bestand</div>
+                      <div className="text-xs text-white/70">Alle foto's in één download</div>
+                    </div>
+                  </div>
+                  
+                  <div className="mt-3 flex gap-2">
+                    {(["all", "erik", "benno"] as const).map((opt) => {
+                      const count = opt === "all" 
+                        ? photos.length 
+                        : photos.filter(p => p.uploader === opt).length;
+                      const label = opt === "all" ? "Alle" : opt === "erik" ? "Erik" : "Benno";
+                      return (
+                        <button
+                          key={opt}
+                          type="button"
+                          onClick={() => setDownloadFilter(opt)}
+                          className={`flex-1 rounded-lg px-2 py-2 text-xs font-semibold transition ${
+                            downloadFilter === opt 
+                              ? "bg-[#c9a227] text-[#0b1f3a]" 
+                              : "bg-white/10 text-white"
+                          }`}
+                        >
+                          {label} ({count})
+                        </button>
+                      );
+                    })}
+                  </div>
+
+                  <button
+                    type="button"
+                    onClick={handleDownloadAll}
+                    className="mt-3 w-full rounded-xl bg-[#c9a227] py-3 text-sm font-bold text-[#0b1f3a]"
+                  >
+                    ⬇️ Download ZIP
+                  </button>
+                </div>
+
                 <button
                   type="button"
                   onClick={() => setShowDownloadModal(false)}
-                  className="flex-1 rounded-xl bg-white/10 py-3 text-sm font-semibold text-white"
+                  className="mt-4 w-full rounded-xl bg-white/10 py-3 text-sm font-semibold text-white"
                 >
                   Annuleren
                 </button>
-                <button
-                  type="button"
-                  onClick={handleDownloadAll}
-                  className="flex-1 rounded-xl bg-[#c9a227] py-3 text-sm font-bold text-[#0b1f3a]"
-                >
-                  ⬇️ Download
-                </button>
-              </div>
+              </>
             )}
           </div>
         </div>
