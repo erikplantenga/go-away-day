@@ -9,6 +9,7 @@ import {
   loginWithFaceId,
   platformAuthenticatorAvailable,
 } from "@/lib/ideasFaceId";
+import { markIdeasSeen } from "@/lib/ideasSeen";
 
 type IdeaRow = Idea2027 & { average: number | null };
 
@@ -65,7 +66,10 @@ export default function Ideas2027() {
     setError("");
     try {
       const res = await api("list", s);
-      setIdeas((res.data ?? []) as IdeaRow[]);
+      const rows = (res.data ?? []) as IdeaRow[];
+      setIdeas(rows);
+      // Bord bekeken → geen herhaalde popup voor deze ideeën
+      markIdeasSeen(rows.map((i) => i.id));
     } catch (e) {
       setError(e instanceof Error ? e.message : "Laden mislukt");
     } finally {

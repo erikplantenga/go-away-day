@@ -2,40 +2,14 @@
 
 import { useCallback, useEffect, useRef, useState } from "react";
 import type { Idea2027, IdeasUser } from "@/lib/ideas2027";
+import {
+  loadIdeasSession,
+  loadSeenIdeaIds,
+  markIdeasSeen,
+  saveSeenIdeaIds,
+} from "@/lib/ideasSeen";
 
-const SESSION_KEY = "ideas2027_session";
-const SEEN_KEY = "ideas2027_seen_ids";
 const POLL_MS = 12_000;
-
-type Session = { user: IdeasUser; password: string };
-
-function loadSession(): Session | null {
-  if (typeof window === "undefined") return null;
-  try {
-    const raw = sessionStorage.getItem(SESSION_KEY);
-    if (!raw) return null;
-    const s = JSON.parse(raw) as Session;
-    if ((s.user === "erik" || s.user === "benno") && typeof s.password === "string") return s;
-  } catch {}
-  return null;
-}
-
-function loadSeen(): Set<string> {
-  try {
-    const raw = localStorage.getItem(SEEN_KEY);
-    if (!raw) return new Set();
-    const arr = JSON.parse(raw) as string[];
-    return new Set(Array.isArray(arr) ? arr : []);
-  } catch {
-    return new Set();
-  }
-}
-
-function saveSeen(ids: Iterable<string>) {
-  try {
-    localStorage.setItem(SEEN_KEY, JSON.stringify([...ids]));
-  } catch {}
-}
 
 function displayName(user: IdeasUser) {
   return user === "erik" ? "Erik" : "Benno";
@@ -75,21 +49,17 @@ function LightbulbIcon() {
 
 export function IdeasNewIdeaPopup() {
   const [toast, setToast] = useState<{ name: string; count: number } | null>(null);
-  const pendingIds = useRef<string[]>([]);
+  const showing = useRef(false);
   const seeded = useRef(false);
 
   const dismiss = useCallback(() => {
-    if (pendingIds.current.length) {
-      const seen = loadSeen();
-      for (const id of pendingIds.current) seen.add(id);
-      saveSeen(seen);
-      pendingIds.current = [];
-    }
+    showing.current = false;
     setToast(null);
   }, []);
 
   const check = useCallback(async () => {
-    const session = loadSession();
+    if (showing.current) return;
+    const session = loadIdeasSession();
     if (!session) return;
 
     try {
@@ -106,10 +76,11 @@ export function IdeasNewIdeaPopup() {
       const json = await r.json();
       const ideas = (json.data ?? []) as Idea2027[];
       const ids = ideas.map((i) => i.id);
-      const seen = loadSeen();
+      const seen = loadSeenIdeaIds();
 
+      // Eerste keer: alles als gezien markeren, geen popup voor oude ideeën
       if (!seeded.current && seen.size === 0) {
-        saveSeen(ids);
+        saveSeenIdeaIds(ids);
         seeded.current = true;
         return;
       }
@@ -118,17 +89,16 @@ export function IdeasNewIdeaPopup() {
       const fresh = ideas.filter(
         (i) => i.author !== session.user && !seen.has(i.id),
       );
-      if (!fresh.length) {
-        // keep seen in sync with known ids (optional prune later)
-        return;
-      }
+      if (!fresh.length) return;
 
-      // Prefer the author of the newest idea
       const newest = [...fresh].sort((a, b) =>
         b.createdAt.localeCompare(a.createdAt),
       )[0]!;
       const sameAuthor = fresh.filter((i) => i.author === newest.author);
-      pendingIds.current = fresh.map((i) => i.id);
+
+      // Direct als gezien markeren → wegklikken = nooit opnieuw dezelfde popup
+      markIdeasSeen(fresh.map((i) => i.id));
+      showing.current = true;
       setToast({
         name: displayName(newest.author),
         count: sameAuthor.length,
@@ -150,12 +120,6 @@ export function IdeasNewIdeaPopup() {
       document.removeEventListener("visibilitychange", onVis);
     };
   }, [check]);
-
-  useEffect(() => {
-    if (!toast) return;
-    const t = window.setTimeout(dismiss, 7000);
-    return () => window.clearTimeout(t);
-  }, [toast, dismiss]);
 
   if (!toast) return null;
 
