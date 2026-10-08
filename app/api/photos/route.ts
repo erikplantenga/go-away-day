@@ -12,6 +12,7 @@ import {
   findDuplicates,
   photoExistsByUrl,
   removeDuplicates,
+  restoreFromCloudinary,
   type PhotoMeta,
 } from "@/lib/cloudinary-storage";
 
@@ -47,6 +48,11 @@ export async function GET(req: NextRequest) {
 
   if (searchParams.get("remove-duplicates") === "1") {
     const result = await removeDuplicates();
+    return NextResponse.json(result);
+  }
+
+  if (searchParams.get("restore") === "1") {
+    const result = await restoreFromCloudinary();
     return NextResponse.json(result);
   }
 

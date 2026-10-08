@@ -297,6 +297,77 @@ export async function removePhotoLike(photoId: string): Promise<number | null> {
   }
 }
 
+export async function restoreFromCloudinary(): Promise<{ restored: number; error?: string }> {
+  const config = parseCloudinaryUrl();
+  const db = await firestore();
+  if (!config || !db) return { restored: 0, error: "Niet geconfigureerd" };
+
+  try {
+    const auth = Buffer.from(`${config.apiKey}:${config.apiSecret}`).toString("base64");
+    
+    // Get all images from Cloudinary folder
+    const imgRes = await fetch(
+      `https://api.cloudinary.com/v1_1/${config.cloudName}/resources/image?prefix=go-away-day&max_results=500`,
+      { headers: { Authorization: `Basic ${auth}` } }
+    );
+    const imgData = await imgRes.json();
+    
+    // Get all videos from Cloudinary folder
+    const vidRes = await fetch(
+      `https://api.cloudinary.com/v1_1/${config.cloudName}/resources/video?prefix=go-away-day&max_results=500`,
+      { headers: { Authorization: `Basic ${auth}` } }
+    );
+    const vidData = await vidRes.json();
+    
+    const allResources = [
+      ...(imgData.resources || []).map((r: any) => ({ ...r, isVideo: false })),
+      ...(vidData.resources || []).map((r: any) => ({ ...r, isVideo: true })),
+    ];
+    
+    // Get existing photos from Firestore
+    const existingSnap = await db.collection("photos").get();
+    const existingUrls = new Set(existingSnap.docs.map(d => (d.data() as PhotoMeta).fullUrl));
+    
+    let restored = 0;
+    for (const resource of allResources) {
+      const fullUrl = resource.secure_url;
+      
+      // Skip if already in Firestore
+      if (existingUrls.has(fullUrl)) continue;
+      
+      const publicId = resource.public_id;
+      const id = publicId.includes("/") ? publicId.split("/").pop() : publicId;
+      const createdAt = resource.created_at || new Date().toISOString();
+      
+      // Try to determine uploader and day from filename or default
+      // Filename format might be: timestamp-randomid
+      const isVideo = resource.isVideo;
+      const thumbUrl = isVideo
+        ? fullUrl.replace("/upload/", "/upload/c_fill,w_400,h_400,q_auto,f_jpg,so_0/")
+        : fullUrl.replace("/upload/", "/upload/c_fill,w_400,h_400,q_auto,f_auto/");
+      
+      const meta: PhotoMeta = {
+        id,
+        uploader: "erik", // Default, user can edit later
+        day: "2026-10-05", // Default to middle of trip
+        caption: "(Hersteld)",
+        uploadedAt: createdAt,
+        thumbUrl,
+        fullUrl,
+      };
+      if (isVideo) meta.isVideo = true;
+      
+      await db.collection("photos").doc(id).set(meta);
+      restored++;
+    }
+    
+    return { restored };
+  } catch (e) {
+    console.error("restoreFromCloudinary error:", e);
+    return { restored: 0, error: e instanceof Error ? e.message : "Onbekende fout" };
+  }
+}
+
 export async function testCloudinary(): Promise<{ ok: boolean; message: string; cloudName?: string }> {
   const config = parseCloudinaryUrl();
   if (!config) {
