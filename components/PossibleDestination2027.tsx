@@ -91,7 +91,7 @@ function RouteMap({ step }: { step: number }) {
           return <g key={stop.id}>
             {active && <circle cx={x} cy={y} r={pointSize * 2.6} fill="none" stroke="#b5f18a" strokeWidth={factor} opacity=".45" className="current-point-halo" />}
             <circle cx={x} cy={y} r={pointSize} fill={color} stroke="#08211d" strokeWidth={2 * factor} />
-            {labelVisible && <text x={x + dx * factor} y={y + dy * factor} fill={active ? "#efffe3" : "#bbd3bc"} fontFamily="monospace" fontSize={labelSize} textAnchor={anchor} paintOrder="stroke" stroke="#061316" strokeWidth={4 * factor} strokeLinejoin="round">{i === 0 || i === 5 ? "COMISO · CIY" : stop.title.toUpperCase()}</text>}
+            {labelVisible && <text x={x + dx * factor} y={y + dy * factor} fill={active ? "#efffe3" : "#bbd3bc"} fontFamily="monospace" fontSize={labelSize} textAnchor={anchor} paintOrder="stroke" stroke="#061316" strokeWidth={4 * factor} strokeLinejoin="round">{i === 0 || i === 5 ? "CATANIA · CTA" : stop.title.toUpperCase()}</text>}
           </g>;
         })}
       </svg>
@@ -137,10 +137,10 @@ export default function PossibleDestination2027({ onClose }: { onClose: () => vo
         <div className="mission-intro">
           <div className="mission-eyebrow"><span /> ERIK & BENNO / THE NEXT CHAPTER</div>
           <h1>POSSIBLE <em>DESTINATION</em></h1>
-          <div className="mission-flight-ticket" aria-label="Voorgestelde vliegreis vanaf Schiphol naar Comiso">
+          <div className="mission-flight-ticket" aria-label="Voorgestelde vliegreis vanaf Schiphol naar Catania">
             <span><b>AMS</b><small>SCHIPHOL</small></span>
             <div><i /><Icon name="plane" size={18} /><i /></div>
-            <span><b>CIY</b><small>COMISO, SICILIË</small></span>
+            <span><b>CTA</b><small>CATANIA, SICILIË</small></span>
           </div>
           <div className="mission-subline"><p>Sicilië. Op de sporen van Operatie Husky.</p><span>ZA → WO <i /> 4 NACHTEN <i /> 3 FIETSETAPPES</span></div>
         </div>

@@ -36,14 +36,14 @@ export function projectCoordinate([lng, lat]: RouteCoordinate): [number, number]
 
 export const ROUTE_STOPS: readonly RouteStop[] = [
   {
-    id: "comiso-arrival", title: "Comiso", kicker: "Schiphol to Sicily",
-    day: "Zaterdag · Schiphol → Sicilië", mode: "arrival", coordinate: [14.6072, 36.9946],
-    distance: "AMS → CIY", overnight: "Vanavond in Gela",
-    description: "Zaterdagochtend vertrekken vanaf Schiphol (AMS). In de animatie vliegen jullie naar Comiso (CIY), het dichtstbijzijnde passagiersvliegveld bij Gela en het begin van jullie route.",
+    id: "catania-arrival", title: "Catania", kicker: "Schiphol to Sicily",
+    day: "Zaterdag · Schiphol → Sicilië", mode: "arrival", coordinate: [15.0664, 37.4668],
+    distance: "AMS → CTA", overnight: "Vanavond in Gela",
+    description: "Zaterdagochtend vertrekken vanaf Schiphol (AMS). Jullie vliegen naar Catania-Fontanarossa (CTA), met regelmatige rechtstreekse verbindingen vanaf Schiphol door KLM en Transavia. Daarna begint de route naar Gela.",
     history: "De landingstranden van Gela en Scoglitti wachten. Hier begint jullie reis langs de Amerikaanse landingsgebieden van Operatie Husky.",
     evening: "Na de landing met een vooraf geregelde transfer naar Gela. De fietsen staan bij het begin van de fietsroute klaar.",
-    practical: "De vlieglijn is schematisch. Schiphol–Comiso heeft momenteel geen rechtstreekse vlucht; houd rekening met een overstap en controleer de dienstregeling voor jullie zaterdag en woensdag in 2027.",
-    via: [], source: { label: "Vliegveld Comiso · vluchten en routes", url: "https://www.aeroportodicomiso.eu/en/flight-and-routes-timetable" },
+    practical: "Schiphol–Catania is een rechtstreekse route van KLM en Transavia. De vlieglijn is schematisch; controleer de precieze heen- en terugvluchten voor jullie zaterdag en woensdag in 2027.",
+    via: [], source: { label: "Transavia · Schiphol–Catania", url: "https://www.transavia.com/vliegvelden/nl-nl/amsterdam-airport-schiphol/amsterdam-catania" },
   },
   {
     id: "gela", title: "Gela", kicker: "Where the story begins",
@@ -52,8 +52,8 @@ export const ROUTE_STOPS: readonly RouteStop[] = [
     description: "De zee waar het begon. Wandel langs de landingstranden bij Gela en ontdek de omgeving van de Amerikaanse landingen van 10 juli 1943.",
     history: "Gela was een van de Amerikaanse landingsgebieden van Operatie Husky. Verken de kust en laat een lokale gids de gebeurtenissen tot leven brengen.",
     evening: "Aperitivo aan zee, eten in het centrum en slapen in Gela. Morgen start de eerste fietsetappe.",
-    practical: "De rit vanaf Comiso is een transfer van circa 40–45 km, geen fietsetappe. Fiets- en bagagevervoer vooraf regelen.",
-    via: [[14.575,37.021],[14.523,37.032],[14.431,37.042],[14.345,37.06]],
+    practical: "De rit vanaf Catania naar Gela is een transfer van circa 1,5 uur, geen fietsetappe. Fiets- en bagagevervoer vooraf regelen.",
+    via: [[14.977,37.395],[14.827,37.285],[14.54,37.225],[14.345,37.17]],
     source: { label: "Husky & de Amerikaanse landingen", url: "https://www.museosicilia1943.it/site/chi-siamo/" },
   },
   {
@@ -90,14 +90,14 @@ export const ROUTE_STOPS: readonly RouteStop[] = [
     source: { label: "Museo della Memoria · Sicilia 1943", url: "https://www.museosicilia1943.it/site/" },
   },
   {
-    id: "comiso-return", title: "Back to Comiso", kicker: "From Sicily to Schiphol",
-    day: "Woensdag · terug naar Schiphol", mode: "return", coordinate: [14.6072, 36.9946],
-    distance: "CIY → AMS", overnight: "Weer naar huis",
-    description: "Na het ontbijt de fietsen inleveren en met een vooraf geregelde transfer van Modica naar vliegveld Comiso. Woensdag terug naar Schiphol.",
+    id: "catania-return", title: "Back to Catania", kicker: "From Sicily to Schiphol",
+    day: "Woensdag · terug naar Schiphol", mode: "return", coordinate: [15.0664, 37.4668],
+    distance: "CTA → AMS", overnight: "Weer naar huis",
+    description: "Na het ontbijt de fietsen inleveren en met een vooraf geregelde transfer van Modica naar vliegveld Catania. Woensdag terug naar Schiphol.",
     history: "De landingstranden bij Gela en Scoglitti, de kust en het Museo della Memoria in Modica: de geschiedenis van 1943 verbindt de reis.",
     evening: "Gela. Scoglitti. Marina di Ragusa. Modica. Vier verschillende plaatsen, één mogelijke Go Away Day.",
-    practical: "Reken voor Modica–Comiso op circa 40–45 km transfer en houd ruime marge voor de luchthaven en een eventuele overstap. Dienstregeling en aansluitingen voor de reisdata nog controleren.",
-    via: [[14.735,36.895],[14.684,36.939],[14.642,36.971]],
-    source: { label: "Vliegveld Comiso · vluchten en routes", url: "https://www.aeroportodicomiso.eu/en/flight-and-routes-timetable" },
+    practical: "Reserveer circa 2 uur voor de transfer van Modica naar Catania, plus de benodigde tijd op de luchthaven. Er zijn rechtstreekse vluchten naar Schiphol; de dienstregeling voor de exacte reisdata nog controleren.",
+    via: [[14.844,36.928],[15.045,37.062],[15.11,37.284]],
+    source: { label: "Transavia · Schiphol–Catania", url: "https://www.transavia.com/vliegvelden/nl-nl/amsterdam-airport-schiphol/amsterdam-catania" },
   },
 ];

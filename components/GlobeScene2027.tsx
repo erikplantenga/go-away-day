@@ -9,8 +9,8 @@ import * as THREE from "three";
 import { TextureLoader } from "three";
 
 const START = { lat: 52.3105, lng: 4.7683, name: "Schiphol · AMS" };
-// Comiso (CIY), the nearest passenger airport to the Gela start of the itinerary.
-const DESTINATION = { lat: 36.9946, lng: 14.6072, name: "Comiso · CIY" };
+// Catania (CTA), with regular direct connections to Amsterdam Schiphol.
+const DESTINATION = { lat: 37.4668, lng: 15.0664, name: "Catania · CTA" };
 const FLIGHT_SECONDS = 6.5;
 
 let audioCtx: AudioContext | null = null;
@@ -347,7 +347,7 @@ function Globe({ phase, onPhaseChange }: { phase: string; onPhaseChange: (p: str
         animRef.current.progress = 0;
       }
 
-      // Keep Europe and the flight arc in view, then descend towards Comiso.
+      // Keep Europe and the flight arc in view, then descend towards Catania.
       animRef.current.progress = Math.min(animRef.current.progress + delta / FLIGHT_SECONDS, 1);
       const p = animRef.current.progress;
       const spinFade = Math.pow(1 - p, 2.5);
@@ -753,9 +753,9 @@ export default function GlobeScene() {
       </div>
 
       {phase === "flying" && (
-        <div aria-label="Vlieganimatie van Schiphol naar Comiso" style={{ position: "relative", zIndex: 10, textAlign: "center", padding: ".5rem 1rem max(env(safe-area-inset-bottom),1rem)", fontFamily: "monospace", color: "#b4ff98" }}>
-          <div style={{ fontSize: "clamp(.8rem,3.5vw,1.1rem)", letterSpacing: ".12em" }}>SCHIPHOL · AMS <span aria-hidden="true">✈</span> COMISO · CIY</div>
-          <p style={{ fontSize: ".6rem", color: "#7e9e82", margin: ".5rem 0 0" }}>MOGELIJKE VLIEGROUTE · EVENTUELE OVERSTAP NOG TE BEPALEN</p>
+        <div aria-label="Vlieganimatie van Schiphol naar Catania" style={{ position: "relative", zIndex: 10, textAlign: "center", padding: ".5rem 1rem max(env(safe-area-inset-bottom),1rem)", fontFamily: "monospace", color: "#b4ff98" }}>
+          <div style={{ fontSize: "clamp(.8rem,3.5vw,1.1rem)", letterSpacing: ".12em" }}>SCHIPHOL · AMS <span aria-hidden="true">✈</span> CATANIA · CTA</div>
+          <p style={{ fontSize: ".6rem", color: "#7e9e82", margin: ".5rem 0 0" }}>RECHTSTREEKSE ROUTE · SCHIPHOL ↔ CATANIA</p>
         </div>
       )}
 
@@ -772,7 +772,7 @@ export default function GlobeScene() {
           <div style={{ fontSize: "clamp(1.4rem,7vw,2.5rem)", fontWeight: 900, fontFamily: "monospace", color: "#ff0040", textShadow: "0 0 15px #ff004066", lineHeight: 1.1 }}>
             POSSIBLE DESTINATION
           </div>
-          <p style={{ color: "#a9bfac", fontFamily: "monospace", fontSize: "0.75rem", margin: "0.65rem 0 0" }}>SCHIPHOL → COMISO · SICILY</p>
+          <p style={{ color: "#a9bfac", fontFamily: "monospace", fontSize: "0.75rem", margin: "0.65rem 0 0" }}>SCHIPHOL → CATANIA · SICILY</p>
           
           <button
             type="button"
