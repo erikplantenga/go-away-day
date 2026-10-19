@@ -2,7 +2,7 @@
 
 import { useEffect, useRef, useState } from "react";
 import Link from "next/link";
-import { ROUTE_PLACES, type DayPlaces } from "@/lib/sicilyPlaces2027";
+import { BIKE_RENTAL_2027, ROUTE_PLACES, type DayPlaces } from "@/lib/sicilyPlaces2027";
 import { ROUTE_STOPS, SICILY_PATHS, projectCoordinate, type RouteCoordinate } from "@/lib/possibleDestination2027";
 
 type IconName = "plane" | "bike" | "bed" | "history" | "arrow" | "transfer" | "pin" | "beer" | "snorkel";
@@ -24,6 +24,24 @@ function Icon({ name, size = 20 }: { name: IconName; size?: number }) {
 
 function mapSearch(query: string) {
   return "https://www.google.com/maps/search/?api=1&query=" + encodeURIComponent(query);
+}
+
+function BikeRentalCard({ returning }: { returning: boolean }) {
+  const rental = BIKE_RENTAL_2027;
+  const perPerson = rental.dailyRate * rental.days;
+  return <section className="rental-section" aria-label="Voorgestelde elektrische fietsverhuur">
+    <div className="places-section-title"><Icon name="bike" size={20} /><h3>{returning ? "Na de laatste fietsetappe" : "Jullie elektrische fietsen"}</h3></div>
+    <div className="rental-card">
+      <div className="place-labels"><span>E-BIKE · {rental.days} FIETSDAGEN</span><span>KANDIDAAT</span></div>
+      <h4>{rental.name}</h4>
+      <p className="rental-price">€{perPerson} <span>per persoon / {rental.days} dagen</span></p>
+      <p className="rental-rate">€{rental.dailyRate} per dag · €{perPerson * rental.riders} voor {rental.riders} personen</p>
+      <dl className="rental-logistics"><div><dt>START · VOORGESTELD</dt><dd>{rental.pickup}</dd></div><div><dt>FINISH · VOORGESTELD</dt><dd>{rental.return}</dd></div></dl>
+      <p className="rental-note">{rental.note}</p>
+      <details className="place-planning"><summary>Borg & praktisch <span>+</span></summary><p>Borg volgens de huidige voorwaarden: €{rental.deposit.toLocaleString("nl-NL")} per e-bike. Stem fietsmaten, helm, fietstassen en laders af met de verhuurder. ’s Nachts veilig stallen en opladen bij het verblijf. Ophalen dinsdagavond voorkomt fietsvervoer naar het vliegveld op woensdag.</p></details>
+      <div className="place-links"><a href={rental.url} target="_blank" rel="noopener noreferrer">Inspiring Tours · e-bikes & prijzen ↗</a></div>
+    </div>
+  </section>;
 }
 
 function PlaceCards({ places }: { places: DayPlaces }) {
@@ -231,6 +249,7 @@ export default function PossibleDestination2027({ onClose }: { onClose: () => vo
               <div className="stop-facts"><div><span>{stop.mode === "bike" ? "FIETSAFSTAND" : stop.mode === "transfer" ? "TRANSFERAFSTAND" : "REIS"}</span><strong>{stop.distance}</strong></div><div><span><Icon name="bed" size={13} /> OVERNACHTING</span><strong>{stop.overnight}</strong></div></div>
               <p className="stop-description">{stop.description}</p>
               {places && <PlaceCards places={places} />}
+              {(stop.id === "gela" || stop.id === "modica") && <BikeRentalCard returning={stop.id === "modica"} />}
               {!places?.visits?.length && <div className="stop-detail"><div className="stop-detail-icon"><Icon name="history" /></div><div><h3>Het verhaal van 1943</h3><p>{stop.history}</p></div></div>}
               {!places?.beer && <div className="stop-detail"><div className="stop-detail-icon"><Icon name="bed" /></div><div><h3>{last ? "De herinnering" : "En daarna de stad in"}</h3><p>{stop.evening}</p></div></div>}
               <details className="stop-practical"><summary>Praktisch & bronnen <span>+</span></summary><p>{stop.practical}</p><a href={stop.source.url} target="_blank" rel="noopener noreferrer">{stop.source.label} ↗</a>{stop.mode === "bike" && <p>Afstanden zijn richtafstanden. Leg de definitieve fietsroute met alle bezoeken vast op maximaal 50 km per dag.</p>}</details>
@@ -247,6 +266,12 @@ export default function PossibleDestination2027({ onClose }: { onClose: () => vo
       </div>
       <style jsx global>{`
 
+        .rental-section{margin-top:24px}.rental-section .places-section-title{color:#9cd8d0}
+        .rental-card{padding:18px;border:1px solid #416c64;border-radius:11px;background:linear-gradient(135deg,#193a3266,#102a3066)}
+        .rental-card h4{font-size:19px;line-height:1.4;margin:0 0 14px;color:#d9f4e8;font-weight:500}.rental-card .place-labels>span{color:#99cdb8}.rental-card .place-labels>span+span{margin-left:auto;color:#d5bd8d}
+        .rental-price{font-size:30px;line-height:1.2;color:#cbf4b1;margin:0 0 5px;letter-spacing:-.8px}.rental-price span{font-size:11px;letter-spacing:0;color:#adc4b4;display:inline-block}
+        .rental-rate{font-size:11px;line-height:1.7;color:#93b9a9;margin:0 0 16px}.rental-logistics{margin:0;display:grid;gap:12px}.rental-logistics dt{font:8px monospace;letter-spacing:.7px;color:#8fc6af;margin-bottom:5px}.rental-logistics dd{font-size:12px;line-height:1.7;color:#c1d8ca;margin:0}
+        .rental-note{font-size:11px;line-height:1.75;color:#beaF8c;margin:16px 0 0}.rental-card .place-planning{border-color:#35574c}.rental-card .place-links a{border-color:#50796a;color:#c9ecd9}
 
         .snorkel-section{margin-top:24px}.snorkel-section .places-section-title{color:#8dd7d4}.snorkel-priority{font-size:11px;line-height:1.75;color:#91b4ad;margin:0 0 13px}
         .snorkel-list{list-style:none;padding:0;margin:0;display:flex;flex-direction:column;gap:12px}.snorkel-card{padding:16px;border:1px solid #35585a;border-radius:10px;background:linear-gradient(135deg,#12323766,#112b2266)}

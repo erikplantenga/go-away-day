@@ -39,6 +39,19 @@ export type DayPlaces = {
   snorkel?: readonly SnorkelStop[];
 };
 
+// Current published rental rates; the 2027 hire and one-way transport need a quote.
+export const BIKE_RENTAL_2027 = {
+  name: "Inspiring Tours",
+  url: "https://inspiringtours.it/en/bike-rental/",
+  dailyRate: 40,
+  days: 3,
+  riders: 2,
+  deposit: 1000,
+  pickup: "Zondagochtend · bezorgen bij jullie hotel in Gela",
+  return: "Dinsdag na de laatste etappe · ophalen bij jullie hotel in Modica",
+  note: "Voorstel, nog niet geboekt. Huidige huurprijs exclusief bezorgen, ophalen en extra’s. Beschikbaarheid, tarieven voor 2027 en de combinatie Gela → Modica vooraf laten bevestigen in een totaalofferte.",
+} as const;
+
 // Selected from venue websites, museums, local tourism and battlefield sources.
 // Availability and opening on the eventual 2027 travel dates are not confirmed.
 export const ROUTE_PLACES: Partial<Record<string, DayPlaces>> = {
