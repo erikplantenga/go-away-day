@@ -242,7 +242,7 @@ function Globe({ phase, onPhaseChange }: { phase: string; onPhaseChange: (p: str
   const baseCam = isPortrait ? 3.6 : 2.8;
   const endCam = isPortrait ? 1.55 : 1.25;
 
-  const earthTex = useLoader(TextureLoader, "https://unpkg.com/three-globe@2.31.0/example/img/earth-blue-marble.jpg");
+  const earthTex = useLoader(TextureLoader, "https://unpkg.com/three-globe@2.31.0/example/img/earth-day.jpg");
   
   useEffect(() => { if (earthTex) earthTex.colorSpace = THREE.SRGBColorSpace; }, [earthTex]);
   useEffect(() => {
@@ -349,8 +349,17 @@ function Globe({ phase, onPhaseChange }: { phase: string; onPhaseChange: (p: str
 
   const mat = useMemo(() => new THREE.ShaderMaterial({
     uniforms: { tex: { value: earthTex } },
+    // Derive the equirectangular lookup from the same geographic axes as the marker.
     vertexShader: `varying vec2 vUv; varying vec3 vN, vP;
-      void main() { vUv=uv; vN=normalize(normalMatrix*normal); vec4 mv=modelViewMatrix*vec4(position,1.); vP=-mv.xyz; gl_Position=projectionMatrix*mv; }`,
+      void main() {
+        vec3 geographic = normalize(position);
+        float longitude = atan(-geographic.z, geographic.x);
+        float latitude = asin(clamp(geographic.y, -1., 1.));
+        vUv = vec2(longitude / 6.28318530718 + .5, latitude / 3.14159265359 + .5);
+        vN=normalize(normalMatrix*normal);
+        vec4 mv=modelViewMatrix*vec4(position,1.);
+        vP=-mv.xyz; gl_Position=projectionMatrix*mv;
+      }`,
     fragmentShader: `uniform sampler2D tex; varying vec2 vUv; varying vec3 vN, vP;
       void main() {
         vec4 c=texture2D(tex,vUv); float g=dot(c.rgb,vec3(.3,.6,.1)); float land=smoothstep(.1,.4,g);
