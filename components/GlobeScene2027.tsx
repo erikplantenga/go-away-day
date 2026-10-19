@@ -3,6 +3,7 @@
 import { Canvas, useFrame, useThree, useLoader } from "@react-three/fiber";
 import { Stars } from "@react-three/drei";
 import Link from "next/link";
+import PossibleDestination2027 from "@/components/PossibleDestination2027";
 import { useRef, useState, useEffect, useMemo, useCallback } from "react";
 import * as THREE from "three";
 import { TextureLoader } from "three";
@@ -513,6 +514,7 @@ const BOOT_LINES = [
 
 export default function GlobeScene() {
   const [phase, setPhase] = useState("waiting");
+  const [routeOpen, setRouteOpen] = useState(false);
   const [showReveal, setShowReveal] = useState(false);
   const [bootLines, setBootLines] = useState<string[]>([]);
   const [bootCurrent, setBootCurrent] = useState("");
@@ -614,6 +616,8 @@ export default function GlobeScene() {
     if (phase === "waiting" || phase === "arrived") return;
     setPhase("arrived");
   };
+
+  if (routeOpen) return <PossibleDestination2027 onClose={() => setRouteOpen(false)} />;
 
   return (
     <div style={{ position: "fixed", inset: 0, background: "#000", display: "flex", flexDirection: "column", overflow: "hidden" }}>
@@ -719,19 +723,25 @@ export default function GlobeScene() {
             {">>"} COORDINATES_LOCKED
           </div>
           <div style={{ fontSize: "clamp(1.4rem,7vw,2.5rem)", fontWeight: 900, fontFamily: "monospace", color: "#ff0040", textShadow: "0 0 15px #ff004066", lineHeight: 1.1 }}>
-            DESTINATION UNKNOWN
+            POSSIBLE DESTINATION
           </div>
+          <p style={{ color: "#a9bfac", fontFamily: "monospace", fontSize: "0.75rem", margin: "0.65rem 0 0" }}>SICILY · OPERATION HUSKY</p>
           
-          <Link
-            href="/ideeen-2027"
+          <button
+            type="button"
+            onClick={() => setRouteOpen(true)}
             style={{
-              display: "block", width: "fit-content", margin: "1.25rem auto 0",
-              padding: "0.8rem 1.2rem", background: "#00ff41", color: "#000",
-              borderRadius: "4px", fontFamily: "monospace", fontWeight: 700,
-              fontSize: "clamp(0.75rem, 3vw, 0.95rem)", textDecoration: "none",
+              display: "flex", alignItems: "center", justifyContent: "center",
+              gap: "1rem", width: "fit-content", margin: "1.1rem auto 0",
+              padding: "0.9rem 1.2rem", background: "#00ff41", color: "#000",
+              border: 0, borderRadius: "4px", fontFamily: "monospace",
+              fontWeight: 700, fontSize: "clamp(0.7rem, 3vw, 0.9rem)", cursor: "pointer",
             }}
           >
-            DEEL JE IDEEËN VOOR 2027 →
+            ONTDEK DE MOGELIJKE ROUTE <span aria-hidden="true">→</span>
+          </button>
+          <Link href="/ideeen-2027" style={{ display: "block", margin: "0.8rem auto 0.3rem", fontFamily: "monospace", color: "#91ae95", fontSize: "0.7rem", textUnderlineOffset: "3px" }}>
+            Deel je ideeën voor 2027
           </Link>
 
           {/* Back to 2026 button */}

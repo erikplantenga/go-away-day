@@ -1,0 +1,239 @@
+"use client";
+
+import { useEffect, useRef, useState } from "react";
+import Link from "next/link";
+import { ROUTE_STOPS, SICILY_PATHS, projectCoordinate, type RouteCoordinate } from "@/lib/possibleDestination2027";
+
+type IconName = "plane" | "bike" | "bed" | "history" | "arrow" | "transfer" | "pin";
+function Icon({ name, size = 20 }: { name: IconName; size?: number }) {
+  const paths: Record<IconName, string[]> = {
+    plane: ["m22 2-7 20-4-9-9-4 20-7Z", "M22 2 11 13"],
+    bike: ["M5 17a4 4 0 1 0 0 .01", "M19 17a4 4 0 1 0 0 .01", "m5 17 5-9 5 9H5", "m10 8 9 9-4-12h-3", "M8 5h4"],
+    bed: ["M3 18V7m18 11V7M3 14h18M6 14V9h12v5"],
+    history: ["M4 21h16M6 21V10h12v11M9 10V4h6v6M9 15h6M9 18h6"],
+    arrow: ["M4 12h16m-6-6 6 6-6 6"],
+    transfer: ["M3 16V7h13l5 5v4H3", "M7 16a2 2 0 1 0 0 .01", "M17 16a2 2 0 1 0 0 .01", "M3 11h17"],
+    pin: ["M20 10c0 6-8 12-8 12S4 16 4 10a8 8 0 1 1 16 0Z", "M15 10a3 3 0 1 1-6 0 3 3 0 0 1 6 0"],
+  };
+  return <svg width={size} height={size} viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="1.6" strokeLinecap="round" strokeLinejoin="round" aria-hidden="true">{paths[name].map((d, i) => <path key={i} d={d} />)}</svg>;
+}
+
+const WIDE_VIEW = [40, 15, 920, 620];
+const COAST_VIEW = [445, 340, 320, 215];
+
+function RouteMap({ step }: { step: number }) {
+  const [view, setView] = useState(WIDE_VIEW);
+  const viewRef = useRef(WIDE_VIEW);
+  const zoomed = step > 0 && step < ROUTE_STOPS.length - 1;
+  useEffect(() => {
+    const target = zoomed ? COAST_VIEW : WIDE_VIEW;
+    const start = [...viewRef.current];
+    let frame = 0;
+    let started: number | undefined;
+    const reduced = window.matchMedia("(prefers-reduced-motion: reduce)").matches;
+    const animate = (now: number) => {
+      started ??= now;
+      const p = reduced ? 1 : Math.min((now - started) / 1100, 1);
+      const ease = 1 - Math.pow(1 - p, 3);
+      const next = start.map((v, i) => v + (target[i] - v) * ease);
+      viewRef.current = next;
+      setView(next);
+      if (p < 1) frame = requestAnimationFrame(animate);
+    };
+    frame = requestAnimationFrame(animate);
+    return () => cancelAnimationFrame(frame);
+  }, [zoomed]);
+  const factor = view[2] / WIDE_VIEW[2];
+  const pointSize = 6 * factor;
+  const labelSize = 17 * factor;
+  const offsets: [number, number, "start" | "middle" | "end"][] = [[12,-14,"start"],[-12,-14,"end"],[-10,22,"end"],[0,25,"middle"],[12,-14,"start"],[12,-14,"start"]];
+  const pathFrom = (coordinates: readonly RouteCoordinate[]) => coordinates.map((c, i) => {
+    const [x, y] = projectCoordinate(c);
+    return (i === 0 ? "M" : "L") + x.toFixed(2) + "," + y.toFixed(2);
+  }).join(" ");
+
+  return (
+    <div className="mission-map">
+      <div className="map-topline"><span><i /> LIVE ROUTE REVEAL</span><span>37° N / 14° E</span></div>
+      <svg className="sicily-map" viewBox={view.join(" ")} role="img" aria-label={"Kaart van Sicilië. Huidige stop: " + ROUTE_STOPS[step].title + ". Alleen de al ontdekte routepunten zijn zichtbaar."}>
+        <defs>
+          <radialGradient id="sicily-land"><stop stopColor="#154333" /><stop offset="1" stopColor="#0b2421" /></radialGradient>
+          <pattern id="mission-grid" width="45" height="45" patternUnits="userSpaceOnUse"><path d="M45 0H0V45" fill="none" stroke="#71b99b" strokeOpacity=".09" strokeWidth=".6" /></pattern>
+          <filter id="route-glow" x="-50%" y="-50%" width="200%" height="200%"><feGaussianBlur stdDeviation={1.8 * factor} /></filter>
+        </defs>
+        <rect x="-1000" y="-1000" width="3000" height="3000" fill="#061316" />
+        <rect x="-1000" y="-1000" width="3000" height="3000" fill="url(#mission-grid)" />
+        {SICILY_PATHS.map((d, i) => <path key={i} d={d} fill="url(#sicily-land)" stroke="#7bbca0" strokeOpacity=".65" strokeWidth={1.15 * factor} fillRule="evenodd" />)}
+        {!zoomed && <g fill="#8bad9c" textAnchor="middle"><text x="430" y="245" fontSize="38" letterSpacing="14" opacity=".5">S I C I L I A</text><text x="330" y="510" fontSize="17" letterSpacing="5" opacity=".35">MEDITERRANEAN SEA</text></g>}
+        {zoomed && <text x="495" y="515" fill="#8bad9c" fontSize={labelSize * .75} letterSpacing="2" opacity=".4">CANALE DI SICILIA</text>}
+        {ROUTE_STOPS.slice(1, step + 1).map((stop, i) => {
+          const index = i + 1;
+          const previous = ROUTE_STOPS[index - 1];
+          const d = pathFrom([previous.coordinate, ...stop.via, stop.coordinate]);
+          const cycle = stop.mode === "bike";
+          const color = cycle ? "#a9f276" : "#e8bc79";
+          return <g key={stop.id}>
+            <defs><mask id={"route-mask-" + index} maskUnits="userSpaceOnUse" x="0" y="0" width="1000" height="700"><path d={d} fill="none" stroke="white" strokeWidth={18 * factor} pathLength="1" strokeDasharray="1" className="route-ink" /></mask></defs>
+            <g mask={"url(#route-mask-" + index + ")"}>
+              <path d={d} fill="none" stroke={color} strokeWidth={7 * factor} opacity=".28" filter="url(#route-glow)" />
+              <path d={d} fill="none" stroke={color} strokeWidth={2.6 * factor} strokeLinecap="round" strokeLinejoin="round" strokeDasharray={cycle ? undefined : (7 * factor) + " " + (6 * factor)} />
+            </g>
+          </g>;
+        })}
+        {ROUTE_STOPS.slice(0, step + 1).map((stop, i) => {
+          // The return uses the same airport marker, rather than a duplicate underneath it.
+          if (step === ROUTE_STOPS.length - 1 && i === 0) return null;
+          const [x,y] = projectCoordinate(stop.coordinate);
+          const active = i === step;
+          const color = active ? "#d4ffac" : "#89c16e";
+          const [dx, dy, anchor] = offsets[i];
+          const labelVisible = zoomed || active || i === 1;
+          return <g key={stop.id}>
+            {active && <circle cx={x} cy={y} r={pointSize * 2.6} fill="none" stroke="#b5f18a" strokeWidth={factor} opacity=".45" className="current-point-halo" />}
+            <circle cx={x} cy={y} r={pointSize} fill={color} stroke="#08211d" strokeWidth={2 * factor} />
+            {labelVisible && <text x={x + dx * factor} y={y + dy * factor} fill={active ? "#efffe3" : "#bbd3bc"} fontFamily="monospace" fontSize={labelSize} textAnchor={anchor} paintOrder="stroke" stroke="#061316" strokeWidth={4 * factor} strokeLinejoin="round">{i === 0 || i === 5 ? "CATANIA · CTA" : stop.title.toUpperCase()}</text>}
+          </g>;
+        })}
+      </svg>
+      <div className="map-compass" aria-hidden="true">N<span>↑</span></div>
+      <div className="map-bottomline"><div className="map-legend"><span><b /> Fiets</span><span><b /> Transfer</span></div><span className="map-counter">{String(step + 1).padStart(2,"0")} <small>/ 06</small></span></div>
+      <div className="map-footnote">Indicatieve verbindingen · geen navigatietrack</div>
+    </div>
+  );
+}
+
+export default function PossibleDestination2027({ onClose }: { onClose: () => void }) {
+  const [step, setStep] = useState(0);
+  const [drawing, setDrawing] = useState(false);
+  const timer = useRef<ReturnType<typeof setTimeout> | null>(null);
+  const heading = useRef<HTMLHeadingElement>(null);
+  const scroller = useRef<HTMLDivElement>(null);
+  const mapColumn = useRef<HTMLElement>(null);
+  const stop = ROUTE_STOPS[step];
+  const last = step === ROUTE_STOPS.length - 1;
+  useEffect(() => () => { if (timer.current) clearTimeout(timer.current); }, []);
+  function goTo(next: number) {
+    if (drawing || next < 0 || next >= ROUTE_STOPS.length) return;
+    setStep(next);
+    setDrawing(true);
+    if (timer.current) clearTimeout(timer.current);
+    const reduced = window.matchMedia("(prefers-reduced-motion: reduce)").matches;
+    timer.current = setTimeout(() => setDrawing(false), reduced ? 0 : 1150);
+    // Move the reading focus without scrolling the map out of view.
+    requestAnimationFrame(() => {
+      heading.current?.focus({ preventScroll: true });
+      if (window.innerWidth < 900 && scroller.current && mapColumn.current) {
+        scroller.current.scrollTo({ top: mapColumn.current.offsetTop - 16, behavior: reduced ? "auto" : "smooth" });
+      }
+    });
+  }
+  return (
+    <div className="route-briefing" ref={scroller}>
+      <div className="mission-shell">
+        <header className="mission-header">
+          <button type="button" className="mission-wordmark" onClick={onClose} aria-label="Terug naar de wereldbol">GO_AWAY_DAY<span>://2027</span></button>
+          <Link href="/" className="mission-exit">Terug naar 2026 <span>↗</span></Link>
+        </header>
+        <div className="mission-intro">
+          <div className="mission-eyebrow"><span /> ERIK & BENNO / THE NEXT CHAPTER</div>
+          <h1>POSSIBLE <em>DESTINATION</em></h1>
+          <div className="mission-subline"><p>Sicilië. Op de sporen van Operatie Husky.</p><span>ZA → WO <i /> 4 NACHTEN <i /> 3 FIETSETAPPES</span></div>
+        </div>
+        <main className="mission-layout">
+          <section className="mission-map-column" ref={mapColumn} aria-label="Ontdek de route">
+            <RouteMap step={step} />
+            <div className="mission-stepper" aria-label="Ontdekte routepunten">
+              {ROUTE_STOPS.map((item, i) => <button type="button" key={item.id} disabled={i > step || drawing} onClick={() => goTo(i)} aria-current={i === step ? "step" : undefined} aria-label={i <= step ? "Toon " + item.title : "Punt " + (i+1) + " nog niet ontdekt"} className={i <= step ? "is-revealed" : ""}><span>{i < step ? "✓" : String(i+1).padStart(2,"0")}</span><small>{i <= step ? item.title.replace("Back to ","") : "•••"}</small></button>)}
+            </div>
+            <p className="mission-map-note">Een mogelijke reis. Elke klik onthult de volgende stop.</p>
+          </section>
+          <section className="mission-card" aria-label="Huidige routepunt">
+            <div className="mission-card-body" key={stop.id}>
+              <div className="stop-kicker"><span>{stop.day}</span><span>{String(step + 1).padStart(2,"0")} / 06</span></div>
+              <div className="stop-title-row"><h2 ref={heading} tabIndex={-1}>{stop.title}</h2><div className="stop-mode"><Icon name={stop.mode === "bike" ? "bike" : stop.mode === "arrival" || stop.mode === "return" ? "plane" : "transfer"} size={28} /></div></div>
+              <p className="stop-tagline">{stop.kicker}</p>
+              <div className="stop-facts"><div><span>{stop.mode === "bike" ? "FIETSAFSTAND" : "REIS"}</span><strong>{stop.distance}</strong></div><div><span><Icon name="bed" size={13} /> OVERNACHTING</span><strong>{stop.overnight}</strong></div></div>
+              <p className="stop-description">{stop.description}</p>
+              <div className="stop-detail"><div className="stop-detail-icon"><Icon name="history" /></div><div><h3>Het verhaal van 1943</h3><p>{stop.history}</p></div></div>
+              <div className="stop-detail"><div className="stop-detail-icon"><Icon name="bed" /></div><div><h3>{last ? "De herinnering" : "En daarna de stad in"}</h3><p>{stop.evening}</p></div></div>
+              <details className="stop-practical"><summary>Praktisch & bronnen <span>+</span></summary><p>{stop.practical}</p><a href={stop.source.url} target="_blank" rel="noopener noreferrer">{stop.source.label} ↗</a>{stop.mode === "bike" && <p>Afstanden zijn richtafstanden. Leg de definitieve fietsroute met alle bezoeken vast op maximaal 50 km per dag.</p>}</details>
+              {last && <div className="mission-recap"><strong>DE MOGELIJKE REIS</strong><p>Za: Gela · Zo: Scoglitti · Ma: Marina di Ragusa · Di: Modica · Wo: terugvlucht</p><span>Drie fietsdagen, elk gepland onder 50 km. Vluchten en verblijven nog afstemmen op de reisdata.</span></div>}
+            </div>
+            <nav className="mission-navigation" aria-label="Route bedienen">
+              <button className="mission-back" type="button" disabled={step === 0 || drawing} onClick={() => goTo(step - 1)} aria-label="Vorig routepunt">←</button>
+              <button className="mission-next" type="button" disabled={drawing} onClick={() => goTo(last ? 0 : step + 1)}><span>{drawing ? "ROUTE WORDT GETEKEND" : last ? "BEKIJK DE ROUTE OPNIEUW" : step === 0 ? "NAAR DE LANDINGSTRANDEN" : "ONTDEK HET VOLGENDE PUNT"}</span><Icon name="arrow" /></button>
+            </nav>
+          </section>
+        </main>
+        <footer className="mission-footer"><span>OPERATION HUSKY / SICILY, JULY 1943</span><div><a href="https://github.com/guglielmo/geojson-italy" target="_blank" rel="noopener noreferrer">Kustlijn: Openpolis</a> · <a href="https://creativecommons.org/licenses/by/4.0/" target="_blank" rel="noopener noreferrer">CC BY 4.0</a> · vereenvoudigd</div></footer>
+      </div>
+      <style jsx global>{`
+        .route-briefing{position:fixed;inset:0;z-index:110;overflow-y:auto;overscroll-behavior:contain;background:#050d10;color:#eaf2e8;font-family:Arial,Helvetica,sans-serif;-webkit-overflow-scrolling:touch}
+        .route-briefing *{box-sizing:border-box}
+        .route-briefing button,.route-briefing a{-webkit-tap-highlight-color:transparent}
+        .route-briefing button{font:inherit}
+        .route-briefing button:focus-visible,.route-briefing a:focus-visible,.route-briefing summary:focus-visible{outline:2px solid #b1f18a;outline-offset:5px}
+        .mission-shell{max-width:1240px;margin:auto;padding: max(env(safe-area-inset-top),24px) 32px max(env(safe-area-inset-bottom),24px)}
+        .mission-header{display:flex;align-items:center;justify-content:space-between;padding:4px 0 24px;border-bottom:1px solid #20312e}
+        .mission-wordmark{border:0;background:none;color:#b4f58d;font-family:monospace!important;font-size:16px;letter-spacing:1px;text-align:left;cursor:pointer;padding:0}
+        .mission-wordmark span{color:#7e9c90;margin-left:10px;font-size:12px}
+        .mission-exit{color:#a6b6ad;font-size:12px;text-decoration:none}.mission-exit span{color:#b4f58d;margin-left:9px}
+        .mission-intro{padding:32px 0 24px}.mission-eyebrow{display:flex;gap:9px;align-items:center;font:10px monospace;letter-spacing:2px;color:#a5bfae}
+        .mission-eyebrow>span{height:5px;width:5px;background:#acf285;border-radius:50%;box-shadow:0 0 12px #96ef63}
+        .mission-intro h1{font-size:clamp(25px,4.1vw,51px);font-weight:800;letter-spacing:-1.5px;line-height:1.04;margin:16px 0 15px}
+        .mission-intro h1 em{font-style:normal;color:#b3f28b}.mission-subline{display:flex;align-items:center;justify-content:space-between;gap:20px}
+        .mission-subline p{font-size:14px;color:#a3b6aa;margin:0}.mission-subline>span{display:flex;gap:10px;align-items:center;font:10px monospace;letter-spacing:1px;color:#9fb2a4;white-space:nowrap}
+        .mission-subline i{height:3px;width:3px;background:#526a5f;border-radius:50%}
+        .mission-layout{display:grid;grid-template-columns:minmax(0,1.3fr) minmax(340px,1fr);gap:22px;align-items:start}
+        .mission-map{position:relative;overflow:hidden;border-radius:18px;border:1px solid #2b4940;background:#061316;isolation:isolate}
+        .sicily-map{display:block;width:100%;height:480px}
+        .map-topline,.map-bottomline{position:absolute;left:22px;right:22px;display:flex;justify-content:space-between;align-items:center;z-index:2;pointer-events:none}
+        .map-topline{top:21px;font:9px monospace;letter-spacing:1.5px;color:#a7c0b3}.map-topline>span:first-child{display:flex;gap:7px;align-items:center}
+        .map-topline i{height:5px;width:5px;background:#b2f98b;border-radius:50%}.map-topline>span:last-child{color:#688f7b}
+        .map-bottomline{bottom:36px}.map-legend{display:flex;gap:16px;font:10px monospace;color:#a7b9b1}.map-legend>span{display:flex;gap:6px;align-items:center}
+        .map-legend b{width:14px;height:2px;background:#a9f276}.map-legend>span+span b{background:repeating-linear-gradient(to right,#e8bc79 0 3px,transparent 3px 5px)}
+        .map-counter{color:#b9f294;font:21px monospace}.map-counter small{font-size:11px;color:#6d9981}
+        .map-footnote{position:absolute;bottom:14px;left:22px;color:#5e8175;font-size:9px;letter-spacing:.4px}
+        .map-compass{position:absolute;right:23px;top:57px;color:#749682;text-align:center;font:10px monospace;pointer-events:none}.map-compass span{display:block;font-size:22px}
+        .mission-stepper{display:grid;grid-template-columns:repeat(6,1fr);gap:4px;padding:21px 4px 0;position:relative}
+        .mission-stepper:before{content:"";height:1px;background:#293c31;position:absolute;left:8%;right:8%;top:36px}
+        .mission-stepper button{position:relative;display:flex;align-items:center;gap:8px;flex-direction:column;border:0;padding:0;background:transparent;color:#496053;cursor:pointer}
+        .mission-stepper button span{font:10px monospace;display:grid;place-items:center;height:29px;width:29px;border-radius:50%;border:1px solid #2a4235;background:#08130e}
+        .mission-stepper button.is-revealed{color:#a2b69e}.mission-stepper button.is-revealed span{border-color:#6b9a54;color:#b3f28b}
+        .mission-stepper button[aria-current="step"] span{color:#132712;background:#b3f28b;border-color:#b3f28b;box-shadow:0 0 15px #a9f27615}
+        .mission-stepper small{font-size:9px;text-align:center;line-height:1.3;max-width:75px}
+        .mission-map-note{font-size:11px;color:#718b79;margin:19px 0 0;text-align:center}
+        .mission-card{border:1px solid #2b3d32;background:linear-gradient(140deg,#111d17,#0a1311);border-radius:18px;overflow:hidden}
+        .mission-card-body{padding:24px;animation:mission-card-in .5s ease both}.stop-kicker{display:flex;justify-content:space-between;gap:10px;color:#b9d1a9;font:10px monospace;letter-spacing:.8px;text-transform:uppercase}
+        .stop-kicker>span:last-child{color:#5f7b62;white-space:nowrap}.stop-title-row{display:flex;align-items:center;justify-content:space-between;gap:12px;margin-top:18px}
+        .stop-title-row h2{font-size:clamp(27px,2.8vw,38px);line-height:1.05;letter-spacing:-1.1px;margin:0;color:#f0f6e9}.stop-title-row h2:focus{outline:none}
+        .stop-mode{color:#b5ed8c;display:grid;place-items:center;flex-shrink:0;height:49px;width:49px;border:1px solid #33532e;border-radius:50%;background:#b3f28b08}
+        .stop-tagline{font-family:Georgia,serif;font-style:italic;font-size:18px;color:#91ad89;margin:9px 0 21px}
+        .stop-facts{display:grid;grid-template-columns:1fr 1.25fr;border-top:1px solid #2c3d2e;border-bottom:1px solid #2c3d2e;padding:14px 0;gap:15px}
+        .stop-facts>div+div{border-left:1px solid #2c3d2e;padding-left:16px}.stop-facts span{display:flex;align-items:center;gap:5px;font:8px monospace;letter-spacing:1.1px;color:#89a27c;margin-bottom:7px}
+        .stop-facts strong{font-size:13px;font-weight:500;color:#ddebd3}.stop-description{font-size:13px;line-height:1.8;color:#b9c8b2;margin:20px 0}
+        .stop-detail{display:flex;gap:11px;margin-top:17px}.stop-detail-icon{color:#86b66c;flex-shrink:0;padding-top:1px}.stop-detail h3{font-size:11px;font-weight:600;letter-spacing:.2px;color:#d7e4cd;margin:0 0 5px}
+        .stop-detail p{font-size:12px;line-height:1.7;color:#8da386;margin:0}.stop-practical{margin-top:21px;border-top:1px solid #27372a;padding-top:14px}
+        .stop-practical summary{font-size:10px;color:#a6bd99;cursor:pointer;list-style:none;display:flex;justify-content:space-between;gap:20px}.stop-practical summary::-webkit-details-marker{display:none}
+        .stop-practical summary span{font-size:14px;color:#93bd77}.stop-practical[open] summary span{transform:rotate(45deg)}
+        .stop-practical p,.stop-practical a{font-size:11px;line-height:1.7;color:#8ea384}.stop-practical a{color:#bcdf9e;text-underline-offset:3px}
+        .mission-navigation{display:flex;gap:9px;border-top:1px solid #293c2b;padding:15px;background:#0c1710}
+        .mission-navigation button{border-radius:7px;border:0;cursor:pointer;min-height:49px}.mission-back{width:48px;flex-shrink:0;border:1px solid #375033!important;background:transparent;color:#b1d09b;font-size:20px!important}
+        .mission-next{display:flex;align-items:center;justify-content:space-between;gap:12px;flex:1;padding:10px 15px;background:#b3f28b;color:#15240d}
+        .mission-next span{font:10px monospace;letter-spacing:.4px;text-align:left;line-height:1.5}.mission-navigation button:disabled{cursor:default}.mission-next:disabled{background:#537146;color:#d7e8cc}.mission-back:disabled{opacity:.25}
+        .mission-recap{padding:15px;background:#b3f28b08;border:1px solid #375033;border-radius:8px;margin-top:20px}.mission-recap strong{font:9px monospace;letter-spacing:1px;color:#b3f28b}
+        .mission-recap p{font-size:12px;line-height:1.7;color:#d0dec7;margin:9px 0}.mission-recap>span{font-size:10px;line-height:1.6;color:#97ae88}
+        .mission-footer{display:flex;justify-content:space-between;gap:16px;margin-top:30px;padding-top:16px;border-top:1px solid #1d2d22;font:8px monospace;letter-spacing:1px;color:#536d5b;line-height:1.7}
+        .mission-footer a{color:#6d8874;text-decoration:none;letter-spacing:0}
+        .route-ink{animation:mission-route-ink 1.1s ease-in-out both}.current-point-halo{animation:mission-beacon 3s ease-in-out infinite;transform-box:fill-box;transform-origin:center}
+        @keyframes mission-route-ink{from{stroke-dashoffset:1}to{stroke-dashoffset:0}}
+        @keyframes mission-card-in{from{opacity:0;transform:translateY(8px)}to{opacity:1;transform:translateY(0)}}
+        @keyframes mission-beacon{0%,100%{opacity:.25;transform:scale(.85)}50%{opacity:.6;transform:scale(1.1)}}
+        @media(min-width:900px){.mission-map-column{position:sticky;top:24px}}
+        @media(max-width:899px){.mission-shell{padding-left:20px;padding-right:20px;padding-bottom:calc(100px + env(safe-area-inset-bottom))}.mission-layout{grid-template-columns:minmax(0,1fr)}.mission-subline{align-items:flex-start;flex-direction:column;gap:14px}.sicily-map{height:380px}.mission-card-body{padding:22px}.mission-stepper small{max-width:90px}.mission-footer{flex-direction:column;gap:5px}.mission-navigation{position:fixed;bottom:0;left:0;right:0;z-index:5;padding:12px 20px calc(12px + env(safe-area-inset-bottom));border-top:1px solid #35512f;box-shadow:0 -12px 35px #050d10cc}.mission-navigation .mission-next{min-height:50px}}
+        @media(max-width:480px){.mission-shell{padding-left:16px;padding-right:16px;padding-top:max(env(safe-area-inset-top),18px)}.mission-header{padding-bottom:19px}.mission-wordmark{font-size:12px}.mission-wordmark span{display:block;margin:4px 0 0;font-size:10px}.mission-exit{font-size:10px}.mission-intro{padding-top:23px}.mission-eyebrow{font-size:8px;letter-spacing:1px}.mission-intro h1{font-size:28px;letter-spacing:-.8px;line-height:1.1}.mission-intro h1 em{display:block}.mission-subline p{font-size:12px}.mission-subline>span{font-size:8px;gap:7px}.sicily-map{height:290px}.map-topline{left:16px;right:16px;font-size:7px;letter-spacing:.7px}.map-bottomline{left:16px;right:16px}.map-footnote{left:16px;font-size:8px}.map-compass{right:17px}.mission-stepper{padding-top:17px}.mission-stepper:before{top:32px}.mission-stepper small{font-size:8px}.mission-map-note{font-size:10px;margin-top:15px}.mission-card-body{padding:20px}.stop-kicker{font-size:9px}.stop-facts{gap:9px}.stop-facts>div+div{padding-left:10px}.stop-facts strong{font-size:12px}.mission-next span{font-size:9px}.mission-footer{margin-top:23px}.mission-navigation{padding:12px 16px calc(12px + env(safe-area-inset-bottom))}.mission-map{border-radius:14px}}
+        @media(prefers-reduced-motion:reduce){.route-ink,.current-point-halo,.mission-card-body{animation:none!important}}
+      `}</style>
+    </div>
+  );
+}
