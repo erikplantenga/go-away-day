@@ -2,9 +2,10 @@
 
 import { useEffect, useRef, useState } from "react";
 import Link from "next/link";
+import { ROUTE_PLACES, type DayPlaces } from "@/lib/sicilyPlaces2027";
 import { ROUTE_STOPS, SICILY_PATHS, projectCoordinate, type RouteCoordinate } from "@/lib/possibleDestination2027";
 
-type IconName = "plane" | "bike" | "bed" | "history" | "arrow" | "transfer" | "pin";
+type IconName = "plane" | "bike" | "bed" | "history" | "arrow" | "transfer" | "pin" | "beer";
 function Icon({ name, size = 20 }: { name: IconName; size?: number }) {
   const paths: Record<IconName, string[]> = {
     plane: ["m22 2-7 20-4-9-9-4 20-7Z", "M22 2 11 13"],
@@ -13,9 +14,54 @@ function Icon({ name, size = 20 }: { name: IconName; size?: number }) {
     history: ["M4 21h16M6 21V10h12v11M9 10V4h6v6M9 15h6M9 18h6"],
     arrow: ["M4 12h16m-6-6 6 6-6 6"],
     transfer: ["M3 16V7h13l5 5v4H3", "M7 16a2 2 0 1 0 0 .01", "M17 16a2 2 0 1 0 0 .01", "M3 11h17"],
+    beer: ["M6 3h11l-1 18H7L6 3Z", "M17 7h2a3 3 0 0 1 0 6h-2", "M10 7v9m3-9v9"],
     pin: ["M20 10c0 6-8 12-8 12S4 16 4 10a8 8 0 1 1 16 0Z", "M15 10a3 3 0 1 1-6 0 3 3 0 0 1 6 0"],
   };
   return <svg width={size} height={size} viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="1.6" strokeLinecap="round" strokeLinejoin="round" aria-hidden="true">{paths[name].map((d, i) => <path key={i} d={d} />)}</svg>;
+}
+
+
+function mapSearch(query: string) {
+  return "https://www.google.com/maps/search/?api=1&query=" + encodeURIComponent(query);
+}
+
+function PlaceCards({ places }: { places: DayPlaces }) {
+  return <div className="day-places">
+    {!!places.visits?.length && <section className="visit-section" aria-label="Battlefield en bezichtigingen">
+      <div className="places-section-title"><Icon name="history" size={17} /><h3>Battlefield & bezichtigen</h3></div>
+      <ol className="visit-list">
+        {places.visits.map((visit, index) => <li key={visit.name} className="visit-card">
+          <div className="place-labels"><span>{visit.category}</span>{visit.optional && <span className="place-optional">Optioneel</span>}</div>
+          <h4><span className="visit-number">{String(index + 1).padStart(2,"0")}</span>{visit.name}</h4>
+          <p className="place-timing">{visit.when}</p>
+          <p className="place-description">{visit.description}</p>
+          <div className="place-address"><Icon name="pin" size={13} /><span>{visit.location}</span></div>
+          <details className="place-planning"><summary>Zo past het in de dag <span>+</span></summary><p>{visit.note}</p></details>
+          <div className="place-links">
+            <a href={mapSearch(visit.mapQuery)} target="_blank" rel="noopener noreferrer">Open kaart ↗</a>
+            <a href={visit.infoUrl} target="_blank" rel="noopener noreferrer">{visit.category === "Museum" ? "Museuminfo" : visit.category === "Stadje" ? "Bezoektip" : "Achtergrond"} ↗</a>
+            {visit.bookingUrl && <a href={visit.bookingUrl} target="_blank" rel="noopener noreferrer">{visit.category === "Museum" ? "Afspraak aanvragen" : "Gids aanvragen"} ↗</a>}
+          </div>
+        </li>)}
+      </ol>
+    </section>}
+    {places.beer && <section className="beer-section" aria-label="Bierplek voor de avond">
+      <div className="places-section-title"><Icon name="beer" size={18} /><h3>En dan een biertje</h3><span>VOOR DE AVOND</span></div>
+      <div className="beer-card">
+        <div className="place-labels"><span>ONZE AVONDTIP</span>{places.beer.seasonal && <span className="place-seasonal">Zomerlocatie</span>}</div>
+        <h4>{places.beer.name}</h4>
+        <p className="place-description">{places.beer.description}</p>
+        <div className="place-address"><Icon name="pin" size={13} /><span>{places.beer.location}</span></div>
+        <p className="beer-planning">{places.beer.note}</p>
+        <div className="place-links">
+          <a href={mapSearch(places.beer.mapQuery)} target="_blank" rel="noopener noreferrer">Open kaart ↗</a>
+          <a href={places.beer.infoUrl} target="_blank" rel="noopener noreferrer">Info & website ↗</a>
+          {places.beer.phone && <a href={"tel:" + places.beer.phone}>Bel voor een tafel</a>}
+        </div>
+        {places.beer.alternative && <div className="beer-alternative"><span>Alternatief als de zomerlocatie gesloten is</span><a href={mapSearch(places.beer.alternative.mapQuery)} target="_blank" rel="noopener noreferrer">{places.beer.alternative.name} · kaart ↗</a><a href={places.beer.alternative.infoUrl} target="_blank" rel="noopener noreferrer">Info ↗</a></div>}
+      </div>
+    </section>}
+  </div>;
 }
 
 const WIDE_VIEW = [40, 15, 920, 620];
@@ -111,6 +157,7 @@ export default function PossibleDestination2027({ onClose }: { onClose: () => vo
   const scroller = useRef<HTMLDivElement>(null);
   const mapColumn = useRef<HTMLElement>(null);
   const stop = ROUTE_STOPS[step];
+  const places = ROUTE_PLACES[stop.id];
   const last = step === ROUTE_STOPS.length - 1;
   useEffect(() => () => { if (timer.current) clearTimeout(timer.current); }, []);
   function goTo(next: number) {
@@ -167,8 +214,9 @@ export default function PossibleDestination2027({ onClose }: { onClose: () => vo
               )}
               <div className="stop-facts"><div><span>{stop.mode === "bike" ? "FIETSAFSTAND" : stop.mode === "transfer" ? "TRANSFERAFSTAND" : "REIS"}</span><strong>{stop.distance}</strong></div><div><span><Icon name="bed" size={13} /> OVERNACHTING</span><strong>{stop.overnight}</strong></div></div>
               <p className="stop-description">{stop.description}</p>
-              <div className="stop-detail"><div className="stop-detail-icon"><Icon name="history" /></div><div><h3>Het verhaal van 1943</h3><p>{stop.history}</p></div></div>
-              <div className="stop-detail"><div className="stop-detail-icon"><Icon name="bed" /></div><div><h3>{last ? "De herinnering" : "En daarna de stad in"}</h3><p>{stop.evening}</p></div></div>
+              {places && <PlaceCards places={places} />}
+              {!places?.visits?.length && <div className="stop-detail"><div className="stop-detail-icon"><Icon name="history" /></div><div><h3>Het verhaal van 1943</h3><p>{stop.history}</p></div></div>}
+              {!places?.beer && <div className="stop-detail"><div className="stop-detail-icon"><Icon name="bed" /></div><div><h3>{last ? "De herinnering" : "En daarna de stad in"}</h3><p>{stop.evening}</p></div></div>}
               <details className="stop-practical"><summary>Praktisch & bronnen <span>+</span></summary><p>{stop.practical}</p><a href={stop.source.url} target="_blank" rel="noopener noreferrer">{stop.source.label} ↗</a>{stop.mode === "bike" && <p>Afstanden zijn richtafstanden. Leg de definitieve fietsroute met alle bezoeken vast op maximaal 50 km per dag.</p>}</details>
               {last && <div className="mission-recap"><strong>DE MOGELIJKE REIS</strong><p>Za: Gela · Zo: Scoglitti · Ma: Marina di Ragusa · Di: Modica · Wo: terugvlucht</p><span>Drie fietsdagen, elk gepland onder 50 km. Vluchten en verblijven nog afstemmen op de reisdata.</span></div>}
             </div>
@@ -178,9 +226,28 @@ export default function PossibleDestination2027({ onClose }: { onClose: () => vo
             </nav>
           </section>
         </main>
+        <p className="places-availability">Locaties uitgezocht. Openingstijden, gidsen en tafels voor jullie reisdata nog bevestigen.</p>
         <footer className="mission-footer"><span>OPERATION HUSKY / SICILY, JULY 1943</span><div><a href="https://github.com/guglielmo/geojson-italy" target="_blank" rel="noopener noreferrer">Kustlijn: Openpolis</a> · <a href="https://creativecommons.org/licenses/by/4.0/" target="_blank" rel="noopener noreferrer">CC BY 4.0</a> · vereenvoudigd</div></footer>
       </div>
       <style jsx global>{`
+
+        .day-places{margin-top:22px}.places-section-title{display:flex;align-items:center;gap:8px;color:#a8cc92;margin-bottom:12px}.places-section-title h3{font-size:12px;margin:0;font-weight:600}.places-section-title>span{font:7px monospace;letter-spacing:.5px;margin-left:auto;color:#8e916e}
+        .visit-list{list-style:none;padding:0;margin:0;display:flex;flex-direction:column;gap:12px}.visit-card{padding:16px;border:1px solid #324332;border-radius:10px;background:#14201566}
+        .place-labels{display:flex;align-items:center;gap:8px;margin-bottom:9px;flex-wrap:wrap}.place-labels>span{font:8px monospace;color:#96bb7a;letter-spacing:.8px;text-transform:uppercase}
+        .place-labels .place-optional{color:#b4b89b;background:#6d73541c;border:1px solid #485038;border-radius:3px;padding:3px 5px;letter-spacing:.3px}
+        .visit-card h4,.beer-card h4{font-size:14px;line-height:1.5;color:#e1efd7;font-weight:500;margin:0 0 6px}.visit-card h4{display:flex;gap:9px;align-items:baseline}.visit-number{font:9px monospace;flex-shrink:0;color:#7fa260}
+        .place-timing{font:9px monospace;color:#9ab489;line-height:1.6;margin:0 0 10px}.place-description{font-size:12px;line-height:1.75;color:#a2b397;margin:0 0 12px}
+        .place-address{display:flex;gap:6px;align-items:flex-start;font-size:10px;line-height:1.6;color:#8a9d80}.place-address svg{flex-shrink:0;margin-top:2px}
+        .place-planning{margin-top:12px;border-top:1px solid #2d3c2b;padding-top:11px}.place-planning summary{font-size:10px;line-height:1.5;color:#a5b991;display:flex;justify-content:space-between;cursor:pointer;list-style:none}.place-planning summary::-webkit-details-marker{display:none}.place-planning summary>span{margin-left:10px}.place-planning[open] summary>span{transform:rotate(45deg)}.place-planning p{font-size:11px;line-height:1.75;color:#91a47f;margin:9px 0 0}
+        .place-links{display:flex;flex-wrap:wrap;gap:7px;margin-top:13px}.place-links a{font-size:9px;line-height:1.5;padding:7px 9px;color:#c2e1a7;background:#a4d17e08;border:1px solid #455638;border-radius:5px;text-decoration:none;min-height:30px;display:flex;align-items:center}
+        .beer-section{margin-top:22px}.beer-section .places-section-title{color:#d6b276}.beer-card{padding:17px;border:1px solid #6e5833;border-radius:11px;background:linear-gradient(135deg,#30291a80,#1a211780)}
+        .beer-card h4{font-size:17px;color:#f0d5a8;letter-spacing:-.2px}.beer-card .place-labels>span{color:#c09f68}.beer-card .place-labels .place-seasonal{color:#f4d599;border:1px solid #826236;border-radius:3px;padding:3px 5px;background:#a6782420}
+        .beer-card .place-description{color:#bdaf94}.beer-card .place-address{color:#aa9a7e}.beer-planning{font-size:10px;line-height:1.75;color:#b5a37c;margin:13px 0 0}
+        .beer-card .place-links a{border-color:#735a35;color:#e8c58a;background:#b18b3c0a}.beer-alternative{display:flex;align-items:center;gap:10px;flex-wrap:wrap;border-top:1px solid #5f4b2b;margin-top:15px;padding-top:12px}
+        .beer-alternative>span{flex-basis:100%;font-size:9px;line-height:1.5;color:#b09b74}.beer-alternative a{font-size:10px;color:#dec091;text-underline-offset:3px}
+        .places-availability{font-size:10px;line-height:1.7;color:#8aa17b;margin:25px 0 0;text-align:center}
+        @media(max-width:480px){.visit-card{padding:14px}.beer-card{padding:15px}.place-links a{font-size:10px;min-height:36px}.places-section-title>span{font-size:6px}.beer-card h4{font-size:16px}}
+
         .route-briefing{position:fixed;inset:0;z-index:110;overflow-y:auto;overscroll-behavior:contain;background:#050d10;color:#eaf2e8;font-family:Arial,Helvetica,sans-serif;-webkit-overflow-scrolling:touch}
         .route-briefing *{box-sizing:border-box}
         .route-briefing button,.route-briefing a{-webkit-tap-highlight-color:transparent}
