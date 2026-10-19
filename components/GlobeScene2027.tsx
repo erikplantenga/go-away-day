@@ -14,7 +14,8 @@ const DESTINATION = { lat: 37.4668, lng: 15.0664, name: "Catania · CTA" };
 const FLIGHT_SECONDS = 6.5;
 
 let audioCtx: AudioContext | null = null;
-let spinNodes: { noise: AudioBufferSourceNode; gain: GainNode; filter: BiquadFilterNode; lfo: OscillatorNode } | null = null;
+let spinNodes: { noise: AudioBufferSourceNode; gain: GainNode; filter: BiquadFilterNode; lfo: OscillatorNode; lfoGain: GainNode } | null = null;
+let spinSoundGeneration = 0;
 
 async function ensureAudio(): Promise<AudioContext | null> {
   if (typeof window === "undefined") return null;
@@ -37,8 +38,10 @@ function initAudio() {
 }
 
 async function startSpinSound() {
+  if (spinNodes) return;
+  const generation = ++spinSoundGeneration;
   const ctx = await ensureAudio();
-  if (!ctx || spinNodes) return;
+  if (!ctx || spinNodes || generation !== spinSoundGeneration) return;
 
   try {
     const now = ctx.currentTime;
@@ -83,7 +86,7 @@ async function startSpinSound() {
     noise.start(now);
     lfo.start(now);
 
-    spinNodes = { noise, gain, filter, lfo };
+    spinNodes = { noise, gain, filter, lfo, lfoGain };
   } catch (e) {
     console.error("Spin sound error:", e);
   }
@@ -101,17 +104,19 @@ function setSpinSoundLevel(level: number, ramp = 0.4) {
 }
 
 function stopSpinSound() {
+  // Also cancel a start waiting for AudioContext.resume() on mobile.
+  spinSoundGeneration++;
   if (!spinNodes || !audioCtx) return;
+  const { noise, gain, filter, lfo, lfoGain } = spinNodes;
+  spinNodes = null;
   try {
     const now = audioCtx.currentTime;
-    const { noise, gain, lfo } = spinNodes;
     gain.gain.cancelScheduledValues(now);
-    gain.gain.setValueAtTime(Math.max(gain.gain.value, 0.001), now);
-    gain.gain.linearRampToValueAtTime(0.001, now + 1.2);
-    noise.stop(now + 1.25);
-    lfo.stop(now + 1.25);
+    gain.gain.setValueAtTime(0, now);
+    noise.stop(now);
+    lfo.stop(now);
   } catch {}
-  spinNodes = null;
+  [noise, gain, filter, lfo, lfoGain].forEach(node => node.disconnect());
 }
 
 async function playLockSound() {
@@ -175,7 +180,8 @@ async function preloadVoiceClip() {
     try {
       const ctx = await ensureAudio();
       if (!ctx) return;
-      const res = await fetch("/destination-unknown.mp3");
+      const res = await fetch("/possible-destination.mp3");
+      if (!res.ok) throw new Error("Could not load destination voice clip");
       const arr = await res.arrayBuffer();
       voiceBuffer = await ctx.decodeAudioData(arr.slice(0));
     } catch (e) {
@@ -187,13 +193,13 @@ async function preloadVoiceClip() {
   return voiceLoadPromise;
 }
 
-async function speakDestinationUnknown() {
+async function speakPossibleDestination() {
   if (typeof window === "undefined" || !voiceAllowed) return;
   try {
     const ctx = await ensureAudio();
     if (!ctx) return;
     if (!voiceBuffer) await preloadVoiceClip();
-    if (!voiceBuffer) return;
+    if (!voiceBuffer || !voiceAllowed) return;
 
     const src = ctx.createBufferSource();
     const gain = ctx.createGain();
@@ -360,9 +366,10 @@ function Globe({ phase, onPhaseChange }: { phase: string; onPhaseChange: (p: str
       camera.position.copy(dir.multiplyScalar(dist));
       camera.lookAt(0, 0, 0);
 
-      // Soften rumble as we slow, but keep it until the end
+      // Fade during the final approach, then stop in the same frame as the globe.
       if (Math.floor(p * 20) !== Math.floor((p - delta / FLIGHT_SECONDS) * 20)) {
-        setSpinSoundLevel(0.12 * (0.35 + 0.65 * spinFade), 0.25);
+        const remaining = (1 - p) * FLIGHT_SECONDS;
+        setSpinSoundLevel(0.12 * (0.35 + 0.65 * spinFade) * Math.min(1, remaining / 0.4), Math.min(0.25, remaining));
       }
       
       if (animRef.current.progress >= 1 && !animRef.current.phaseLocked) {
@@ -633,7 +640,10 @@ export default function GlobeScene() {
     setPhase("loading");
   }, [phase]);
 
-  const handlePhaseChange = useCallback((p: string) => setPhase(p), []);
+  const handlePhaseChange = useCallback((p: string) => {
+    if (p === "arrived") stopSpinSound();
+    setPhase(p);
+  }, []);
 
   useEffect(() => {
     if (phase !== "arrived") return;
@@ -642,7 +652,7 @@ export default function GlobeScene() {
     const reveal = setTimeout(() => {
       voiceAllowed = true;
       setShowReveal(true);
-      speakDestinationUnknown();
+      speakPossibleDestination();
     }, 450);
     return () => { clearTimeout(chime); clearTimeout(reveal); };
   }, [phase]);
@@ -654,7 +664,7 @@ export default function GlobeScene() {
 
   const handleSkip = () => {
     if (phase === "waiting" || phase === "arrived") return;
-    setPhase("arrived");
+    handlePhaseChange("arrived");
   };
 
   if (routeOpen) return <PossibleDestination2027 onClose={() => setRouteOpen(false)} />;
