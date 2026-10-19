@@ -8,8 +8,9 @@ import * as THREE from "three";
 import { TextureLoader } from "three";
 
 const START = { lat: 52.3676, lng: 4.9041, name: "Amsterdam" };
-// Gela coastline, Sicily — one of the Operation Husky landing areas (July 1943).
-const DESTINATION = { lat: 37.064, lng: 14.25, name: "???" };
+// On land in Gela, just inland from the southern shore of Sicily.
+// Operation Husky landing area; keep a small inland margin for the globe texture.
+const DESTINATION = { lat: 37.0715, lng: 14.245, name: "???" };
 
 let audioCtx: AudioContext | null = null;
 let spinNodes: { noise: AudioBufferSourceNode; gain: GainNode; filter: BiquadFilterNode; lfo: OscillatorNode } | null = null;
