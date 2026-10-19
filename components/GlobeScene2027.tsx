@@ -8,10 +8,10 @@ import { useRef, useState, useEffect, useMemo, useCallback } from "react";
 import * as THREE from "three";
 import { TextureLoader } from "three";
 
-const START = { lat: 52.3676, lng: 4.9041, name: "Amsterdam" };
-// On land in Gela, just inland from the southern shore of Sicily.
-// Operation Husky landing area; keep a small inland margin for the globe texture.
-const DESTINATION = { lat: 37.0715, lng: 14.245, name: "???" };
+const START = { lat: 52.3105, lng: 4.7683, name: "Schiphol · AMS" };
+// Comiso (CIY), the nearest passenger airport to the Gela start of the itinerary.
+const DESTINATION = { lat: 36.9946, lng: 14.6072, name: "Comiso · CIY" };
+const FLIGHT_SECONDS = 6.5;
 
 let audioCtx: AudioContext | null = null;
 let spinNodes: { noise: AudioBufferSourceNode; gain: GainNode; filter: BiquadFilterNode; lfo: OscillatorNode } | null = null;
@@ -217,6 +217,54 @@ function latLngToVector3(lat: number, lng: number, radius: number): THREE.Vector
   );
 }
 
+
+function FlightRoute({ phase }: { phase: string }) {
+  const planeRef = useRef<THREE.Mesh>(null);
+  const progress = useRef(0);
+  const startPoint = useMemo(() => latLngToVector3(START.lat, START.lng, 1.012), []);
+  const route = useMemo(() => {
+    const start = latLngToVector3(START.lat, START.lng, 1).normalize();
+    const end = latLngToVector3(DESTINATION.lat, DESTINATION.lng, 1).normalize();
+    const points = Array.from({ length: 81 }, (_, i) => {
+      const t = i / 80;
+      return start.clone().lerp(end, t).normalize().multiplyScalar(1.012 + Math.sin(Math.PI * t) * 0.07);
+    });
+    return new THREE.CatmullRomCurve3(points);
+  }, []);
+  const tube = useMemo(() => new THREE.TubeGeometry(route, 100, 0.0018, 6, false), [route]);
+  const plane = useMemo(() => {
+    const shape = new THREE.Shape();
+    const points = [[0,.025],[-.004,.006],[-.021,-.006],[-.021,-.012],[-.004,-.006],[-.004,-.019],[-.009,-.023],[.009,-.023],[.004,-.019],[.004,-.006],[.021,-.012],[.021,-.006],[.004,.006]];
+    points.forEach(([x,y], i) => i === 0 ? shape.moveTo(x,y) : shape.lineTo(x,y));
+    shape.closePath();
+    return new THREE.ShapeGeometry(shape);
+  }, []);
+  useEffect(() => () => { tube.dispose(); plane.dispose(); }, [tube, plane]);
+  useEffect(() => {
+    if (phase === "flying") progress.current = 0;
+  }, [phase]);
+  useFrame((_, delta) => {
+    const visible = phase === "flying" || phase === "arrived";
+    if (phase === "flying") progress.current = Math.min(1, progress.current + delta / FLIGHT_SECONDS);
+    if (phase === "arrived") progress.current = 1;
+    const travel = Math.max(0, Math.min(1, (progress.current - .18) / .65));
+    tube.setDrawRange(0, visible ? Math.floor((tube.index?.count ?? 0) * travel / 6) * 6 : 0);
+    if (!planeRef.current) return;
+    planeRef.current.visible = phase === "flying";
+    const point = route.getPoint(travel);
+    const normal = point.clone().normalize();
+    const tangent = route.getTangent(travel).projectOnPlane(normal).normalize();
+    const side = tangent.clone().cross(normal).normalize();
+    planeRef.current.position.copy(point.clone().addScaledVector(normal, .006));
+    planeRef.current.quaternion.setFromRotationMatrix(new THREE.Matrix4().makeBasis(side, tangent, normal));
+  });
+  return <group>
+    <mesh geometry={tube}><meshBasicMaterial color="#b4ff98" transparent opacity={0.9} /></mesh>
+    <mesh ref={planeRef} geometry={plane} visible={false}><meshBasicMaterial color="#f2ffe9" side={THREE.DoubleSide} /></mesh>
+    {(phase === "flying" || phase === "arrived") && <mesh position={startPoint}><sphereGeometry args={[0.005, 12, 12]} /><meshBasicMaterial color="#b4ff98" /></mesh>}
+  </group>;
+}
+
 function Globe({ phase, onPhaseChange }: { phase: string; onPhaseChange: (p: string) => void }) {
   const earthRef = useRef<THREE.Group>(null);
   const markerRef = useRef<THREE.Group>(null);
@@ -299,30 +347,21 @@ function Globe({ phase, onPhaseChange }: { phase: string; onPhaseChange: (p: str
         animRef.current.progress = 0;
       }
 
-      // Settle on the destination in 4.5 seconds
-      animRef.current.progress = Math.min(animRef.current.progress + delta / 4.5, 1);
+      // Keep Europe and the flight arc in view, then descend towards Comiso.
+      animRef.current.progress = Math.min(animRef.current.progress + delta / FLIGHT_SECONDS, 1);
       const p = animRef.current.progress;
-      const spinFade = Math.pow(1 - p, 2.5); // still fast early, almost frozen at the end
-      const aimP = easeInOutCubic(p);
-      const zoomP = 1 - Math.pow(1 - p, 2.4); // most zoom happens late → tension
-      // Heen-en-weer while locking on (fades out near the end)
-      const sway = Math.sin(p * Math.PI * 3) * 0.18 * Math.pow(1 - p, 1.2);
-      const swayY = Math.cos(p * Math.PI * 2) * 0.08 * Math.pow(1 - p, 1.1);
-
-      animRef.current.spinAngle += delta * animRef.current.spinSpeed * spinFade;
-      const qY = new THREE.Quaternion().setFromAxisAngle(new THREE.Vector3(0, 1, 0), animRef.current.spinAngle + sway);
-      const qX = new THREE.Quaternion().setFromAxisAngle(
-        new THREE.Vector3(1, 0, 0),
-        Math.sin(t * 2.2) * 0.25 * spinFade + swayY
-      );
-      const orbitDir = startDir.clone().applyQuaternion(qY).applyQuaternion(qX).normalize();
-      const dir = orbitDir.clone().lerp(endDir, aimP).normalize();
-      const dist = baseCam - zoomP * (baseCam - endCam);
+      const spinFade = Math.pow(1 - p, 2.5);
+      const establish = easeInOutCubic(Math.min(p / .18, 1));
+      const landing = easeInOutCubic(Math.max(0, (p - .65) / .35));
+      const midDir = startDir.clone().lerp(endDir, .5).normalize();
+      const targetDir = midDir.lerp(endDir, landing).normalize();
+      const dir = animRef.current.startCamDir.clone().lerp(targetDir, establish).normalize();
+      const dist = baseCam - landing * (baseCam - endCam);
       camera.position.copy(dir.multiplyScalar(dist));
       camera.lookAt(0, 0, 0);
 
       // Soften rumble as we slow, but keep it until the end
-      if (Math.floor(p * 20) !== Math.floor((p - delta / 4.5) * 20)) {
+      if (Math.floor(p * 20) !== Math.floor((p - delta / FLIGHT_SECONDS) * 20)) {
         setSpinSoundLevel(0.12 * (0.35 + 0.65 * spinFade), 0.25);
       }
       
@@ -375,6 +414,7 @@ function Globe({ phase, onPhaseChange }: { phase: string; onPhaseChange: (p: str
   return (
     <group ref={earthRef}>
       <mesh material={mat}><sphereGeometry args={[1, 64, 64]} /></mesh>
+      <FlightRoute phase={phase} />
       <mesh ref={atmosphereRef}>
         <sphereGeometry args={[1.06, 64, 64]} />
         <shaderMaterial transparent side={THREE.BackSide} depthWrite={false}
@@ -712,6 +752,13 @@ export default function GlobeScene() {
 
       </div>
 
+      {phase === "flying" && (
+        <div aria-label="Vlieganimatie van Schiphol naar Comiso" style={{ position: "relative", zIndex: 10, textAlign: "center", padding: ".5rem 1rem max(env(safe-area-inset-bottom),1rem)", fontFamily: "monospace", color: "#b4ff98" }}>
+          <div style={{ fontSize: "clamp(.8rem,3.5vw,1.1rem)", letterSpacing: ".12em" }}>SCHIPHOL · AMS <span aria-hidden="true">✈</span> COMISO · CIY</div>
+          <p style={{ fontSize: ".6rem", color: "#7e9e82", margin: ".5rem 0 0" }}>MOGELIJKE VLIEGROUTE · EVENTUELE OVERSTAP NOG TE BEPALEN</p>
+        </div>
+      )}
+
       {/* Reveal */}
       {phase === "arrived" && (
         <div style={{
@@ -725,7 +772,7 @@ export default function GlobeScene() {
           <div style={{ fontSize: "clamp(1.4rem,7vw,2.5rem)", fontWeight: 900, fontFamily: "monospace", color: "#ff0040", textShadow: "0 0 15px #ff004066", lineHeight: 1.1 }}>
             POSSIBLE DESTINATION
           </div>
-          <p style={{ color: "#a9bfac", fontFamily: "monospace", fontSize: "0.75rem", margin: "0.65rem 0 0" }}>SICILY · OPERATION HUSKY</p>
+          <p style={{ color: "#a9bfac", fontFamily: "monospace", fontSize: "0.75rem", margin: "0.65rem 0 0" }}>SCHIPHOL → COMISO · SICILY</p>
           
           <button
             type="button"
@@ -774,7 +821,7 @@ export default function GlobeScene() {
           onClick={handleSkip}
           style={{
             position: "fixed", right: "1rem",
-            bottom: "max(env(safe-area-inset-bottom),1rem)", zIndex: 60,
+            bottom: phase === "flying" ? "max(env(safe-area-inset-bottom),5.25rem)" : "max(env(safe-area-inset-bottom),1rem)", zIndex: 60,
             padding: "0.75rem 1rem", border: "1px solid #00ff4166",
             borderRadius: "4px", background: "#000", color: "#00ff41",
             fontFamily: "monospace", fontSize: "0.75rem", cursor: "pointer",

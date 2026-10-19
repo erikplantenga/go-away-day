@@ -46,7 +46,7 @@ function RouteMap({ step }: { step: number }) {
   const factor = view[2] / WIDE_VIEW[2];
   const pointSize = 6 * factor;
   const labelSize = 17 * factor;
-  const offsets: [number, number, "start" | "middle" | "end"][] = [[12,-14,"start"],[-12,-14,"end"],[-10,22,"end"],[0,25,"middle"],[12,-14,"start"],[12,-14,"start"]];
+  const offsets: [number, number, "start" | "middle" | "end"][] = [[12,-18,"start"],[-12,-14,"end"],[-10,22,"end"],[0,25,"middle"],[12,-14,"start"],[12,-18,"start"]];
   const pathFrom = (coordinates: readonly RouteCoordinate[]) => coordinates.map((c, i) => {
     const [x, y] = projectCoordinate(c);
     return (i === 0 ? "M" : "L") + x.toFixed(2) + "," + y.toFixed(2);
@@ -91,7 +91,7 @@ function RouteMap({ step }: { step: number }) {
           return <g key={stop.id}>
             {active && <circle cx={x} cy={y} r={pointSize * 2.6} fill="none" stroke="#b5f18a" strokeWidth={factor} opacity=".45" className="current-point-halo" />}
             <circle cx={x} cy={y} r={pointSize} fill={color} stroke="#08211d" strokeWidth={2 * factor} />
-            {labelVisible && <text x={x + dx * factor} y={y + dy * factor} fill={active ? "#efffe3" : "#bbd3bc"} fontFamily="monospace" fontSize={labelSize} textAnchor={anchor} paintOrder="stroke" stroke="#061316" strokeWidth={4 * factor} strokeLinejoin="round">{i === 0 || i === 5 ? "CATANIA · CTA" : stop.title.toUpperCase()}</text>}
+            {labelVisible && <text x={x + dx * factor} y={y + dy * factor} fill={active ? "#efffe3" : "#bbd3bc"} fontFamily="monospace" fontSize={labelSize} textAnchor={anchor} paintOrder="stroke" stroke="#061316" strokeWidth={4 * factor} strokeLinejoin="round">{i === 0 || i === 5 ? "COMISO · CIY" : stop.title.toUpperCase()}</text>}
           </g>;
         })}
       </svg>
@@ -137,6 +137,11 @@ export default function PossibleDestination2027({ onClose }: { onClose: () => vo
         <div className="mission-intro">
           <div className="mission-eyebrow"><span /> ERIK & BENNO / THE NEXT CHAPTER</div>
           <h1>POSSIBLE <em>DESTINATION</em></h1>
+          <div className="mission-flight-ticket" aria-label="Voorgestelde vliegreis vanaf Schiphol naar Comiso">
+            <span><b>AMS</b><small>SCHIPHOL</small></span>
+            <div><i /><Icon name="plane" size={18} /><i /></div>
+            <span><b>CIY</b><small>COMISO, SICILIË</small></span>
+          </div>
           <div className="mission-subline"><p>Sicilië. Op de sporen van Operatie Husky.</p><span>ZA → WO <i /> 4 NACHTEN <i /> 3 FIETSETAPPES</span></div>
         </div>
         <main className="mission-layout">
@@ -178,6 +183,9 @@ export default function PossibleDestination2027({ onClose }: { onClose: () => vo
         .mission-wordmark{border:0;background:none;color:#b4f58d;font-family:monospace!important;font-size:16px;letter-spacing:1px;text-align:left;cursor:pointer;padding:0}
         .mission-wordmark span{color:#7e9c90;margin-left:10px;font-size:12px}
         .mission-exit{color:#a6b6ad;font-size:12px;text-decoration:none}.mission-exit span{color:#b4f58d;margin-left:9px}
+        .mission-flight-ticket{display:flex;align-items:center;gap:18px;width:fit-content;margin:0 0 19px;padding:12px 16px;border:1px solid #324b35;border-radius:9px;background:#a8ec7a05}
+        .mission-flight-ticket>span{display:flex;flex-direction:column;gap:4px}.mission-flight-ticket b{font:20px monospace;letter-spacing:2px;color:#c6efa6}.mission-flight-ticket small{font:8px monospace;letter-spacing:1px;color:#829d7c}
+        .mission-flight-ticket>div{display:flex;align-items:center;gap:9px;color:#b3f28b}.mission-flight-ticket i{height:1px;width:22px;background:#547649}
         .mission-intro{padding:32px 0 24px}.mission-eyebrow{display:flex;gap:9px;align-items:center;font:10px monospace;letter-spacing:2px;color:#a5bfae}
         .mission-eyebrow>span{height:5px;width:5px;background:#acf285;border-radius:50%;box-shadow:0 0 12px #96ef63}
         .mission-intro h1{font-size:clamp(25px,4.1vw,51px);font-weight:800;letter-spacing:-1.5px;line-height:1.04;margin:16px 0 15px}
