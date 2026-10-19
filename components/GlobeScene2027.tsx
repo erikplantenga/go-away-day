@@ -2,6 +2,7 @@
 
 import { Canvas, useFrame, useThree, useLoader } from "@react-three/fiber";
 import { Stars } from "@react-three/drei";
+import Link from "next/link";
 import { useRef, useState, useEffect, useMemo, useCallback } from "react";
 import * as THREE from "three";
 import { TextureLoader } from "three";
@@ -272,7 +273,7 @@ function Globe({ phase, onPhaseChange }: { phase: string; onPhaseChange: (p: str
     }
     
     if (phase === "spinning") {
-      // Fast spin ~6.5s, then hand off to slowdown
+      // Brief spin, then hand off to the destination approach
       animRef.current.spinElapsed += delta;
       animRef.current.spinSpeed = Math.min(animRef.current.spinSpeed + delta * 4, 4.5);
       animRef.current.spinAngle += delta * animRef.current.spinSpeed;
@@ -282,7 +283,7 @@ function Globe({ phase, onPhaseChange }: { phase: string; onPhaseChange: (p: str
       camera.position.copy(dir.multiplyScalar(baseCam));
       camera.lookAt(0, 0, 0);
       
-      if (animRef.current.spinElapsed >= 6.5 && !animRef.current.phaseLocked) {
+      if (animRef.current.spinElapsed >= 2.5 && !animRef.current.phaseLocked) {
         animRef.current.phaseLocked = true;
         onPhaseChange("flying");
       }
@@ -296,15 +297,15 @@ function Globe({ phase, onPhaseChange }: { phase: string; onPhaseChange: (p: str
         animRef.current.progress = 0;
       }
 
-      // Slowdown / zoom ~10s with more side-to-side sway
-      animRef.current.progress = Math.min(animRef.current.progress + delta / 10, 1);
+      // Settle on the destination in 4.5 seconds
+      animRef.current.progress = Math.min(animRef.current.progress + delta / 4.5, 1);
       const p = animRef.current.progress;
       const spinFade = Math.pow(1 - p, 2.5); // still fast early, almost frozen at the end
       const aimP = easeInOutCubic(p);
       const zoomP = 1 - Math.pow(1 - p, 2.4); // most zoom happens late → tension
       // Heen-en-weer while locking on (fades out near the end)
-      const sway = Math.sin(p * Math.PI * 5) * 0.55 * Math.pow(1 - p, 1.2);
-      const swayY = Math.cos(p * Math.PI * 3.2) * 0.22 * Math.pow(1 - p, 1.1);
+      const sway = Math.sin(p * Math.PI * 3) * 0.18 * Math.pow(1 - p, 1.2);
+      const swayY = Math.cos(p * Math.PI * 2) * 0.08 * Math.pow(1 - p, 1.1);
 
       animRef.current.spinAngle += delta * animRef.current.spinSpeed * spinFade;
       const qY = new THREE.Quaternion().setFromAxisAngle(new THREE.Vector3(0, 1, 0), animRef.current.spinAngle + sway);
@@ -319,7 +320,7 @@ function Globe({ phase, onPhaseChange }: { phase: string; onPhaseChange: (p: str
       camera.lookAt(0, 0, 0);
 
       // Soften rumble as we slow, but keep it until the end
-      if (Math.floor(p * 20) !== Math.floor((p - delta / 10) * 20)) {
+      if (Math.floor(p * 20) !== Math.floor((p - delta / 4.5) * 20)) {
         setSpinSoundLevel(0.12 * (0.35 + 0.65 * spinFade), 0.25);
       }
       
@@ -336,14 +337,8 @@ function Globe({ phase, onPhaseChange }: { phase: string; onPhaseChange: (p: str
     }
 
     if (markerRef.current && phase === "arrived") {
-      const flicker = Math.sin(t * 15) * 0.3 + 0.7 + Math.sin(t * 23) * 0.2;
-      markerRef.current.children.forEach((child, i) => {
-        if (child instanceof THREE.Mesh && child.material instanceof THREE.MeshBasicMaterial) {
-          child.material.opacity = i === 0 ? Math.min(1, flicker + 0.3) : flicker * 0.45;
-        }
-      });
-      const pulse = Math.sin(t * 8) * 0.1 + 1;
-      markerRef.current.scale.setScalar(pulse);
+      // A single gentle pulse keeps the destination readable.
+      markerRef.current.scale.setScalar(1 + Math.sin(t * 2) * 0.04);
     }
 
     if (atmosphereRef.current) {
@@ -500,56 +495,8 @@ function GlitchText({ text }: { text: string }) {
   return <span>{d}</span>;
 }
 
-function FlickeringQuestionMarks() {
-  const [opacities, setOpacities] = useState<number[]>(Array(10).fill(0.3));
-  
-  useEffect(() => {
-    const interval = setInterval(() => {
-      setOpacities(prev => prev.map(() => 0.25 + Math.random() * 0.75));
-    }, 100);
-    return () => clearInterval(interval);
-  }, []);
-  
-  // Around the marker, a bit more spread out
-  const positions = [
-    { top: '32%', left: '36%' }, { top: '34%', left: '62%' },
-    { top: '42%', left: '30%' }, { top: '44%', left: '68%' },
-    { top: '52%', left: '34%' }, { top: '54%', left: '64%' },
-    { top: '28%', left: '50%' }, { top: '60%', left: '48%' },
-    { top: '38%', left: '44%' }, { top: '50%', left: '54%' },
-  ];
-  
-  return (
-    <>
-      {positions.map((pos, i) => (
-        <div
-          key={i}
-          style={{
-            position: 'absolute',
-            top: pos.top,
-            left: pos.left,
-            transform: 'translate(-50%, -50%)',
-            color: '#ff0040',
-            fontFamily: 'monospace',
-            fontSize: `clamp(1.1rem, ${2.5 + (i % 3)}vw, 2rem)`,
-            fontWeight: 900,
-            textShadow: '0 0 8px #ff0040, 0 0 16px #ff0040',
-            opacity: opacities[i],
-            zIndex: 5,
-            transition: 'opacity 0.1s',
-            pointerEvents: 'none',
-          }}
-        >
-          ?
-        </div>
-      ))}
-    </>
-  );
-}
-
 const BOOT_LINES = [
   "> BOOT SEQUENCE INITIATED...",
-  "> LOADING EARTH_TEXTURE.dat",
   "> DESTINATION: UNKNOWN",
   "> READY TO GO AWAY DAY_",
 ];
@@ -561,7 +508,7 @@ export default function GlobeScene() {
   const [bootCurrent, setBootCurrent] = useState("");
   const [bootTyping, setBootTyping] = useState(false);
 
-  // 4 lines × ~3s — then crossfade into globe
+  // Three short lines, then crossfade straight into the journey
   useEffect(() => {
     if (phase !== "loading") return;
 
@@ -570,13 +517,13 @@ export default function GlobeScene() {
     let charIndex = 0;
     let timer: ReturnType<typeof setTimeout>;
     const done: string[] = [];
-    const LINE_MS = 2500;
+    const LINE_MS = 950;
 
     const typeLine = () => {
       if (cancelled) return;
       const line = BOOT_LINES[lineIndex];
       const chars = [...line];
-      const charDelay = Math.max(60, Math.floor((LINE_MS - 250) / chars.length));
+      const charDelay = Math.max(20, Math.floor((LINE_MS - 250) / chars.length));
       charIndex = 0;
 
       const typeChar = () => {
@@ -594,7 +541,7 @@ export default function GlobeScene() {
           setBootTyping(false);
           lineIndex++;
           if (lineIndex < BOOT_LINES.length) {
-            timer = setTimeout(typeLine, 250);
+            timer = setTimeout(typeLine, 120);
           } else {
             // Crossfade: earth rises from black while boot text fades out
             timer = setTimeout(() => {
@@ -613,8 +560,13 @@ export default function GlobeScene() {
 
   useEffect(() => {
     if (phase !== "fading") return;
-    const t = setTimeout(() => setPhase("idle"), 2000);
-    return () => clearTimeout(t);
+    let cancelled = false;
+    const t = setTimeout(async () => {
+      await startSpinSound();
+      if (cancelled) { stopSpinSound(); return; }
+      setPhase("spinning");
+    }, 800);
+    return () => { cancelled = true; clearTimeout(t); };
   }, [phase]);
 
   const handleStartBoot = useCallback(async () => {
@@ -629,26 +581,29 @@ export default function GlobeScene() {
     setPhase("loading");
   }, [phase]);
 
-  const handleTap = useCallback(async () => {
-    if (phase !== "idle") return;
-    await ensureAudio();
-    preloadVoiceClip(); // ensure buffer ready before reveal
-    await startSpinSound();
-    setPhase("spinning");
+  const handlePhaseChange = useCallback((p: string) => setPhase(p), []);
+
+  useEffect(() => {
+    if (phase !== "arrived") return;
+    stopSpinSound();
+    const chime = setTimeout(() => playLockSound(), 120);
+    const reveal = setTimeout(() => {
+      voiceAllowed = true;
+      setShowReveal(true);
+      speakDestinationUnknown();
+    }, 450);
+    return () => { clearTimeout(chime); clearTimeout(reveal); };
   }, [phase]);
 
-  const handlePhaseChange = useCallback((p: string) => {
-    setPhase(p);
-    if (p === "arrived") {
-      stopSpinSound();
-      setTimeout(() => playLockSound(), 120);
-      setTimeout(() => {
-        voiceAllowed = true;
-        setShowReveal(true);
-        speakDestinationUnknown(); // Web Audio — same unlocked context
-      }, 450);
-    }
+  useEffect(() => () => {
+    voiceAllowed = false;
+    stopSpinSound();
   }, []);
+
+  const handleSkip = () => {
+    if (phase === "waiting" || phase === "arrived") return;
+    setPhase("arrived");
+  };
 
   return (
     <div style={{ position: "fixed", inset: 0, background: "#000", display: "flex", flexDirection: "column", overflow: "hidden" }}>
@@ -733,7 +688,6 @@ export default function GlobeScene() {
           opacity: phase === "waiting" || phase === "loading" ? 0 : 1,
           transition: "opacity 2s ease",
         }}
-        onClick={handleTap}
       >
         <Canvas camera={{ position: [0, 0, 4], fov: 50 }} style={{ position: "absolute", inset: 0, cursor: phase === "idle" ? "pointer" : "default" }} gl={{ antialias: true }}>
           <color attach="background" args={["#000"]} />
@@ -741,28 +695,8 @@ export default function GlobeScene() {
           <Globe phase={phase} onPhaseChange={handlePhaseChange} />
           <Stars radius={50} depth={25} count={300} factor={1.5} fade speed={0.2} />
         </Canvas>
-        {phase === "arrived" && showReveal && <FlickeringQuestionMarks />}
-      </div>
 
-      {/* TAP TO START - onder de globe */}
-      {phase === "idle" && (
-        <div 
-          onClick={handleTap}
-          style={{ 
-            position: "relative", zIndex: 10, textAlign: "center", 
-            paddingBottom: "max(env(safe-area-inset-bottom),2rem)", paddingTop: "0.5rem",
-            cursor: "pointer", flexShrink: 0,
-          }}
-        >
-          <div style={{
-            color: "#00ff41", fontSize: "clamp(1rem,4vw,1.3rem)", fontFamily: "monospace",
-            textShadow: "0 0 10px #00ff41,0 0 20px #00ff41",
-            animation: "pulse 1.5s ease-in-out infinite",
-          }}>
-            {"> TAP TO START_"}
-          </div>
-        </div>
-      )}
+      </div>
 
       {/* Reveal */}
       {phase === "arrived" && (
@@ -774,16 +708,28 @@ export default function GlobeScene() {
           <div style={{ fontSize: "clamp(.6rem,2.5vw,.8rem)", color: "#00ff41", letterSpacing: ".3em", fontFamily: "monospace", marginBottom: ".3rem", textShadow: "0 0 8px #00ff41" }}>
             {">>"} COORDINATES_LOCKED
           </div>
-          <div style={{ fontSize: "clamp(1.4rem,7vw,2.5rem)", fontWeight: 900, fontFamily: "monospace", color: "#ff0040", textShadow: "0 0 15px #ff0040,0 0 30px #ff0040,0 0 45px #ff0040", lineHeight: 1.1, animation: "glow 2s infinite" }}>
-            <GlitchText text="DESTINATION UNKNOWN" />
+          <div style={{ fontSize: "clamp(1.4rem,7vw,2.5rem)", fontWeight: 900, fontFamily: "monospace", color: "#ff0040", textShadow: "0 0 15px #ff004066", lineHeight: 1.1 }}>
+            DESTINATION UNKNOWN
           </div>
           
+          <Link
+            href="/ideeen-2027"
+            style={{
+              display: "block", width: "fit-content", margin: "1.25rem auto 0",
+              padding: "0.8rem 1.2rem", background: "#00ff41", color: "#000",
+              borderRadius: "4px", fontFamily: "monospace", fontWeight: 700,
+              fontSize: "clamp(0.75rem, 3vw, 0.95rem)", textDecoration: "none",
+            }}
+          >
+            DEEL JE IDEEËN VOOR 2027 →
+          </Link>
+
           {/* Back to 2026 button */}
-          <a 
+          <Link 
             href="/"
             style={{
               display: "inline-block",
-              marginTop: "1.5rem",
+              marginTop: "0.6rem",
               padding: "0.6rem 1.2rem",
               background: "rgba(0, 255, 65, 0.1)",
               border: "1px solid #00ff41",
@@ -798,8 +744,24 @@ export default function GlobeScene() {
             }}
           >
             {"<"} BACK TO 2026
-          </a>
+          </Link>
         </div>
+      )}
+
+      {phase !== "waiting" && phase !== "arrived" && (
+        <button
+          type="button"
+          onClick={handleSkip}
+          style={{
+            position: "fixed", right: "1rem",
+            bottom: "max(env(safe-area-inset-bottom),1rem)", zIndex: 60,
+            padding: "0.75rem 1rem", border: "1px solid #00ff4166",
+            borderRadius: "4px", background: "#000", color: "#00ff41",
+            fontFamily: "monospace", fontSize: "0.75rem", cursor: "pointer",
+          }}
+        >
+          SKIP INTRO →
+        </button>
       )}
 
       {/* Corners */}
