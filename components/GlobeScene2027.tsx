@@ -8,8 +8,8 @@ import * as THREE from "three";
 import { TextureLoader } from "three";
 
 const START = { lat: 52.3676, lng: 4.9041, name: "Amsterdam" };
-// Munich — deep inland, clearly on land with blue-marble + three-globe mapping
-const DESTINATION = { lat: 48.1351, lng: 11.5820, name: "???" };
+// Gela coastline, Sicily — one of the Operation Husky landing areas (July 1943).
+const DESTINATION = { lat: 37.064, lng: 14.25, name: "???" };
 
 let audioCtx: AudioContext | null = null;
 let spinNodes: { noise: AudioBufferSourceNode; gain: GainNode; filter: BiquadFilterNode; lfo: OscillatorNode } | null = null;
