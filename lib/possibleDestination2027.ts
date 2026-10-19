@@ -70,14 +70,14 @@ export const ROUTE_STOPS: readonly RouteStop[] = [
     source: { label: "De oorlog rond Scoglitti", url: "https://www.museosicilia1943.it/site/la-guerra-nel-ragusano/" },
   },
   {
-    id: "marina", title: "Marina di Ragusa", kicker: "Sea air. Slow miles.",
+    id: "marina", title: "Marina di Ragusa", kicker: "Husky-kust, snorkelpauzes en zeelucht",
     day: "Maandag · fietsetappe 02", mode: "bike", coordinate: [14.553, 36.784],
     distance: "ca. 25–30 km", overnight: "Marina di Ragusa · nacht 3",
-    description: "Via de omgeving van Punta Braccetto en Punta Secca naar Marina di Ragusa. Een ontspannen kustdag met ruimte voor een lange lunch.",
+    description: "Via de Amerikaanse landingskust naar Punta Braccetto, Punta Secca en Caucana. Twee snorkelpauzes passen in deze korte fietsdag, als de zee het toelaat. Daarna slapen in Marina di Ragusa en een biertje bij SODO.",
     history: "De verhalen van de landingen reizen met jullie mee. Vandaag ligt het accent op de kust en de dorpjes; een lokale oorlogshistorische stop kan vooraf worden toegevoegd.",
     evening: "Slapen in de badplaats, flaneren over de boulevard en eten rond het plein of de jachthaven.",
-    practical: "Kies bij de routeplanning de geschikte binnenwegen waar de kust niet doorloopt. Definitieve GPX en lokale stops nog vastleggen.",
-    via: [[14.448,36.867],[14.469,36.841],[14.493,36.811],[14.493,36.789],[14.523,36.786]],
+    practical: "Een eerste fietsrouteberekening via Punta Braccetto en Caucana komt uit op circa 25 km; houd 25–30 km aan voor lokale omwegen. Neem een masker, snorkel en compacte zwemspullen mee. Twee zeepauzes op maandag; WO2-bezoeken houden voorrang. Instap en zeecondities ter plaatse beoordelen en de definitieve GPX nog controleren.",
+    via: [[14.448,36.867],[14.467,36.821],[14.493,36.789],[14.5042,36.7879],[14.523,36.786]],
     source: { label: "Fietsen langs de zuidkust", url: "https://periplodellasicilia.com/traccia-periplo-della-sicilia-in-bici/" },
   },
   {

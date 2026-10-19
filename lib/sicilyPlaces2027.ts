@@ -23,9 +23,20 @@ export type BeerStop = {
   alternative?: { name: string; mapQuery: string; infoUrl: string };
 };
 
+export type SnorkelStop = {
+  name: string;
+  when: string;
+  description: string;
+  location: string;
+  mapQuery: string;
+  infoUrl: string;
+  plan: string;
+};
+
 export type DayPlaces = {
   visits?: readonly VisitStop[];
   beer?: BeerStop;
+  snorkel?: readonly SnorkelStop[];
 };
 
 // Selected from venue websites, museums, local tourism and battlefield sources.
@@ -118,6 +129,36 @@ export const ROUTE_PLACES: Partial<Record<string, DayPlaces>> = {
     },
   },
   marina: {
+    visits: [{
+      name: "De Amerikaanse landingskust",
+      category: "Battlefield",
+      when: "Maandag · onderweg vanaf Scoglitti",
+      description: "De kust tussen de omgeving van Scoglitti en Punta Braccetto hoorde bij het landingsgebied van de Amerikaanse 45e Infanteriedivisie. Zo blijft ook de ontspannen kustdag verbonden met Operatie Husky.",
+      location: "Kuststrook Scoglitti – Punta Braccetto",
+      mapQuery: "Punta Braccetto Sicilia",
+      infoUrl: "https://www.archiviodegliiblei.it/percorsi-tematici/la-seconda-guerra-mondiale/testi-e-ricerche/",
+      note: "Laat de battlefield-gids vooraf de juiste historische posities en toegankelijke uitzichtpunten aanwijzen. Deze kuststop kan samen met de eerste snorkelpauze worden ingepland.",
+    }],
+    snorkel: [
+      {
+        name: "Punta Braccetto · Canalotti",
+        when: "Maandag · eerste zeepauze",
+        description: "De rotsen en inhammen van de Canalotti maken dit een interessante snorkelstop langs jullie bestaande fietsroute. De toeristische dienst van Ragusa noemt deze plek expliciet voor snorkelen.",
+        location: "Baai van Punta Braccetto / Canalotti",
+        mapQuery: "Canalotti Punta Braccetto snorkeling",
+        infoUrl: "https://www.ragusawelcome.com/it/ragusawelcome/perche-visitare-ragusa/sport/snorkeling-a-punta-braccetto",
+        plan: "Reserveer ongeveer 45–60 minuten voor omkleden, een korte sessie en afdrogen. Kies lokaal een toegankelijke instap; alleen bij rustige zee en goed zicht. Als de rotskust te onrustig is, blijft dit een kustwandeling.",
+      },
+      {
+        name: "Caucana · Lungomare delle Anticaglie",
+        when: "Maandag · tweede zeepauze",
+        description: "Een tweede moment met masker en snorkel tussen Punta Secca en Marina di Ragusa. De combinatie van zand, lage rotsen en ondieper water biedt hier afwisseling onder water.",
+        location: "Spiaggia di Caucana · Lungomare delle Anticaglie",
+        mapQuery: "Spiaggia di Caucana Lungomare delle Anticaglie",
+        infoUrl: "https://www.enjoybarocco.com/en/points-of-interest/caucana-beach/",
+        plan: "Plan circa 30–45 minuten in het water, afhankelijk van hoe jullie je voelen. Ook deze stop is afhankelijk van wind, golven en zicht. Daarna door naar Marina di Ragusa en het avondbiertje bij SODO.",
+      },
+    ],
     beer: {
       name: "SODO Bar",
       location: "Via del Mare 1 · Marina di Ragusa",

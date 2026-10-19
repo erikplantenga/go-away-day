@@ -5,7 +5,7 @@ import Link from "next/link";
 import { ROUTE_PLACES, type DayPlaces } from "@/lib/sicilyPlaces2027";
 import { ROUTE_STOPS, SICILY_PATHS, projectCoordinate, type RouteCoordinate } from "@/lib/possibleDestination2027";
 
-type IconName = "plane" | "bike" | "bed" | "history" | "arrow" | "transfer" | "pin" | "beer";
+type IconName = "plane" | "bike" | "bed" | "history" | "arrow" | "transfer" | "pin" | "beer" | "snorkel";
 function Icon({ name, size = 20 }: { name: IconName; size?: number }) {
   const paths: Record<IconName, string[]> = {
     plane: ["m22 2-7 20-4-9-9-4 20-7Z", "M22 2 11 13"],
@@ -14,6 +14,7 @@ function Icon({ name, size = 20 }: { name: IconName; size?: number }) {
     history: ["M4 21h16M6 21V10h12v11M9 10V4h6v6M9 15h6M9 18h6"],
     arrow: ["M4 12h16m-6-6 6 6-6 6"],
     transfer: ["M3 16V7h13l5 5v4H3", "M7 16a2 2 0 1 0 0 .01", "M17 16a2 2 0 1 0 0 .01", "M3 11h17"],
+    snorkel: ["M3 9h15v6a3 3 0 0 1-3 3h-2l-2-3-2 3H6a3 3 0 0 1-3-3V9Z", "M18 11h3V3h-3", "M6 12h3m4 0h2"],
     beer: ["M6 3h11l-1 18H7L6 3Z", "M17 7h2a3 3 0 0 1 0 6h-2", "M10 7v9m3-9v9"],
     pin: ["M20 10c0 6-8 12-8 12S4 16 4 10a8 8 0 1 1 16 0Z", "M15 10a3 3 0 1 1-6 0 3 3 0 0 1 6 0"],
   };
@@ -42,6 +43,21 @@ function PlaceCards({ places }: { places: DayPlaces }) {
             <a href={visit.infoUrl} target="_blank" rel="noopener noreferrer">{visit.category === "Museum" ? "Museuminfo" : visit.category === "Stadje" ? "Bezoektip" : "Achtergrond"} ↗</a>
             {visit.bookingUrl && <a href={visit.bookingUrl} target="_blank" rel="noopener noreferrer">{visit.category === "Museum" ? "Afspraak aanvragen" : "Gids aanvragen"} ↗</a>}
           </div>
+        </li>)}
+      </ol>
+    </section>}
+    {!!places.snorkel?.length && <section className="snorkel-section" aria-label="Snorkelstops langs de route">
+      <div className="places-section-title"><Icon name="snorkel" size={19} /><h3>Tussendoor even snorkelen</h3></div>
+      <p className="snorkel-priority">WO2 blijft de hoofdzaak. Twee zeepauzes op de korte kustdag; we kiezen ter plaatse wat de zee toelaat.</p>
+      <ol className="snorkel-list">
+        {places.snorkel.map((spot, i) => <li className="snorkel-card" key={spot.name}>
+          <div className="place-labels"><span>SNORKELMOMENT {String(i + 1).padStart(2,"0")}</span><span>BIJ RUSTIGE ZEE</span></div>
+          <h4>{spot.name}</h4>
+          <p className="place-timing">{spot.when}</p>
+          <p className="place-description">{spot.description}</p>
+          <div className="place-address"><Icon name="pin" size={13} /><span>{spot.location}</span></div>
+          <details className="place-planning"><summary>Tijd, instap & zeecondities <span>+</span></summary><p>{spot.plan}</p></details>
+          <div className="place-links"><a href={mapSearch(spot.mapQuery)} target="_blank" rel="noopener noreferrer">Open kaart ↗</a><a href={spot.infoUrl} target="_blank" rel="noopener noreferrer">Snorkelinfo ↗</a></div>
         </li>)}
       </ol>
     </section>}
@@ -230,6 +246,13 @@ export default function PossibleDestination2027({ onClose }: { onClose: () => vo
         <footer className="mission-footer"><span>OPERATION HUSKY / SICILY, JULY 1943</span><div><a href="https://github.com/guglielmo/geojson-italy" target="_blank" rel="noopener noreferrer">Kustlijn: Openpolis</a> · <a href="https://creativecommons.org/licenses/by/4.0/" target="_blank" rel="noopener noreferrer">CC BY 4.0</a> · vereenvoudigd</div></footer>
       </div>
       <style jsx global>{`
+
+
+        .snorkel-section{margin-top:24px}.snorkel-section .places-section-title{color:#8dd7d4}.snorkel-priority{font-size:11px;line-height:1.75;color:#91b4ad;margin:0 0 13px}
+        .snorkel-list{list-style:none;padding:0;margin:0;display:flex;flex-direction:column;gap:12px}.snorkel-card{padding:16px;border:1px solid #35585a;border-radius:10px;background:linear-gradient(135deg,#12323766,#112b2266)}
+        .snorkel-card h4{font-size:14px;line-height:1.5;color:#d3eeea;font-weight:500;margin:0 0 6px}.snorkel-card .place-labels>span{color:#89c9c7}.snorkel-card .place-labels>span+span{font-size:7px;color:#80a8a3;margin-left:auto}
+        .snorkel-card .place-timing{color:#83b4ad}.snorkel-card .place-description{color:#a0bfb7}.snorkel-card .place-planning{border-color:#2e4847}.snorkel-card .place-planning summary{color:#9ccbc2}.snorkel-card .place-planning p{color:#95b4a7}
+        .snorkel-card .place-links a{border-color:#406766;color:#a8dcd5;background:#8ac9c605}
 
         .day-places{margin-top:22px}.places-section-title{display:flex;align-items:center;gap:8px;color:#a8cc92;margin-bottom:12px}.places-section-title h3{font-size:12px;margin:0;font-weight:600}.places-section-title>span{font:7px monospace;letter-spacing:.5px;margin-left:auto;color:#8e916e}
         .visit-list{list-style:none;padding:0;margin:0;display:flex;flex-direction:column;gap:12px}.visit-card{padding:16px;border:1px solid #324332;border-radius:10px;background:#14201566}
