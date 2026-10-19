@@ -20,13 +20,14 @@ function Icon({ name, size = 20 }: { name: IconName; size?: number }) {
 
 const WIDE_VIEW = [40, 15, 920, 620];
 const COAST_VIEW = [445, 340, 320, 215];
+const TRANSFER_VIEW = [475, 260, 365, 255];
 
 function RouteMap({ step }: { step: number }) {
   const [view, setView] = useState(WIDE_VIEW);
   const viewRef = useRef(WIDE_VIEW);
   const zoomed = step > 0 && step < ROUTE_STOPS.length - 1;
+  const target = step === 1 ? TRANSFER_VIEW : zoomed ? COAST_VIEW : WIDE_VIEW;
   useEffect(() => {
-    const target = zoomed ? COAST_VIEW : WIDE_VIEW;
     const start = [...viewRef.current];
     let frame = 0;
     let started: number | undefined;
@@ -42,11 +43,11 @@ function RouteMap({ step }: { step: number }) {
     };
     frame = requestAnimationFrame(animate);
     return () => cancelAnimationFrame(frame);
-  }, [zoomed]);
+  }, [target]);
   const factor = view[2] / WIDE_VIEW[2];
   const pointSize = 6 * factor;
-  const labelSize = 17 * factor;
-  const offsets: [number, number, "start" | "middle" | "end"][] = [[12,-18,"start"],[-12,-14,"end"],[-10,22,"end"],[0,25,"middle"],[12,-14,"start"],[12,-18,"start"]];
+  const labelSize = 26 * factor;
+  const offsets: [number, number, "start" | "middle" | "end"][] = [[-12,-20,"end"],[-12,-14,"end"],[-10,22,"end"],[0,25,"middle"],[12,-14,"start"],[-12,-20,"end"]];
   const pathFrom = (coordinates: readonly RouteCoordinate[]) => coordinates.map((c, i) => {
     const [x, y] = projectCoordinate(c);
     return (i === 0 ? "M" : "L") + x.toFixed(2) + "," + y.toFixed(2);
@@ -54,7 +55,7 @@ function RouteMap({ step }: { step: number }) {
 
   return (
     <div className="mission-map">
-      <div className="map-topline"><span><i /> LIVE ROUTE REVEAL</span><span>37° N / 14° E</span></div>
+      <div className="map-topline"><span><i /> {step === 1 ? "TRANSFER · CATANIA → GELA" : "LIVE ROUTE REVEAL"}</span><span>37° N / 14° E</span></div>
       <svg className="sicily-map" viewBox={view.join(" ")} role="img" aria-label={"Kaart van Sicilië. Huidige stop: " + ROUTE_STOPS[step].title + ". Alleen de al ontdekte routepunten zijn zichtbaar."}>
         <defs>
           <radialGradient id="sicily-land"><stop stopColor="#154333" /><stop offset="1" stopColor="#0b2421" /></radialGradient>
@@ -157,7 +158,14 @@ export default function PossibleDestination2027({ onClose }: { onClose: () => vo
               <div className="stop-kicker"><span>{stop.day}</span><span>{String(step + 1).padStart(2,"0")} / 06</span></div>
               <div className="stop-title-row"><h2 ref={heading} tabIndex={-1}>{stop.title}</h2><div className="stop-mode"><Icon name={stop.mode === "bike" ? "bike" : stop.mode === "arrival" || stop.mode === "return" ? "plane" : "transfer"} size={28} /></div></div>
               <p className="stop-tagline">{stop.kicker}</p>
-              <div className="stop-facts"><div><span>{stop.mode === "bike" ? "FIETSAFSTAND" : "REIS"}</span><strong>{stop.distance}</strong></div><div><span><Icon name="bed" size={13} /> OVERNACHTING</span><strong>{stop.overnight}</strong></div></div>
+              {stop.connection && (
+                <div className="stop-connection" aria-label="Transfer van Catania Airport naar Gela">
+                  <div className="connection-mode"><Icon name="transfer" size={18} /><span>{stop.connection.transport} · {stop.connection.duration} · {stop.distance}</span></div>
+                  <div className="connection-endpoints"><span>{stop.connection.from}</span><Icon name="arrow" size={18} /><strong>{stop.connection.to}</strong></div>
+                  <p>TRANSFER OP ZATERDAG · FIETSEN VANAF ZONDAG</p>
+                </div>
+              )}
+              <div className="stop-facts"><div><span>{stop.mode === "bike" ? "FIETSAFSTAND" : stop.mode === "transfer" ? "TRANSFERAFSTAND" : "REIS"}</span><strong>{stop.distance}</strong></div><div><span><Icon name="bed" size={13} /> OVERNACHTING</span><strong>{stop.overnight}</strong></div></div>
               <p className="stop-description">{stop.description}</p>
               <div className="stop-detail"><div className="stop-detail-icon"><Icon name="history" /></div><div><h3>Het verhaal van 1943</h3><p>{stop.history}</p></div></div>
               <div className="stop-detail"><div className="stop-detail-icon"><Icon name="bed" /></div><div><h3>{last ? "De herinnering" : "En daarna de stad in"}</h3><p>{stop.evening}</p></div></div>
@@ -166,7 +174,7 @@ export default function PossibleDestination2027({ onClose }: { onClose: () => vo
             </div>
             <nav className="mission-navigation" aria-label="Route bedienen">
               <button className="mission-back" type="button" disabled={step === 0 || drawing} onClick={() => goTo(step - 1)} aria-label="Vorig routepunt">←</button>
-              <button className="mission-next" type="button" disabled={drawing} onClick={() => goTo(last ? 0 : step + 1)}><span>{drawing ? "ROUTE WORDT GETEKEND" : last ? "BEKIJK DE ROUTE OPNIEUW" : step === 0 ? "NAAR DE LANDINGSTRANDEN" : "ONTDEK HET VOLGENDE PUNT"}</span><Icon name="arrow" /></button>
+              <button className="mission-next" type="button" disabled={drawing} onClick={() => goTo(last ? 0 : step + 1)}><span>{drawing ? "ROUTE WORDT GETEKEND" : last ? "BEKIJK DE ROUTE OPNIEUW" : step === 0 ? "TRANSFER CATANIA → GELA" : step === 1 ? "START FIETSETAPPE 1 · ZONDAG" : "ONTDEK HET VOLGENDE PUNT"}</span><Icon name="arrow" /></button>
             </nav>
           </section>
         </main>
@@ -217,6 +225,10 @@ export default function PossibleDestination2027({ onClose }: { onClose: () => vo
         .stop-title-row h2{font-size:clamp(27px,2.8vw,38px);line-height:1.05;letter-spacing:-1.1px;margin:0;color:#f0f6e9}.stop-title-row h2:focus{outline:none}
         .stop-mode{color:#b5ed8c;display:grid;place-items:center;flex-shrink:0;height:49px;width:49px;border:1px solid #33532e;border-radius:50%;background:#b3f28b08}
         .stop-tagline{font-family:Georgia,serif;font-style:italic;font-size:18px;color:#91ad89;margin:9px 0 21px}
+        .stop-connection{margin:0 0 20px;padding:15px;border:1px solid #79613d;border-radius:9px;background:#e8bc7908}
+        .connection-mode{display:flex;align-items:center;gap:9px;color:#e8bc79;font-size:12px;margin-bottom:12px}
+        .connection-endpoints{display:flex;flex-direction:column;gap:7px;color:#d8c9ab;font-size:12px}.connection-endpoints>svg{transform:rotate(90deg);color:#ab8550}.connection-endpoints strong{font-size:14px;color:#f0d9b5;font-weight:500}
+        .stop-connection>p{font:8px monospace;letter-spacing:.6px;line-height:1.6;color:#af9671;margin:13px 0 0}
         .stop-facts{display:grid;grid-template-columns:1fr 1.25fr;border-top:1px solid #2c3d2e;border-bottom:1px solid #2c3d2e;padding:14px 0;gap:15px}
         .stop-facts>div+div{border-left:1px solid #2c3d2e;padding-left:16px}.stop-facts span{display:flex;align-items:center;gap:5px;font:8px monospace;letter-spacing:1.1px;color:#89a27c;margin-bottom:7px}
         .stop-facts strong{font-size:13px;font-weight:500;color:#ddebd3}.stop-description{font-size:13px;line-height:1.8;color:#b9c8b2;margin:20px 0}

@@ -8,6 +8,7 @@ export type RouteStop = {
   coordinate: RouteCoordinate; distance: string; overnight: string;
   description: string; history: string; evening: string; practical: string;
   via: readonly RouteCoordinate[];
+  connection?: { from: string; to: string; duration: string; transport: string };
   source: { label: string; url: string };
 };
 
@@ -46,13 +47,14 @@ export const ROUTE_STOPS: readonly RouteStop[] = [
     via: [], source: { label: "Transavia · Schiphol–Catania", url: "https://www.transavia.com/vliegvelden/nl-nl/amsterdam-airport-schiphol/amsterdam-catania" },
   },
   {
-    id: "gela", title: "Gela", kicker: "Where the story begins",
-    day: "Zaterdag · landingstranden", mode: "transfer", coordinate: [14.245, 37.0715],
-    distance: "Transfer", overnight: "Gela · nacht 1",
-    description: "De zee waar het begon. Wandel langs de landingstranden bij Gela en ontdek de omgeving van de Amerikaanse landingen van 10 juli 1943.",
+    id: "gela", title: "Gela", kicker: "Van de luchthaven naar de landingstranden",
+    day: "Zaterdag · transfer naar Gela", mode: "transfer", coordinate: [14.245, 37.0715],
+    distance: "ca. 110 km", overnight: "Gela · nacht 1",
+    connection: { from: "Catania Airport · CTA", to: "Gela · landingstranden", duration: "ca. 1,5–2 uur", transport: "Taxi / minibus" },
+    description: "Na de landing op Catania rijden jullie met een vooraf te regelen taxi of minibus naar Gela. Dit is geen fietsetappe. In Gela bezoeken jullie de landingstranden, eten jullie in het centrum en blijven jullie slapen. De eerste fietsetappe begint zondag.",
     history: "Gela was een van de Amerikaanse landingsgebieden van Operatie Husky. Verken de kust en laat een lokale gids de gebeurtenissen tot leven brengen.",
     evening: "Aperitivo aan zee, eten in het centrum en slapen in Gela. Morgen start de eerste fietsetappe.",
-    practical: "De rit vanaf Catania naar Gela is een transfer van circa 1,5 uur, geen fietsetappe. Fiets- en bagagevervoer vooraf regelen.",
+    practical: "Reserveer een taxi of minibus voor Catania Airport → Gela. Reken op circa 110 km en 1,5–2 uur rijden, afhankelijk van verkeer en ophaalpunt. Regel ook het fiets- en bagagevervoer; de huur kan bij de start in Gela beginnen.",
     via: [[14.977,37.395],[14.827,37.285],[14.54,37.225],[14.345,37.17]],
     source: { label: "Husky & de Amerikaanse landingen", url: "https://www.museosicilia1943.it/site/chi-siamo/" },
   },
